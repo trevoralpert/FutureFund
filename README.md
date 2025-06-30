@@ -91,6 +91,8 @@ Ask questions like:
 - "How much will I have saved by December 2025?"
 - "What happens if I get a 20% raise next year?"
 - "Can I afford a $300,000 house in 3 years?"
+- "How much will my total debt be 6 months from now?"
+- "What is my exact net worth today compared to a year ago?"
 
 ### Scenario Modeling
 Create scenarios for:
