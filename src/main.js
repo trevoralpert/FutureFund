@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
+const config = require('./config');
 const isDev = process.argv.includes('--dev');
 
 let mainWindow;
@@ -123,7 +124,63 @@ app.on('activate', () => {
 ipcMain.handle('get-app-info', () => {
   return {
     name: app.getName(),
-    version: app.getVersion()
+    version: app.getVersion(),
+    isAIEnabled: config.isAIEnabled,
+    observability: config.observability.type
+  };
+});
+
+// Configuration and API testing
+ipcMain.handle('test-api-connectivity', async () => {
+  try {
+    if (!config.isAIEnabled) {
+      return {
+        success: false,
+        error: 'OpenAI API key not configured. Please set up your .env file.',
+        setup: true
+      };
+    }
+
+    // Test OpenAI API connectivity
+    const OpenAI = require('openai');
+    const openai = new OpenAI({
+      apiKey: config.openai.apiKey,
+      timeout: config.openai.timeout
+    });
+
+    // Simple test request
+    const completion = await openai.chat.completions.create({
+      model: config.openai.model,
+      messages: [{ role: 'user', content: 'Test connection' }],
+      max_tokens: 5,
+      temperature: 0
+    });
+
+    return {
+      success: true,
+      model: config.openai.model,
+      usage: completion.usage,
+      observability: config.observability.type
+    };
+  } catch (error) {
+    console.error('API connectivity test failed:', error);
+    return {
+      success: false,
+      error: error.message,
+      code: error.code || 'UNKNOWN_ERROR'
+    };
+  }
+});
+
+ipcMain.handle('get-config-status', () => {
+  return {
+    ai: {
+      enabled: config.isAIEnabled,
+      model: config.openai.model,
+      configured: !!config.openai.apiKey
+    },
+    observability: config.observability,
+    rateLimits: config.rateLimits
   };
 });
 
@@ -203,14 +260,55 @@ ipcMain.handle('run-forecast', async (event, params) => {
 ipcMain.handle('ask-chatbot', async (event, question, context) => {
   try {
     console.log('Chatbot question:', question);
-    // Placeholder - would integrate with OpenAI/Claude here
-    return { 
-      success: true, 
-      response: `I understand you're asking about "${question}". This is a placeholder response.`
+    
+    if (!config.isAIEnabled) {
+      return {
+        success: false,
+        error: 'AI features not configured. Please set up your OpenAI API key.',
+        setup: true
+      };
+    }
+
+    // Use OpenAI API
+    const OpenAI = require('openai');
+    const openai = new OpenAI({
+      apiKey: config.openai.apiKey,
+      timeout: config.openai.timeout
+    });
+
+    // Build context-aware prompt
+    const systemPrompt = `You are FutureFund AI, a personal finance assistant. You help users with financial planning, budgeting, and forecasting.
+
+Current context:
+- User has financial data: ${context?.hasData || false}
+- Current balance: ${context?.currentBalance || 'Unknown'}
+- Date range: ${context?.dateRange || 'Not specified'}
+
+Be helpful, accurate, and professional. If you need more specific financial data to answer properly, ask for it.`;
+
+    const completion = await openai.chat.completions.create({
+      model: config.openai.model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: question }
+      ],
+      max_tokens: config.openai.maxTokens,
+      temperature: config.openai.temperature
+    });
+
+    return {
+      success: true,
+      response: completion.choices[0].message.content,
+      usage: completion.usage,
+      model: config.openai.model
     };
   } catch (error) {
     console.error('Error with chatbot:', error);
-    return { success: false, error: error.message };
+    return { 
+      success: false, 
+      error: error.message,
+      code: error.code || 'CHATBOT_ERROR'
+    };
   }
 });
 

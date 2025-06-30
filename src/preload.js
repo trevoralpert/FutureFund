@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runForecast: (params) => ipcRenderer.invoke('run-forecast', params),
   askChatbot: (question, context) => ipcRenderer.invoke('ask-chatbot', question, context),
   
+  // API Configuration and Testing
+  testAPIConnectivity: () => ipcRenderer.invoke('test-api-connectivity'),
+  getConfigStatus: () => ipcRenderer.invoke('get-config-status'),
+  
   // Data import/export
   importCSV: (filePath) => ipcRenderer.invoke('import-csv', filePath),
   exportData: (format) => ipcRenderer.invoke('export-data', format),

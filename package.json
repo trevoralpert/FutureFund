@@ -9,7 +9,13 @@
     "build": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["finance", "forecasting", "ai", "desktop", "electron"],
+  "keywords": [
+    "finance",
+    "forecasting",
+    "ai",
+    "desktop",
+    "electron"
+  ],
   "author": "Trevor Alpert",
   "license": "MIT",
   "devDependencies": {
@@ -17,14 +23,15 @@
     "electron-builder": "^24.9.1"
   },
   "dependencies": {
+    "@langchain/langgraph": "^0.0.19",
+    "@langchain/openai": "^0.0.14",
+    "csv-parser": "^3.0.0",
+    "date-fns": "^3.0.0",
+    "dotenv": "^17.0.0",
     "langchain": "^0.1.0",
     "langsmith": "^0.0.48",
-    "@langchain/openai": "^0.0.14",
-    "@langchain/langgraph": "^0.0.19",
     "openai": "^4.24.0",
-    "sqlite3": "^5.1.6",
-    "csv-parser": "^3.0.0",
-    "date-fns": "^3.0.0"
+    "sqlite3": "^5.1.6"
   },
   "build": {
     "appId": "com.gauntletai.futurefund",
@@ -41,4 +48,4 @@
       "category": "public.app-category.finance"
     }
   }
-} 
+}

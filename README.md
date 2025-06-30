@@ -56,6 +56,10 @@ cd FutureFund
 # Install dependencies
 npm install
 
+# Set up environment variables
+cp environment.template .env
+# Edit .env with your API keys (see Configuration section below)
+
 # Start the application
 npm start
 ```
@@ -146,19 +150,50 @@ FutureFund uses a sophisticated AI stack:
 
 ## 🔧 Configuration
 
-### Environment Variables
-```bash
-# OpenAI API Key (for chat functionality)
-OPENAI_API_KEY=your_openai_key_here
+### Environment Variables Setup
 
-# LangSmith API Key (for AI debugging)
-LANGCHAIN_API_KEY=your_langsmith_key_here
-LANGCHAIN_TRACING_V2=true
+1. **Copy the template file:**
+   ```bash
+   cp environment.template .env
+   ```
 
-# Optional: Langfuse for open-source observability
-LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
-LANGFUSE_SECRET_KEY=your_langfuse_secret_key
-```
+2. **Get your OpenAI API key:**
+   - Visit [OpenAI API Keys](https://platform.openai.com/api-keys)
+   - Create a new API key
+   - Copy the key to your `.env` file
+
+3. **Required variables in `.env`:**
+   ```bash
+   # Required for AI features
+   OPENAI_API_KEY=sk-your-actual-openai-key-here
+   
+   # Optional: Model configuration (defaults shown)
+   OPENAI_MODEL=gpt-4o-mini
+   OPENAI_MAX_TOKENS=2000
+   OPENAI_TEMPERATURE=0.7
+   ```
+
+4. **Optional: AI observability (for debugging)**
+   ```bash
+   # LangSmith (recommended for development)
+   LANGCHAIN_TRACING_V2=true
+   LANGCHAIN_API_KEY=your_langsmith_key_here
+   LANGCHAIN_PROJECT=FutureFund
+   
+   # Or Langfuse (open-source alternative)
+   LANGFUSE_PUBLIC_KEY=your_langfuse_public_key
+   LANGFUSE_SECRET_KEY=your_langfuse_secret_key
+   ```
+
+### Testing Your Setup
+
+After setting up your `.env` file:
+
+1. **Start the application:** `npm start`
+2. **Test API connectivity:** Use the "Test API" button in the AI Assistant tab
+3. **Try a chat message:** Ask something like "What can you help me with?"
+
+The app will show clear error messages if API keys are missing or invalid.
 
 ### Mock Data
 The application currently uses generated mock data for transactions. To customize:
