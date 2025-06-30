@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FutureFund - AI-Powered Finance Forecasting</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>💰 FutureFund</h1>
+            </div>
+            <div class="header-actions">
+                <button id="syncBtn" class="btn btn-primary">
+                    <span class="btn-icon">🔄</span>
+                    Sync Data
+                </button>
+                <div class="scenario-selector">
+                    <select id="scenarioSelect">
+                        <option value="base">Base Scenario</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="ledger">
+            <span class="tab-icon">📊</span>
+            Interactive Ledger
+        </button>
+        <button class="tab-btn" data-tab="chat">
+            <span class="tab-icon">💬</span>
+            AI Assistant
+        </button>
+        <button class="tab-btn" data-tab="scenarios">
+            <span class="tab-icon">🎯</span>
+            Scenarios
+        </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Ledger Tab -->
+        <div id="ledgerTab" class="tab-content active">
+            <div class="ledger-container">
+                <div class="ledger-header">
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h3>Current Balance</h3>
+                            <div class="amount" id="currentBalance">$0.00</div>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Projected (1 Year)</h3>
+                            <div class="amount projected" id="projectedBalance">$0.00</div>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Monthly Cash Flow</h3>
+                            <div class="amount" id="monthlyCashFlow">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="ledger-controls">
+                        <div class="date-range">
+                            <label>View Period:</label>
+                            <select id="dateRange">
+                                <option value="6m">Next 6 Months</option>
+                                <option value="1y" selected>Next Year</option>
+                                <option value="2y">Next 2 Years</option>
+                                <option value="5y">Next 5 Years</option>
+                            </select>
+                        </div>
+                        <div class="view-mode">
+                            <button class="btn btn-secondary" id="toggleView">
+                                <span class="btn-icon">📈</span>
+                                Chart View
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ledger-table-container">
+                    <table id="ledgerTable" class="ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Balance</th>
+                                <th>Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerTableBody">
+                            <!-- Dynamic content will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Tab -->
+        <div id="chatTab" class="tab-content">
+            <div class="chat-container">
+                <div class="chat-header">
+                    <h2>AI Financial Assistant</h2>
+                    <p>Ask me anything about your financial future!</p>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot-message">
+                        <div class="message-avatar">🤖</div>
+                        <div class="message-content">
+                            <p>Hello! I'm your AI financial assistant. I can help you understand your financial projections and answer questions about your scenarios.</p>
+                            <p>Try asking me something like:</p>
+                            <ul>
+                                <li>"How much will I have saved by December 2025?"</li>
+                                <li>"What happens if I get a 20% raise next year?"</li>
+                                <li>"Can I afford a $300,000 house in 3 years?"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chatInput" placeholder="Ask me about your financial future..." />
+                        <button id="sendBtn" class="btn btn-primary">
+                            <span class="btn-icon">➤</span>
+                        </button>
+                    </div>
+                    <div class="quick-questions">
+                        <button class="quick-question">💡 Retirement readiness</button>
+                        <button class="quick-question">🏠 Home buying timeline</button>
+                        <button class="quick-question">📈 Investment optimization</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scenarios Tab -->
+        <div id="scenariosTab" class="tab-content">
+            <div class="scenarios-container">
+                <div class="scenarios-header">
+                    <h2>Financial Scenarios</h2>
+                    <button id="newScenarioBtn" class="btn btn-primary">
+                        <span class="btn-icon">➕</span>
+                        New Scenario
+                    </button>
+                </div>
+                <div class="scenarios-grid" id="scenariosGrid">
+                    <!-- Dynamic scenario cards will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Processing financial data...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="renderer.js"></script>
+</body>
+</html> 

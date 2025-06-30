@@ -1,0 +1,233 @@
+# FutureFund - AI-Powered Personal Finance Forecasting Desktop App
+
+## Project Context
+This is a 4-day intensive desktop application project for Gauntlet AI that uses artificial intelligence to forecast personal finances, model life scenarios, and provide intelligent financial insights. The app leverages local processing power and desktop-specific capabilities to create sophisticated financial planning tools.
+
+## Tech Stack & Dependencies
+- **Framework**: Electron (cross-platform desktop app)
+- **Frontend**: HTML5, CSS3, Vanilla JavaScript (ES6+)
+- **AI/ML**: LangChain, LangGraph, OpenAI API, LangSmith/Langfuse
+- **Data**: Local JSON/SQLite storage, future API integrations
+- **Build**: npm, electron-builder
+- **Platform**: Desktop-first (macOS, Windows, Linux)
+
+## Project Structure
+```
+FutureFund/
+├── src/
+│   ├── main.js              # Electron main process
+│   ├── preload.js           # Secure IPC bridge
+│   └── renderer/
+│       ├── index.html       # Main UI
+│       ├── styles.css       # Application styles
+│       └── renderer.js      # Frontend logic
+├── data/                    # Sample and mock data
+├── future_fund_prd.md       # Product Requirements Document
+├── future_fund_brain_lift.md # Concept & Research
+└── README.md
+```
+
+## Code Style & Standards
+
+### JavaScript
+- Use ES6+ features (arrow functions, destructuring, async/await)
+- Prefer `const` and `let` over `var`
+- Use meaningful variable names (e.g., `financialData`, `currentScenario`)
+- Add JSDoc comments for complex functions
+- Handle errors gracefully with try/catch blocks
+- Use consistent indentation (2 spaces)
+
+### CSS
+- Use CSS custom properties (variables) for theming
+- Follow BEM-like naming conventions for classes
+- Mobile-first responsive design principles
+- Semantic HTML structure
+
+### Electron Patterns
+- Keep main process minimal, business logic in renderer
+- Use contextBridge for secure IPC communication
+- Handle app lifecycle events properly
+- Implement proper error handling for IPC calls
+
+## AI Integration Guidelines
+
+### LangChain/LangGraph
+- Structure AI workflows as composable chains
+- Use proper state management for multi-step processes
+- Implement proper error handling for API calls
+- Add logging/tracing with LangSmith for debugging
+- Keep API keys secure in environment variables
+
+### Financial AI Patterns
+- Validate financial data before processing
+- Use appropriate number formatting for currency
+- Implement confidence scoring for predictions
+- Handle edge cases in financial calculations
+- Maintain data privacy and security
+
+## Development Priorities
+
+### Day 1 ✅ (Completed)
+- Project setup and Electron structure
+- Basic UI with three main tabs (Ledger, Chat, Scenarios)
+- Mock data generation system
+- IPC communication framework
+
+### Day 2 🎯 (Current Priority)
+- LangGraph workflow implementation
+- Real AI chat functionality with OpenAI
+- Enhanced forecasting algorithms
+- Data persistence layer
+
+### Day 3-4 📈
+- Advanced scenario modeling
+- Data visualization (charts/graphs)
+- Export/import functionality
+- Polish and optimization
+
+## Key Features to Implement
+
+### Core Functionality
+- Interactive financial ledger with filtering
+- AI-powered chat for financial questions
+- Scenario creation and comparison tools
+- Predictive financial modeling
+- Real-time balance projections
+
+### AI Capabilities
+- Natural language financial queries
+- Multi-step forecasting workflows
+- Scenario impact analysis
+- Intelligent categorization
+- Trend analysis and insights
+
+## Financial Data Handling
+
+### Data Structure
+```javascript
+// Transaction format
+{
+  id: string,
+  date: string (YYYY-MM-DD),
+  description: string,
+  category: string,
+  amount: number (positive for income, negative for expenses),
+  balance: number,
+  type: 'Income' | 'Expense',
+  isProjected: boolean
+}
+
+// Scenario format
+{
+  id: string,
+  name: string,
+  description: string,
+  parameters: object,
+  createdAt: string
+}
+```
+
+### Security Considerations
+- Never store sensitive credentials in code
+- Use read-only access for financial accounts
+- Implement proper data validation
+- Handle PII appropriately
+- Local-first data storage approach
+
+## UI/UX Guidelines
+
+### Design Principles
+- Professional financial software aesthetic
+- Clean, data-focused layouts
+- Intuitive navigation between tabs
+- Responsive design for different screen sizes
+- Accessibility considerations
+
+### Color Scheme
+- Primary: #2563eb (blue)
+- Success/Income: #10b981 (green)
+- Danger/Expense: #ef4444 (red)
+- Secondary: #64748b (gray)
+- Background: #f8fafc (light gray)
+
+### Typography
+- Primary font: Inter
+- Monospace for financial numbers
+- Clear hierarchy with font weights
+- Readable font sizes (14px+ for body text)
+
+## Testing & Debugging
+
+### Electron Debugging
+- Use Chrome DevTools for renderer process
+- Console logging for main process debugging
+- Test cross-platform compatibility
+- Handle app lifecycle properly
+
+### AI/LangGraph Debugging
+- Enable LangSmith tracing for AI workflows
+- Log API calls and responses
+- Test edge cases in financial calculations
+- Validate AI outputs before display
+
+## Performance Considerations
+- Lazy load large datasets
+- Optimize re-renders in UI updates
+- Efficient data filtering and sorting
+- Background processing for AI tasks
+- Memory management for long-running processes
+
+## Common Patterns to Follow
+
+### Error Handling
+```javascript
+try {
+  const result = await electronAPI.someOperation();
+  if (result.success) {
+    // Handle success
+  } else {
+    console.error('Operation failed:', result.error);
+  }
+} catch (error) {
+  console.error('Unexpected error:', error);
+}
+```
+
+### IPC Communication
+```javascript
+// In preload.js
+contextBridge.exposeInMainWorld('electronAPI', {
+  operationName: (params) => ipcRenderer.invoke('operation-name', params)
+});
+
+// In main.js
+ipcMain.handle('operation-name', async (event, params) => {
+  // Implementation
+});
+```
+
+### AI Workflow Structure
+```javascript
+// LangGraph chain example
+const forecastChain = new LangGraph()
+  .addNode('loadData', loadFinancialData)
+  .addNode('analyze', analyzePatterns)
+  .addNode('project', projectFuture)
+  .addEdge('loadData', 'analyze')
+  .addEdge('analyze', 'project');
+```
+
+## When Asking for Help
+- Provide context about which part of the app you're working on
+- Include relevant error messages or console output
+- Specify if the issue is in main process, renderer, or AI integration
+- Mention which development day/milestone you're targeting
+- Include sample data structures when discussing data handling
+
+## Success Criteria
+- Desktop app launches and runs smoothly
+- AI chat provides meaningful financial insights
+- Scenario modeling shows realistic projections
+- UI is professional and intuitive
+- Code is maintainable and well-documented
+- Meets 4-day development timeline goals 

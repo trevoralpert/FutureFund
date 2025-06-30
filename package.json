@@ -1,0 +1,44 @@
+{
+  "name": "futurefund",
+  "version": "1.0.0",
+  "description": "AI-Powered Personal Finance Forecasting Desktop App",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["finance", "forecasting", "ai", "desktop", "electron"],
+  "author": "Trevor Alpert",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "dependencies": {
+    "langchain": "^0.1.0",
+    "langsmith": "^0.0.48",
+    "@langchain/openai": "^0.0.14",
+    "@langchain/langgraph": "^0.0.19",
+    "openai": "^4.24.0",
+    "sqlite3": "^5.1.6",
+    "csv-parser": "^3.0.0",
+    "date-fns": "^3.0.0"
+  },
+  "build": {
+    "appId": "com.gauntletai.futurefund",
+    "productName": "FutureFund",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.finance"
+    }
+  }
+} 
