@@ -238,21 +238,79 @@ ipcMain.handle('delete-scenario', async (event, scenarioId) => {
   }
 });
 
-// AI/LangGraph operations (placeholders for now)
+// Import workflow orchestrator
+const { orchestrator } = require('./workflows/workflow-orchestrator');
+
+// AI/LangGraph operations
 ipcMain.handle('run-forecast', async (event, params) => {
   try {
     console.log('Running forecast with params:', params);
-    // Placeholder - would integrate with LangGraph here
-    return { 
-      success: true, 
-      forecast: {
-        projectedBalance: 25000,
-        timeframe: '1 year',
-        confidence: 0.85
+    
+    // Validate input data
+    const validationErrors = orchestrator.validateInputData(params);
+    if (validationErrors.length > 0) {
+      return {
+        success: false,
+        error: 'Invalid input data',
+        details: validationErrors
+      };
+    }
+
+    // Execute LangGraph workflow
+    const result = await orchestrator.executeForecastWorkflow(params, {
+      useCache: true,
+      timeout: 60000,
+      onProgress: (progress) => {
+        // Send progress updates to renderer
+        event.sender.send('forecast-progress', progress);
       }
-    };
+    });
+
+    return result;
+    
   } catch (error) {
     console.error('Error running forecast:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// New workflow management handlers
+ipcMain.handle('cancel-forecast', async (event, workflowId) => {
+  try {
+    const cancelled = orchestrator.cancelWorkflow(workflowId);
+    return { success: true, cancelled };
+  } catch (error) {
+    console.error('Error cancelling forecast:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-workflow-status', async (event, workflowId) => {
+  try {
+    const status = orchestrator.getWorkflowStatus(workflowId);
+    return { success: true, status };
+  } catch (error) {
+    console.error('Error getting workflow status:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('workflow-health-check', async () => {
+  try {
+    const health = await orchestrator.healthCheck();
+    return { success: true, health };
+  } catch (error) {
+    console.error('Error checking workflow health:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('clear-workflow-cache', async () => {
+  try {
+    orchestrator.clearCache();
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing workflow cache:', error);
     return { success: false, error: error.message };
   }
 });

@@ -18,6 +18,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runForecast: (params) => ipcRenderer.invoke('run-forecast', params),
   askChatbot: (question, context) => ipcRenderer.invoke('ask-chatbot', question, context),
   
+  // Workflow Management
+  cancelForecast: (workflowId) => ipcRenderer.invoke('cancel-forecast', workflowId),
+  getWorkflowStatus: (workflowId) => ipcRenderer.invoke('get-workflow-status', workflowId),
+  workflowHealthCheck: () => ipcRenderer.invoke('workflow-health-check'),
+  clearWorkflowCache: () => ipcRenderer.invoke('clear-workflow-cache'),
+  
   // API Configuration and Testing
   testAPIConnectivity: () => ipcRenderer.invoke('test-api-connectivity'),
   getConfigStatus: () => ipcRenderer.invoke('get-config-status'),
@@ -41,6 +47,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onForecastComplete: (callback) => {
     ipcRenderer.on('forecast-complete', callback);
     return () => ipcRenderer.removeListener('forecast-complete', callback);
+  },
+  
+  onForecastProgress: (callback) => {
+    ipcRenderer.on('forecast-progress', callback);
+    return () => ipcRenderer.removeListener('forecast-progress', callback);
   }
 });
 
