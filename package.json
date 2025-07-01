@@ -6,8 +6,15 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npm run build:clean && electron-builder",
+    "build:clean": "rm -rf dist/",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux",
+    "pack": "electron-builder --dir",
+    "dist": "npm run build",
+    "test": "node src/test-suite.js",
+    "postinstall": "electron-builder install-app-deps"
   },
   "keywords": [
     "finance",
@@ -37,16 +44,64 @@
   "build": {
     "appId": "com.gauntletai.futurefund",
     "productName": "FutureFund",
+    "compression": "maximum",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "assets"
     },
     "files": [
       "src/**/*",
-      "assets/**/*",
-      "node_modules/**/*"
+      "data/**/*",
+      "!src/test-suite.js",
+      "!**/*.test.js",
+      "!**/*.spec.js",
+      "!**/node_modules/.cache"
+    ],
+    "extraFiles": [
+      {
+        "from": "environment.template",
+        "to": ".env.example"
+      }
     ],
     "mac": {
-      "category": "public.app-category.finance"
+      "category": "public.app-category.finance",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "trevoralpert",
+      "repo": "FutureFund"
     }
   }
 }

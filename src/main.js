@@ -67,10 +67,23 @@ app.whenReady().then(async () => {
     // Continue with app startup even if database fails
   }
   
-  // Clear cache to prevent old API calls
-  if (process.env.NODE_ENV !== 'production') {
+  // Environment-specific optimizations
+  if (process.env.NODE_ENV === 'production') {
+    // Production optimizations
+    console.log('🚀 Starting FutureFund in production mode');
+    
+    // Disable unnecessary features for performance
+    app.commandLine.appendSwitch('--disable-features', 'VizDisplayCompositor');
+    app.commandLine.appendSwitch('--disable-web-security');
+    
+    // Enable performance optimizations
+    app.commandLine.appendSwitch('--enable-gpu-rasterization');
+    app.commandLine.appendSwitch('--enable-zero-copy');
+  } else {
+    // Development: Clear cache to prevent old API calls
     session.defaultSession.clearCache();
     session.defaultSession.clearStorageData();
+    console.log('🛠️ Starting FutureFund in development mode');
   }
   
   createWindow();
