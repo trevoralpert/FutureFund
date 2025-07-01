@@ -80,10 +80,12 @@ class FutureFundApp {
             });
         });
 
-        // Ledger controls
-        document.getElementById('dateRange').addEventListener('change', (e) => {
-            this.refreshLedger();
-        });
+        // Ledger controls with debouncing for performance
+        document.getElementById('dateRange').addEventListener('change', 
+            window.performanceManager.debounce('dateRange', () => {
+                this.refreshLedger();
+            }, 200)
+        );
 
         document.getElementById('toggleView').addEventListener('click', () => {
             this.toggleLedgerView();
@@ -127,19 +129,25 @@ class FutureFundApp {
             this.openScenarioModal();
         });
 
-        // Chart controls
-        document.getElementById('categoryChartType')?.addEventListener('change', (e) => {
-            this.updateCategoryChart(e.target.value);
-        });
+        // Chart controls with debouncing
+        document.getElementById('categoryChartType')?.addEventListener('change', 
+            window.performanceManager.debounce('categoryChart', (e) => {
+                this.updateCategoryChart(e.target.value);
+            }, 150)
+        );
 
-        document.getElementById('trendsTimeframe')?.addEventListener('change', (e) => {
-            this.updateTrendsChart(e.target.value);
-        });
+        document.getElementById('trendsTimeframe')?.addEventListener('change', 
+            window.performanceManager.debounce('trendsChart', (e) => {
+                this.updateTrendsChart(e.target.value);
+            }, 150)
+        );
 
-        // Analytics functionality
-        document.getElementById('refreshAnalyticsBtn')?.addEventListener('click', () => {
-            this.refreshAnalytics();
-        });
+        // Analytics functionality with throttling for heavy operations
+        document.getElementById('refreshAnalyticsBtn')?.addEventListener('click', 
+            window.performanceManager.throttle('refreshAnalytics', () => {
+                this.refreshAnalytics();
+            }, 1000)
+        );
 
         document.getElementById('exportAnalyticsBtn')?.addEventListener('click', () => {
             this.exportAnalyticsReport();
@@ -400,36 +408,51 @@ class FutureFundApp {
         const dateRange = document.getElementById('dateRange').value;
         const tbody = document.getElementById('ledgerTableBody');
         
-        const filteredData = this.getFilteredData(dateRange);
-        
-        tbody.innerHTML = '';
-        
-        filteredData.forEach(transaction => {
-            const row = document.createElement('tr');
-            row.className = transaction.isProjected ? 'projected-row' : '';
+        // Measure table rendering performance
+        window.performanceManager.measurePerformance('Ledger Table Rendering', () => {
+            const filteredData = this.getFilteredData(dateRange);
             
-            row.innerHTML = `
-                <td>${this.formatDate(transaction.date)}</td>
-                <td>${transaction.description}</td>
-                <td>
-                    <span class="category-badge">
-                        ${transaction.category}
-                    </span>
-                </td>
-                <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
-                    ${this.formatCurrency(transaction.amount)}
-                </td>
-                <td class="text-right">
-                    ${this.formatCurrency(transaction.balance)}
-                </td>
-                <td>
-                    <span class="type-badge ${transaction.isProjected ? 'projected' : 'actual'}">
-                        ${transaction.isProjected ? 'Projected' : 'Actual'}
-                    </span>
-                </td>
-            `;
+            tbody.innerHTML = '';
             
-            tbody.appendChild(row);
+            // Use document fragment for efficient DOM manipulation
+            const fragment = document.createDocumentFragment();
+            
+            filteredData.forEach(transaction => {
+                const row = document.createElement('tr');
+                row.className = transaction.isProjected ? 'projected-row' : '';
+                
+                row.innerHTML = `
+                    <td>${this.formatDate(transaction.date)}</td>
+                    <td>${transaction.description}</td>
+                    <td>
+                        <span class="category-badge">
+                            ${transaction.category}
+                        </span>
+                    </td>
+                    <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
+                        ${this.formatCurrency(transaction.amount)}
+                    </td>
+                    <td class="text-right">
+                        ${this.formatCurrency(transaction.balance)}
+                    </td>
+                    <td>
+                        <span class="type-badge ${transaction.isProjected ? 'projected' : 'actual'}">
+                            ${transaction.isProjected ? 'Projected' : 'Actual'}
+                        </span>
+                    </td>
+                `;
+                
+                fragment.appendChild(row);
+            });
+            
+            // Single DOM update for better performance
+            tbody.appendChild(fragment);
+            
+            // Track table for memory optimization
+            window.performanceManager.trackComponent(tbody, {
+                type: 'ledger-table',
+                transactionCount: filteredData.length
+            });
         });
     }
 
@@ -483,29 +506,46 @@ class FutureFundApp {
     }
 
     async generateChatResponse(message) {
+        // Create cache key based on message and data context
+        const contextHash = this.financialData?.length || 0;
+        const cacheKey = `chat_${message.toLowerCase().trim()}_${contextHash}`;
+        
+        // Check cache first
+        const cachedResponse = window.performanceManager.getCache(cacheKey);
+        if (cachedResponse) {
+            console.log('📱 Using cached AI response for:', message);
+            return cachedResponse;
+        }
+
         try {
-            // Prepare financial context from current data
-            const context = this.buildFinancialContext();
-            
-            // Debug: Log the context being sent to AI
-            console.log('🔍 Financial context being sent to AI:', {
-                hasData: context.hasData,
-                totalTransactions: context.totalTransactions,
-                totalProjectedTransactions: context.totalProjectedTransactions,
-                dateRange: context.dateRange,
-                allTransactionsCount: context.allTransactions?.length,
-                allTransactionDates: context.allTransactions?.map(t => t.date)
-            });
-            
-            // Send debug info to main process (visible in terminal)
-            electronAPI.logDebug('Financial Context Debug', {
-                message: `Sending ALL ${context.allTransactions?.length || 0} transactions to AI`,
-                dateRange: context.dateRange,
-                sampleDates: context.allTransactions?.slice(0, 10).map(t => t.date) || []
-            });
-            
-            // Use enhanced chat service
-            const result = await electronAPI.askChatbot(message, context);
+            // Measure performance of AI chat operations
+            const result = await window.performanceManager.measurePerformance(
+                'AI Chat Response',
+                async () => {
+                    // Prepare financial context from current data
+                    const context = this.buildFinancialContext();
+                    
+                    // Debug: Log the context being sent to AI
+                    console.log('🔍 Financial context being sent to AI:', {
+                        hasData: context.hasData,
+                        totalTransactions: context.totalTransactions,
+                        totalProjectedTransactions: context.totalProjectedTransactions,
+                        dateRange: context.dateRange,
+                        allTransactionsCount: context.allTransactions?.length,
+                        allTransactionDates: context.allTransactions?.map(t => t.date)
+                    });
+                    
+                    // Send debug info to main process (visible in terminal)
+                    electronAPI.logDebug('Financial Context Debug', {
+                        message: `Sending ALL ${context.allTransactions?.length || 0} transactions to AI`,
+                        dateRange: context.dateRange,
+                        sampleDates: context.allTransactions?.slice(0, 10).map(t => t.date) || []
+                    });
+                    
+                    // Use enhanced chat service
+                    return await electronAPI.askChatbot(message, context);
+                }
+            );
             
             if (result.success) {
                 // Store additional response data for debugging
@@ -516,6 +556,9 @@ class FutureFundApp {
                         sessionId: result.sessionId
                     });
                 }
+                
+                // Cache the successful response
+                window.performanceManager.setCache(cacheKey, result.response);
                 
                 return result.response;
             } else {
@@ -2144,7 +2187,7 @@ ${health.status === 'healthy' ?
     // ANALYTICS FUNCTIONALITY
     // =============================================================================
 
-    // Initialize Analytics Tab
+    // Initialize Analytics Tab with performance optimization
     async initializeAnalytics() {
         if (!this.analyticsService || !this.financialData) {
             console.warn('Analytics service or financial data not available');
@@ -2157,19 +2200,36 @@ ${health.status === 'healthy' ?
             // Show loading state
             this.showAnalyticsLoading();
             
-            // Run complete analysis
-            const analysis = this.analyticsService.runCompleteAnalysis(this.financialData);
+            // Run complete analysis with performance measurement
+            const analysis = await window.performanceManager.measurePerformance(
+                'Analytics Complete Analysis',
+                async () => {
+                    return this.analyticsService.runCompleteAnalysis(this.financialData);
+                }
+            );
+            
             console.log('📊 Analytics results:', analysis);
             
-            // Populate UI with results
-            this.populateHealthScore(analysis.healthScore);
-            this.populateSpendingHabits(analysis.spendingHabits);
-            this.populateAnomalies(analysis.anomalies);
-            this.populateSeasonalPatterns(analysis.seasonalPatterns);
-            this.populateGoalProgress(analysis.goalProgress);
+            // Populate UI with results using performance tracking
+            await window.performanceManager.measurePerformance('Analytics UI Population', async () => {
+                this.populateHealthScore(analysis.healthScore);
+                this.populateSpendingHabits(analysis.spendingHabits);
+                this.populateAnomalies(analysis.anomalies);
+                this.populateSeasonalPatterns(analysis.seasonalPatterns);
+                this.populateGoalProgress(analysis.goalProgress);
+            });
             
             // Hide loading state
             this.hideAnalyticsLoading();
+            
+            // Track analytics container for memory optimization
+            const analyticsContainer = document.querySelector('.analytics-container');
+            if (analyticsContainer) {
+                window.performanceManager.trackComponent(analyticsContainer, {
+                    type: 'analytics',
+                    transactionCount: this.financialData.length
+                });
+            }
             
         } catch (error) {
             console.error('❌ Analytics initialization failed:', error);
@@ -3481,3 +3541,352 @@ console.log('  ✅ Interactive tooltips');
 console.log('  ✅ Enhanced loading states');
 console.log('  ✅ Better accessibility');
 console.log('  ✅ Improved error handling');
+
+// =============================================================================
+// PERFORMANCE OPTIMIZATION UTILITIES
+// =============================================================================
+
+class PerformanceManager {
+    constructor() {
+        this.debounceTimers = new Map();
+        this.responseCache = new Map();
+        this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
+        this.maxCacheSize = 100;
+        this.memoryUsage = {
+            components: new WeakMap(),
+            cleanupIntervals: new Set()
+        };
+        
+        this.initializePerformanceMonitoring();
+    }
+
+    // =============================================================================
+    // DEBOUNCING UTILITIES
+    // =============================================================================
+
+    /**
+     * Debounce function calls to prevent excessive executions
+     * @param {string} key - Unique identifier for the debounced operation
+     * @param {Function} func - Function to debounce
+     * @param {number} delay - Delay in milliseconds (default: 300ms)
+     * @returns {Function} Debounced function
+     */
+    debounce(key, func, delay = 300) {
+        return (...args) => {
+            // Clear existing timer
+            if (this.debounceTimers.has(key)) {
+                clearTimeout(this.debounceTimers.get(key));
+            }
+
+            // Set new timer
+            const timer = setTimeout(() => {
+                func.apply(this, args);
+                this.debounceTimers.delete(key);
+            }, delay);
+
+            this.debounceTimers.set(key, timer);
+        };
+    }
+
+    /**
+     * Throttle function calls to limit execution frequency
+     * @param {string} key - Unique identifier for the throttled operation
+     * @param {Function} func - Function to throttle
+     * @param {number} limit - Time limit in milliseconds (default: 100ms)
+     * @returns {Function} Throttled function
+     */
+    throttle(key, func, limit = 100) {
+        let inThrottle = false;
+        return (...args) => {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    // =============================================================================
+    // CACHING SYSTEM
+    // =============================================================================
+
+    /**
+     * Cache AI responses and expensive computations
+     * @param {string} key - Cache key
+     * @param {any} data - Data to cache
+     */
+    setCache(key, data) {
+        // Implement LRU cache eviction
+        if (this.responseCache.size >= this.maxCacheSize) {
+            const firstKey = this.responseCache.keys().next().value;
+            this.responseCache.delete(firstKey);
+        }
+
+        this.responseCache.set(key, {
+            data: data,
+            timestamp: Date.now(),
+            accessCount: 1
+        });
+    }
+
+    /**
+     * Retrieve cached data
+     * @param {string} key - Cache key
+     * @returns {any|null} Cached data or null if not found/expired
+     */
+    getCache(key) {
+        const cached = this.responseCache.get(key);
+        if (!cached) return null;
+
+        // Check if cache is expired
+        if (Date.now() - cached.timestamp > this.cacheExpiry) {
+            this.responseCache.delete(key);
+            return null;
+        }
+
+        // Update access count and timestamp for LRU
+        cached.accessCount++;
+        cached.timestamp = Date.now();
+        return cached.data;
+    }
+
+    /**
+     * Clear cache entries
+     * @param {string} pattern - Optional pattern to match keys for selective clearing
+     */
+    clearCache(pattern = null) {
+        if (pattern) {
+            for (const key of this.responseCache.keys()) {
+                if (key.includes(pattern)) {
+                    this.responseCache.delete(key);
+                }
+            }
+        } else {
+            this.responseCache.clear();
+        }
+    }
+
+    // =============================================================================
+    // MEMORY OPTIMIZATION
+    // =============================================================================
+
+    /**
+     * Register component for memory tracking
+     * @param {Element} element - DOM element to track
+     * @param {Object} data - Associated data
+     */
+    trackComponent(element, data = {}) {
+        this.memoryUsage.components.set(element, {
+            ...data,
+            createdAt: Date.now(),
+            lastAccessed: Date.now()
+        });
+    }
+
+    /**
+     * Clean up unused DOM references and event listeners
+     */
+    cleanupMemory() {
+        // Clean up detached DOM elements
+        const elementsToClean = [];
+        
+        for (const [element, data] of this.memoryUsage.components) {
+            if (!document.contains(element)) {
+                elementsToClean.push(element);
+            } else if (Date.now() - data.lastAccessed > 10 * 60 * 1000) { // 10 minutes
+                // Mark for potential cleanup if not accessed recently
+                data.markedForCleanup = true;
+            }
+        }
+
+        // Remove detached elements
+        elementsToClean.forEach(element => {
+            this.memoryUsage.components.delete(element);
+        });
+
+        console.log(`🧹 Memory cleanup: Removed ${elementsToClean.length} detached elements`);
+    }
+
+    /**
+     * Schedule automatic memory cleanup
+     */
+    scheduleCleanup() {
+        const cleanupInterval = setInterval(() => {
+            this.cleanupMemory();
+            this.clearExpiredCache();
+        }, 2 * 60 * 1000); // Every 2 minutes
+
+        this.memoryUsage.cleanupIntervals.add(cleanupInterval);
+    }
+
+    /**
+     * Clear expired cache entries
+     */
+    clearExpiredCache() {
+        const now = Date.now();
+        const expiredKeys = [];
+
+        for (const [key, cached] of this.responseCache) {
+            if (now - cached.timestamp > this.cacheExpiry) {
+                expiredKeys.push(key);
+            }
+        }
+
+        expiredKeys.forEach(key => this.responseCache.delete(key));
+        
+        if (expiredKeys.length > 0) {
+            console.log(`🗑️ Cache cleanup: Removed ${expiredKeys.length} expired entries`);
+        }
+    }
+
+    // =============================================================================
+    // PERFORMANCE MONITORING
+    // =============================================================================
+
+    /**
+     * Initialize performance monitoring
+     */
+    initializePerformanceMonitoring() {
+        // Monitor memory usage
+        if (window.performance && window.performance.memory) {
+            const checkMemory = () => {
+                const memory = window.performance.memory;
+                const memoryInfo = {
+                    used: Math.round(memory.usedJSHeapSize / 1048576), // MB
+                    total: Math.round(memory.totalJSHeapSize / 1048576), // MB
+                    limit: Math.round(memory.jsHeapSizeLimit / 1048576) // MB
+                };
+
+                // Log warning if memory usage is high
+                if (memoryInfo.used > memoryInfo.limit * 0.8) {
+                    console.warn('🚨 High memory usage detected:', memoryInfo);
+                    this.cleanupMemory();
+                }
+            };
+
+            setInterval(checkMemory, 30000); // Check every 30 seconds
+        }
+
+        // Start cleanup scheduler
+        this.scheduleCleanup();
+        
+        console.log('📊 Performance monitoring initialized');
+    }
+
+    /**
+     * Measure and log performance of operations
+     * @param {string} label - Performance label
+     * @param {Function} operation - Operation to measure
+     * @returns {Promise<any>} Operation result
+     */
+    async measurePerformance(label, operation) {
+        const startTime = performance.now();
+        
+        try {
+            const result = await operation();
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            
+            if (duration > 100) { // Log operations taking more than 100ms
+                console.log(`⏱️ Performance: ${label} took ${duration.toFixed(2)}ms`);
+            }
+            
+            return result;
+        } catch (error) {
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            console.error(`❌ Performance: ${label} failed after ${duration.toFixed(2)}ms`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Create a performance-optimized virtual scroll for large lists
+     * @param {Element} container - Container element
+     * @param {Array} items - Items to render
+     * @param {Function} renderItem - Function to render each item
+     * @param {number} itemHeight - Height of each item in pixels
+     */
+    createVirtualScroll(container, items, renderItem, itemHeight = 50) {
+        const containerHeight = container.clientHeight;
+        const visibleCount = Math.ceil(containerHeight / itemHeight) + 2; // Buffer
+        const totalHeight = items.length * itemHeight;
+        
+        let scrollTop = 0;
+        let startIndex = 0;
+        
+        // Create virtual container
+        const virtualContainer = document.createElement('div');
+        virtualContainer.style.height = `${totalHeight}px`;
+        virtualContainer.style.position = 'relative';
+        
+        // Create visible items container
+        const visibleContainer = document.createElement('div');
+        visibleContainer.style.position = 'absolute';
+        visibleContainer.style.top = '0px';
+        visibleContainer.style.width = '100%';
+        
+        virtualContainer.appendChild(visibleContainer);
+        container.appendChild(virtualContainer);
+        
+        const updateVisible = this.throttle('virtualScroll', () => {
+            startIndex = Math.floor(scrollTop / itemHeight);
+            const endIndex = Math.min(startIndex + visibleCount, items.length);
+            
+            // Clear visible items
+            visibleContainer.innerHTML = '';
+            visibleContainer.style.transform = `translateY(${startIndex * itemHeight}px)`;
+            
+            // Render visible items
+            for (let i = startIndex; i < endIndex; i++) {
+                const itemElement = renderItem(items[i], i);
+                itemElement.style.height = `${itemHeight}px`;
+                visibleContainer.appendChild(itemElement);
+            }
+        }, 16); // 60fps
+        
+        container.addEventListener('scroll', (e) => {
+            scrollTop = e.target.scrollTop;
+            updateVisible();
+        });
+        
+        // Initial render
+        updateVisible();
+        
+        return {
+            update: (newItems) => {
+                items = newItems;
+                virtualContainer.style.height = `${newItems.length * itemHeight}px`;
+                updateVisible();
+            },
+            destroy: () => {
+                container.removeChild(virtualContainer);
+            }
+        };
+    }
+
+    /**
+     * Destroy performance manager and cleanup resources
+     */
+    destroy() {
+        // Clear all timers
+        for (const timer of this.debounceTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.debounceTimers.clear();
+        
+        // Clear cache
+        this.responseCache.clear();
+        
+        // Clear cleanup intervals
+        for (const interval of this.memoryUsage.cleanupIntervals) {
+            clearInterval(interval);
+        }
+        this.memoryUsage.cleanupIntervals.clear();
+        
+        console.log('🛑 Performance manager destroyed');
+    }
+}
+
+// Create global performance manager instance
+window.performanceManager = new PerformanceManager();
