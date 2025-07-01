@@ -1,8 +1,8 @@
-# Northwestern Mutual Financial Planning Methodology Analysis
+# Professional Financial Planning Methodology Analysis
 # Phase 0.1 Complete - Foundation for FutureFund Enhancement
 
 ## EXECUTIVE SUMMARY
-Northwestern Mutual uses a comprehensive 16-page financial planning questionnaire that covers 7 major financial planning areas with sophisticated risk assessment and goal prioritization. This methodology provides an excellent foundation for our multi-account, scenario-based financial forecasting system.
+Industry-standard financial advisors use a comprehensive 16-page financial planning questionnaire that covers 7 major financial planning areas with sophisticated risk assessment and goal prioritization. This professional methodology provides an excellent foundation for our multi-account, scenario-based financial forecasting system.
 
 ## ACCOUNT TYPES & FINANCIAL ASSETS
 
@@ -150,7 +150,7 @@ Northwestern Mutual uses a comprehensive 16-page financial planning questionnair
 }
 ```
 
-### Risk Tolerance Assessment (Northwestern Mutual Scoring: -14 to +11)
+### Risk Tolerance Assessment (Professional Scoring: -14 to +11)
 ```javascript
 {
   riskProfile: {
@@ -288,7 +288,7 @@ Northwestern Mutual uses a comprehensive 16-page financial planning questionnair
   account: {
     id: string,
     name: string,
-    type: string, // From NM categories above
+    type: string, // From professional categories above
     institution: string,
     owner: string, // Individual, Spouse, Joint
     purpose: string, // ED (Education), RI (Retirement), OT (Other)
@@ -347,13 +347,13 @@ Northwestern Mutual uses a comprehensive 16-page financial planning questionnair
 - "I get stock options at work" → Create employee stock plan account
 
 ### Intelligent Scenario Recommendations
-- Based on user profile and Northwestern Mutual methodology
+- Based on user profile and professional financial planning methodology
 - Priority-weighted scenario suggestions
 - Risk-appropriate investment allocation
 - Consequence modeling for scenario combinations
 
 ### Professional Advisor Emulation
-- Northwestern Mutual question patterns for onboarding
+- Industry-standard question patterns for onboarding
 - Goal prioritization guidance
 - Risk tolerance assessment
 - Educational content delivery
@@ -399,7 +399,7 @@ Northwestern Mutual uses a comprehensive 16-page financial planning questionnair
 - Consequence modeling accuracy
 - Professional-level financial advice delivery
 
-### Northwestern Mutual Methodology Compliance
+### Professional Methodology Compliance
 - Question pattern matching
 - Goal prioritization framework
 - Risk assessment scoring alignment
@@ -407,12 +407,12 @@ Northwestern Mutual uses a comprehensive 16-page financial planning questionnair
 
 ## NEXT STEPS: PHASE 0.2 DATA MODEL DESIGN
 
-Based on this Northwestern Mutual analysis, we now have the professional foundation to design:
+Based on this professional financial planning analysis, we now have the foundation to design:
 
 1. **Account Types Enum** - Complete list of 20+ account types
 2. **User Profile Schema** - Comprehensive financial profile structure  
 3. **Scenario Data Model** - Multi-account consequence tracking
 4. **Risk Assessment Framework** - Professional-grade scoring system
-5. **Onboarding Flow Logic** - Northwestern Mutual-informed progression
+5. **Onboarding Flow Logic** - Industry-standard progression
 
 This methodology will enable FutureFund to provide financial advisor-level planning sophistication with AI-powered automation and scenario intelligence. 

@@ -40,7 +40,7 @@ To empower individuals with a dynamic, AI-powered tool that automates personal f
 **Internal Experts:**
 
 - Trevor Alpert – Creator of a personal finance spreadsheet with 7+ years of granular transaction data and forecasting experience
-- Sharon Alpert – Financial Advisor (CPA, RICP) at Northwestern Mutual helping finance professionals maximize wealth, offset market risk, and add tax-efficiency to their long-term plan through integrated strategies that will allow them to achieve their financial goals—and the first person rendered obsolete by this app
+- Sharon Alpert – Financial Advisor (CPA, RICP) helping finance professionals maximize wealth, offset market risk, and add tax-efficiency to their long-term plan through integrated strategies that will allow them to achieve their financial goals—and the first person rendered obsolete by this app
 
 **External Experts & Tools:**
 
