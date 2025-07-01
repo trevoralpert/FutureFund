@@ -184,7 +184,158 @@
         </div>
     </div>
 
+    <!-- Scenario Creation Modal -->
+    <div id="scenarioModal" class="modal hidden">
+        <div class="modal-overlay" id="scenarioModalOverlay"></div>
+        <div class="modal-content scenario-modal">
+            <div class="modal-header">
+                <h2 id="scenarioModalTitle">Create New Scenario</h2>
+                <button class="modal-close" id="scenarioModalClose">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Step 1: Scenario Type Selection -->
+                <div class="scenario-step active" id="scenarioStep1">
+                    <h3>Choose Scenario Type</h3>
+                    <div class="scenario-templates" id="scenarioTemplates">
+                        <!-- Dynamic template cards will be inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Step 2: Parameter Configuration -->
+                <div class="scenario-step" id="scenarioStep2">
+                    <h3>Configure Parameters</h3>
+                    <form id="scenarioForm">
+                        <div class="form-group">
+                            <label for="scenarioName">Scenario Name</label>
+                            <input type="text" id="scenarioName" name="scenarioName" placeholder="Enter scenario name..." required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="scenarioDescription">Description (Optional)</label>
+                            <textarea id="scenarioDescription" name="scenarioDescription" placeholder="Describe this scenario..."></textarea>
+                        </div>
+                        
+                        <div class="scenario-parameters" id="scenarioParameters">
+                            <!-- Dynamic parameter inputs will be inserted here -->
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Step 3: Preview & Confirmation -->
+                <div class="scenario-step" id="scenarioStep3">
+                    <h3>Review & Create</h3>
+                    <div class="scenario-preview" id="scenarioPreview">
+                        <!-- Scenario preview will be shown here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="modal-navigation">
+                    <button id="scenarioPrevBtn" class="btn btn-secondary" disabled>
+                        <span class="btn-icon">←</span>
+                        Previous
+                    </button>
+                    <div class="step-indicator">
+                        <span class="step active" data-step="1">1</span>
+                        <span class="step" data-step="2">2</span>
+                        <span class="step" data-step="3">3</span>
+                    </div>
+                    <button id="scenarioNextBtn" class="btn btn-primary">
+                        Next
+                        <span class="btn-icon">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scenario Comparison Modal -->
+    <div id="comparisonModal" class="modal hidden">
+        <div class="modal-overlay" id="comparisonModalOverlay"></div>
+        <div class="modal-content comparison-modal">
+            <div class="modal-header">
+                <h2>Compare Scenarios</h2>
+                <button class="modal-close" id="comparisonModalClose">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="comparison-selector">
+                    <div class="scenario-select-group">
+                        <label>Base Scenario:</label>
+                        <select id="baseScenarioSelect">
+                            <option value="">Select base scenario...</option>
+                        </select>
+                    </div>
+                    <div class="scenario-select-group">
+                        <label>Compare With:</label>
+                        <select id="compareScenarioSelect">
+                            <option value="">Select scenario to compare...</option>
+                        </select>
+                    </div>
+                    <button id="runComparisonBtn" class="btn btn-primary">
+                        <span class="btn-icon">⚖️</span>
+                        Compare
+                    </button>
+                </div>
+                
+                <div class="comparison-results hidden" id="comparisonResults">
+                    <div class="comparison-charts">
+                        <div class="chart-container">
+                            <h4>Balance Projection</h4>
+                            <canvas id="comparisonChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-metrics">
+                        <div class="metric-comparison">
+                            <h4>Key Differences</h4>
+                            <div class="metrics-grid" id="metricsGrid">
+                                <!-- Dynamic metrics comparison -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button id="exportComparisonBtn" class="btn btn-secondary">
+                    <span class="btn-icon">📊</span>
+                    Export Report
+                </button>
+                <button id="closeComparisonBtn" class="btn btn-primary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scenario Card Context Menu -->
+    <div id="scenarioContextMenu" class="context-menu hidden">
+        <div class="context-menu-item" data-action="edit">
+            <span class="context-icon">✏️</span>
+            Edit Scenario
+        </div>
+        <div class="context-menu-item" data-action="clone">
+            <span class="context-icon">📋</span>
+            Clone Scenario
+        </div>
+        <div class="context-menu-item" data-action="toggle">
+            <span class="context-icon">🔄</span>
+            Toggle Active
+        </div>
+        <div class="context-menu-item" data-action="compare">
+            <span class="context-icon">⚖️</span>
+            Compare
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item dangerous" data-action="delete">
+            <span class="context-icon">🗑️</span>
+            Delete Scenario
+        </div>
+    </div>
+
     <!-- Scripts -->
+    <script src="../node_modules/chart.js/dist/chart.min.js"></script>
     <script src="renderer.js"></script>
 </body>
 </html> 

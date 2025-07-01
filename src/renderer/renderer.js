@@ -326,12 +326,30 @@ class FutureFundApp {
     }
 
     async loadScenarios() {
+        console.log('Loading scenarios...');
+        
         try {
-            console.log('Scenarios loaded:', this.scenarios.size, 'scenarios');
-            this.updateScenarioSelector();
+            // Load scenarios from database
+            await this.refreshScenariosFromDB();
+            
+            console.log('Scenarios loaded successfully:', this.scenarios.size);
         } catch (error) {
             console.error('Error loading scenarios:', error);
+            
+            // Fallback to just base scenario
+            this.scenarios.clear();
+            this.scenarios.set('base', {
+                id: 'base',
+                name: 'Base Scenario',
+                description: 'Your current financial trajectory',
+                template: 'base',
+                parameters: {},
+                isActive: true,
+                createdAt: new Date().toISOString()
+            });
         }
+        
+        this.updateScenarioSelector();
     }
 
     refreshLedger() {
@@ -657,20 +675,70 @@ class FutureFundApp {
             const card = this.createScenarioCard(scenario);
             grid.appendChild(card);
         });
+        
+        // Load scenarios from database if needed
+        if (this.scenarios.size <= 1) { // Only base scenario
+            this.refreshScenariosFromDB();
+        }
     }
 
     createScenarioCard(scenario) {
         const card = document.createElement('div');
-        card.className = 'scenario-card';
+        card.className = `scenario-card ${scenario.isActive ? 'active' : 'inactive'}`;
+        
+        const template = this.getScenarioTemplates().find(t => t.id === scenario.template);
+        const templateIcon = template ? template.icon : '📋';
+        const templateName = template ? template.name : 'Custom';
+        
+        // Format parameters for display
+        const parameterTags = Object.entries(scenario.parameters || {})
+            .slice(0, 3) // Show only first 3 parameters
+            .map(([key, value]) => `
+                <span class="parameter-tag">${this.humanizeParameterName(key)}: ${this.formatParameterValue(key, value)}</span>
+            `).join('');
+        
+        const hasMoreParams = Object.keys(scenario.parameters || {}).length > 3;
+        
         card.innerHTML = `
-            <h3>${scenario.name}</h3>
-            <p>${scenario.description}</p>
-            <div class="scenario-actions">
-                <button class="btn btn-primary" onclick="app.selectScenario('${scenario.id}')">
-                    Select
-                </button>
+            <div class="scenario-card-header">
+                <div>
+                    <h3 class="scenario-title">${scenario.name}</h3>
+                    <div class="scenario-type">${templateIcon} ${templateName}</div>
+                </div>
+                <div class="scenario-actions">
+                    <button class="scenario-action" onclick="app.selectScenario('${scenario.id}')" title="Select Scenario">
+                        ${this.currentScenario === scenario.id ? '✅' : '📊'}
+                    </button>
+                    <button class="scenario-action" onclick="app.openComparisonModal('${scenario.id}')" title="Compare">
+                        ⚖️
+                    </button>
+                </div>
+            </div>
+            
+            <p class="scenario-description">${scenario.description || 'No description provided'}</p>
+            
+            <div class="scenario-parameters">
+                ${parameterTags}
+                ${hasMoreParams ? '<span class="parameter-tag">...</span>' : ''}
+            </div>
+            
+            <div class="scenario-status">
+                <span class="status-badge ${scenario.isActive ? 'active' : 'inactive'}">
+                    ${scenario.isActive ? 'Active' : 'Inactive'}
+                </span>
+                <span class="scenario-date">
+                    ${scenario.createdAt ? new Date(scenario.createdAt).toLocaleDateString() : 'Unknown'}
+                </span>
             </div>
         `;
+        
+        // Add context menu handler (only for non-base scenarios)
+        if (scenario.id !== 'base') {
+            card.addEventListener('contextmenu', (e) => {
+                this.showContextMenu(e, scenario.id);
+            });
+        }
+        
         return card;
     }
 
@@ -681,25 +749,789 @@ class FutureFundApp {
         this.switchTab('ledger');
     }
 
+    // Enhanced Scenario Management
     createNewScenario() {
-        const name = prompt('Enter scenario name:');
-        if (!name) return;
+        this.openScenarioModal();
+    }
+    
+    openScenarioModal(scenarioId = null) {
+        this.currentModalStep = 1;
+        this.selectedTemplate = null;
+        this.editingScenario = scenarioId;
         
-        const description = prompt('Enter scenario description:');
-        if (!description) return;
+        const modal = document.getElementById('scenarioModal');
+        const title = document.getElementById('scenarioModalTitle');
         
-        const id = name.toLowerCase().replace(/\s+/g, '-');
+        title.textContent = scenarioId ? 'Edit Scenario' : 'Create New Scenario';
         
-        this.scenarios.set(id, {
-            id: id,
-            name: name,
-            description: description,
-            parameters: {},
-            createdAt: new Date().toISOString()
+        // Initialize modal
+        this.initializeScenarioModal();
+        this.renderScenarioTemplates();
+        this.updateScenarioModalNavigation();
+        
+        modal.classList.remove('hidden');
+        
+        // Add event listeners
+        this.addScenarioModalListeners();
+    }
+    
+    initializeScenarioModal() {
+        // Show step 1, hide others
+        document.querySelectorAll('.scenario-step').forEach((step, index) => {
+            step.classList.toggle('active', index === 0);
         });
         
-        this.updateScenarioSelector();
-        this.refreshScenarios();
+        // Update step indicators
+        document.querySelectorAll('.step').forEach((step, index) => {
+            step.classList.toggle('active', index === 0);
+            step.classList.remove('completed');
+        });
+    }
+    
+    renderScenarioTemplates() {
+        const templatesContainer = document.getElementById('scenarioTemplates');
+        const templates = this.getScenarioTemplates();
+        
+        templatesContainer.innerHTML = templates.map(template => `
+            <div class="template-card" data-template="${template.id}">
+                <span class="template-icon">${template.icon}</span>
+                <h4>${template.name}</h4>
+                <p>${template.description}</p>
+            </div>
+        `).join('');
+        
+        // Add click handlers
+        templatesContainer.addEventListener('click', (e) => {
+            const card = e.target.closest('.template-card');
+            if (card) {
+                // Remove previous selection
+                templatesContainer.querySelectorAll('.template-card').forEach(c => 
+                    c.classList.remove('selected'));
+                
+                // Select this card
+                card.classList.add('selected');
+                this.selectedTemplate = card.dataset.template;
+                
+                // Enable next button
+                document.getElementById('scenarioNextBtn').disabled = false;
+            }
+        });
+    }
+    
+    getScenarioTemplates() {
+        return [
+            {
+                id: 'salary_change',
+                icon: '💰',
+                name: 'Salary Change',
+                description: 'Model a salary increase, decrease, or bonus changes'
+            },
+            {
+                id: 'job_change',
+                icon: '💼',
+                name: 'Job Change',
+                description: 'Plan for switching jobs or career transitions'
+            },
+            {
+                id: 'major_purchase',
+                icon: '🏠',
+                name: 'Major Purchase',
+                description: 'Budget for home, car, or other large expenses'
+            },
+            {
+                id: 'expense_change',
+                icon: '📊',
+                name: 'Expense Change',
+                description: 'Add, remove, or modify recurring expenses'
+            },
+            {
+                id: 'investment_strategy',
+                icon: '📈',
+                name: 'Investment Strategy',
+                description: 'Plan investment contributions and returns'
+            },
+            {
+                id: 'emergency_fund',
+                icon: '🛡️',
+                name: 'Emergency Fund',
+                description: 'Build or use emergency fund scenarios'
+            },
+            {
+                id: 'debt_payoff',
+                icon: '💳',
+                name: 'Debt Payoff',
+                description: 'Plan debt reduction or payoff strategies'
+            },
+            {
+                id: 'retirement_planning',
+                icon: '🌅',
+                name: 'Retirement Planning',
+                description: 'Model retirement savings and withdrawal strategies'
+            }
+        ];
+    }
+    
+    addScenarioModalListeners() {
+        // Remove existing listeners
+        const closeBtn = document.getElementById('scenarioModalClose');
+        const overlay = document.getElementById('scenarioModalOverlay');
+        const prevBtn = document.getElementById('scenarioPrevBtn');
+        const nextBtn = document.getElementById('scenarioNextBtn');
+        
+        // Clone to remove listeners
+        const newCloseBtn = closeBtn.cloneNode(true);
+        const newOverlay = overlay.cloneNode(true);
+        const newPrevBtn = prevBtn.cloneNode(true);
+        const newNextBtn = nextBtn.cloneNode(true);
+        
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        overlay.parentNode.replaceChild(newOverlay, overlay);
+        prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
+        nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+        
+        // Add new listeners
+        document.getElementById('scenarioModalClose').onclick = () => this.closeScenarioModal();
+        document.getElementById('scenarioModalOverlay').onclick = () => this.closeScenarioModal();
+        document.getElementById('scenarioPrevBtn').onclick = () => this.previousScenarioStep();
+        document.getElementById('scenarioNextBtn').onclick = () => this.nextScenarioStep();
+    }
+    
+    closeScenarioModal() {
+        document.getElementById('scenarioModal').classList.add('hidden');
+        this.selectedTemplate = null;
+        this.editingScenario = null;
+    }
+    
+    nextScenarioStep() {
+        if (this.currentModalStep === 1) {
+            if (!this.selectedTemplate) return;
+            this.renderScenarioForm();
+            this.currentModalStep = 2;
+        } else if (this.currentModalStep === 2) {
+            if (!this.validateScenarioForm()) return;
+            this.renderScenarioPreview();
+            this.currentModalStep = 3;
+        } else if (this.currentModalStep === 3) {
+            this.createScenarioFromModal();
+        }
+        
+        this.updateScenarioModalNavigation();
+        this.updateScenarioSteps();
+    }
+    
+    previousScenarioStep() {
+        if (this.currentModalStep > 1) {
+            this.currentModalStep--;
+            this.updateScenarioModalNavigation();
+            this.updateScenarioSteps();
+        }
+    }
+    
+    updateScenarioSteps() {
+        document.querySelectorAll('.scenario-step').forEach((step, index) => {
+            step.classList.toggle('active', index === this.currentModalStep - 1);
+        });
+        
+        document.querySelectorAll('.step').forEach((step, index) => {
+            const stepNum = index + 1;
+            step.classList.toggle('active', stepNum === this.currentModalStep);
+            step.classList.toggle('completed', stepNum < this.currentModalStep);
+        });
+    }
+    
+    updateScenarioModalNavigation() {
+        const prevBtn = document.getElementById('scenarioPrevBtn');
+        const nextBtn = document.getElementById('scenarioNextBtn');
+        
+        prevBtn.disabled = this.currentModalStep === 1;
+        
+        switch (this.currentModalStep) {
+            case 1:
+                nextBtn.innerHTML = 'Next <span class="btn-icon">→</span>';
+                nextBtn.disabled = !this.selectedTemplate;
+                break;
+            case 2:
+                nextBtn.innerHTML = 'Preview <span class="btn-icon">👁️</span>';
+                nextBtn.disabled = false;
+                break;
+            case 3:
+                nextBtn.innerHTML = 'Create Scenario <span class="btn-icon">✨</span>';
+                nextBtn.disabled = false;
+                break;
+        }
+    }
+    
+    renderScenarioForm() {
+        const form = document.getElementById('scenarioForm');
+        const parametersContainer = document.getElementById('scenarioParameters');
+        
+        // Clear existing parameters
+        parametersContainer.innerHTML = '';
+        
+        // Get template configuration
+        const template = this.getTemplateConfig(this.selectedTemplate);
+        
+        // Render parameters based on template
+        template.parameters.forEach(paramGroup => {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'parameter-group';
+            groupDiv.innerHTML = `
+                <h4>${paramGroup.title}</h4>
+                ${paramGroup.fields.map(field => this.renderFormField(field)).join('')}
+            `;
+            parametersContainer.appendChild(groupDiv);
+        });
+    }
+    
+    getTemplateConfig(templateId) {
+        const configs = {
+            salary_change: {
+                parameters: [{
+                    title: 'Salary Details',
+                    fields: [
+                        { type: 'number', name: 'currentSalary', label: 'Current Annual Salary', placeholder: '60000', required: true },
+                        { type: 'number', name: 'newSalary', label: 'New Annual Salary', placeholder: '75000', required: true },
+                        { type: 'date', name: 'effectiveDate', label: 'Effective Date', required: true },
+                        { type: 'select', name: 'timing', label: 'Change Type', options: [
+                            { value: 'immediate', label: 'Immediate Change' },
+                            { value: 'gradual', label: 'Gradual Increase' }
+                        ]}
+                    ]
+                }]
+            },
+            major_purchase: {
+                parameters: [{
+                    title: 'Purchase Details',
+                    fields: [
+                        { type: 'text', name: 'purchaseType', label: 'Purchase Type', placeholder: 'House, Car, etc.', required: true },
+                        { type: 'number', name: 'totalCost', label: 'Total Cost', placeholder: '300000', required: true },
+                        { type: 'number', name: 'downPayment', label: 'Down Payment', placeholder: '60000' },
+                        { type: 'date', name: 'targetDate', label: 'Target Purchase Date', required: true },
+                        { type: 'number', name: 'monthlyPayment', label: 'Monthly Payment (if financed)', placeholder: '2000' }
+                    ]
+                }]
+            },
+            investment_strategy: {
+                parameters: [{
+                    title: 'Investment Parameters',
+                    fields: [
+                        { type: 'number', name: 'monthlyContribution', label: 'Monthly Contribution', placeholder: '500', required: true },
+                        { type: 'number', name: 'expectedReturn', label: 'Expected Annual Return (%)', placeholder: '8', required: true },
+                        { type: 'select', name: 'riskProfile', label: 'Risk Profile', options: [
+                            { value: 'conservative', label: 'Conservative (3-5%)' },
+                            { value: 'moderate', label: 'Moderate (6-8%)' },
+                            { value: 'aggressive', label: 'Aggressive (9-12%)' }
+                        ]},
+                        { type: 'date', name: 'startDate', label: 'Start Date', required: true }
+                    ]
+                }]
+            },
+            expense_change: {
+                parameters: [{
+                    title: 'Expense Details',
+                    fields: [
+                        { type: 'select', name: 'changeType', label: 'Change Type', options: [
+                            { value: 'add', label: 'Add New Expense' },
+                            { value: 'modify', label: 'Modify Existing Expense' },
+                            { value: 'remove', label: 'Remove Expense' }
+                        ], required: true },
+                        { type: 'text', name: 'expenseName', label: 'Expense Name', placeholder: 'Gym Membership, Netflix, etc.', required: true },
+                        { type: 'number', name: 'monthlyAmount', label: 'Monthly Amount', placeholder: '50', required: true },
+                        { type: 'date', name: 'startDate', label: 'Start Date', required: true }
+                    ]
+                }]
+            },
+            emergency_fund: {
+                parameters: [{
+                    title: 'Emergency Fund Planning',
+                    fields: [
+                        { type: 'number', name: 'targetAmount', label: 'Target Emergency Fund', placeholder: '10000', required: true },
+                        { type: 'number', name: 'currentAmount', label: 'Current Emergency Fund', placeholder: '2000' },
+                        { type: 'number', name: 'monthlyContribution', label: 'Monthly Contribution', placeholder: '200', required: true },
+                        { type: 'select', name: 'priority', label: 'Priority Level', options: [
+                            { value: 'high', label: 'High Priority' },
+                            { value: 'medium', label: 'Medium Priority' },
+                            { value: 'low', label: 'Low Priority' }
+                        ]}
+                    ]
+                }]
+            },
+            debt_payoff: {
+                parameters: [{
+                    title: 'Debt Information',
+                    fields: [
+                        { type: 'text', name: 'debtType', label: 'Debt Type', placeholder: 'Credit Card, Student Loan, etc.', required: true },
+                        { type: 'number', name: 'currentBalance', label: 'Current Balance', placeholder: '5000', required: true },
+                        { type: 'number', name: 'interestRate', label: 'Interest Rate (%)', placeholder: '18.5', required: true },
+                        { type: 'number', name: 'monthlyPayment', label: 'Monthly Payment', placeholder: '200', required: true },
+                        { type: 'select', name: 'strategy', label: 'Payoff Strategy', options: [
+                            { value: 'minimum', label: 'Minimum Payments' },
+                            { value: 'snowball', label: 'Debt Snowball' },
+                            { value: 'avalanche', label: 'Debt Avalanche' }
+                        ]}
+                    ]
+                }]
+            },
+            retirement_planning: {
+                parameters: [{
+                    title: 'Retirement Planning',
+                    fields: [
+                        { type: 'number', name: 'currentAge', label: 'Current Age', placeholder: '30', required: true },
+                        { type: 'number', name: 'retirementAge', label: 'Target Retirement Age', placeholder: '65', required: true },
+                        { type: 'number', name: 'currentSavings', label: 'Current Retirement Savings', placeholder: '50000' },
+                        { type: 'number', name: 'monthlyContribution', label: 'Monthly Contribution', placeholder: '500', required: true },
+                        { type: 'number', name: 'expectedReturn', label: 'Expected Annual Return (%)', placeholder: '7', required: true }
+                    ]
+                }]
+            },
+            job_change: {
+                parameters: [{
+                    title: 'Job Change Details',
+                    fields: [
+                        { type: 'text', name: 'newJobTitle', label: 'New Job Title', placeholder: 'Senior Developer, Manager, etc.', required: true },
+                        { type: 'number', name: 'newSalary', label: 'New Annual Salary', placeholder: '80000', required: true },
+                        { type: 'date', name: 'startDate', label: 'Start Date', required: true },
+                        { type: 'number', name: 'signingBonus', label: 'Signing Bonus', placeholder: '5000' },
+                        { type: 'number', name: 'relocationCost', label: 'Relocation Cost', placeholder: '3000' }
+                    ]
+                }]
+            }
+        };
+        
+        return configs[templateId] || { parameters: [] };
+    }
+    
+    renderFormField(field) {
+        switch (field.type) {
+            case 'text':
+            case 'number':
+            case 'date':
+                return `
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <input type="${field.type}" 
+                               id="${field.name}" 
+                               name="${field.name}" 
+                               placeholder="${field.placeholder || ''}"
+                               ${field.required ? 'required' : ''}>
+                        ${field.help ? `<div class="form-help">${field.help}</div>` : ''}
+                    </div>
+                `;
+            case 'select':
+                return `
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <select id="${field.name}" name="${field.name}" ${field.required ? 'required' : ''}>
+                            <option value="">Select ${field.label.toLowerCase()}...</option>
+                            ${field.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}
+                        </select>
+                        ${field.help ? `<div class="form-help">${field.help}</div>` : ''}
+                    </div>
+                `;
+            case 'textarea':
+                return `
+                    <div class="form-group">
+                        <label for="${field.name}">${field.label}</label>
+                        <textarea id="${field.name}" name="${field.name}" placeholder="${field.placeholder || ''}" ${field.required ? 'required' : ''}></textarea>
+                        ${field.help ? `<div class="form-help">${field.help}</div>` : ''}
+                    </div>
+                `;
+            default:
+                return '';
+        }
+    }
+    
+    validateScenarioForm() {
+        const form = document.getElementById('scenarioForm');
+        const formData = new FormData(form);
+        
+        // Check required fields
+        const requiredFields = form.querySelectorAll('[required]');
+        for (let field of requiredFields) {
+            if (!field.value.trim()) {
+                field.focus();
+                field.style.borderColor = 'var(--danger-color)';
+                setTimeout(() => field.style.borderColor = '', 3000);
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    renderScenarioPreview() {
+        const form = document.getElementById('scenarioForm');
+        const formData = new FormData(form);
+        const preview = document.getElementById('scenarioPreview');
+        
+        const scenarioData = {
+            name: formData.get('scenarioName'),
+            description: formData.get('scenarioDescription'),
+            template: this.selectedTemplate,
+            parameters: {}
+        };
+        
+        // Collect all parameters
+        for (let [key, value] of formData.entries()) {
+            if (key !== 'scenarioName' && key !== 'scenarioDescription') {
+                scenarioData.parameters[key] = value;
+            }
+        }
+        
+        // Store for creation
+        this.scenarioToCreate = scenarioData;
+        
+        // Render preview
+        const template = this.getScenarioTemplates().find(t => t.id === this.selectedTemplate);
+        preview.innerHTML = `
+            <div class="preview-section">
+                <h4>Scenario Information</h4>
+                <div class="preview-value"><strong>Name:</strong> ${scenarioData.name}</div>
+                <div class="preview-value"><strong>Type:</strong> ${template.name}</div>
+                <div class="preview-value"><strong>Description:</strong> ${scenarioData.description || 'No description provided'}</div>
+            </div>
+            <div class="preview-section">
+                <h4>Parameters</h4>
+                <div class="preview-parameters">
+                    ${Object.entries(scenarioData.parameters).map(([key, value]) => `
+                        <div class="parameter-preview">
+                            <span class="parameter-name">${this.humanizeParameterName(key)}</span>
+                            <span class="parameter-value">${this.formatParameterValue(key, value)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
+    humanizeParameterName(paramName) {
+        return paramName
+            .replace(/([A-Z])/g, ' $1')
+            .replace(/^./, str => str.toUpperCase())
+            .replace(/([a-z])([A-Z])/g, '$1 $2');
+    }
+    
+    formatParameterValue(key, value) {
+        if (key.toLowerCase().includes('salary') || key.toLowerCase().includes('cost') || key.toLowerCase().includes('payment') || key.toLowerCase().includes('amount') || key.toLowerCase().includes('bonus')) {
+            return this.formatCurrency(parseFloat(value) || 0);
+        }
+        if (key.toLowerCase().includes('date')) {
+            return this.formatDate(value);
+        }
+        if (key.toLowerCase().includes('return') || key.toLowerCase().includes('rate')) {
+            return `${value}%`;
+        }
+        return value;
+    }
+    
+    async createScenarioFromModal() {
+        try {
+            const scenarioData = {
+                ...this.scenarioToCreate,
+                id: Date.now().toString(), // Temporary ID
+                isActive: true,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save to database
+            const result = await electronAPI.createScenario(scenarioData);
+            
+            if (result.success) {
+                // Update local scenarios
+                this.scenarios.set(result.scenario.id, result.scenario);
+                
+                // Refresh UI
+                this.updateScenarioSelector();
+                await this.refreshScenariosFromDB();
+                
+                // Close modal
+                this.closeScenarioModal();
+                
+                // Switch to scenarios tab
+                this.switchTab('scenarios');
+                
+                console.log('Scenario created successfully:', result.scenario);
+            } else {
+                alert('Failed to create scenario: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error creating scenario:', error);
+            alert('Error creating scenario. Please try again.');
+        }
+    }
+    
+    async refreshScenariosFromDB() {
+        try {
+            const result = await electronAPI.getScenarios();
+            
+            if (result.success) {
+                // Clear existing scenarios
+                this.scenarios.clear();
+                
+                // Add base scenario
+                this.scenarios.set('base', {
+                    id: 'base',
+                    name: 'Base Scenario',
+                    description: 'Your current financial trajectory',
+                    template: 'base',
+                    parameters: {},
+                    isActive: true,
+                    createdAt: new Date().toISOString()
+                });
+                
+                // Add scenarios from database
+                result.scenarios.forEach(scenario => {
+                    this.scenarios.set(scenario.id, scenario);
+                });
+                
+                // Update UI
+                this.refreshScenarios();
+                this.updateScenarioSelector();
+            }
+        } catch (error) {
+            console.error('Error loading scenarios:', error);
+        }
+    }
+    
+    async deleteScenario(scenarioId) {
+        if (scenarioId === 'base') {
+            alert('Cannot delete the base scenario');
+            return;
+        }
+        
+        if (!confirm('Are you sure you want to delete this scenario?')) {
+            return;
+        }
+        
+        try {
+            const result = await electronAPI.deleteScenario(scenarioId);
+            
+            if (result.success) {
+                // Remove from local scenarios
+                this.scenarios.delete(scenarioId);
+                
+                // If this was the active scenario, switch to base
+                if (this.currentScenario === scenarioId) {
+                    this.currentScenario = 'base';
+                    this.refreshLedger();
+                }
+                
+                // Update UI
+                this.updateScenarioSelector();
+                this.refreshScenarios();
+                
+                console.log('Scenario deleted successfully:', scenarioId);
+            } else {
+                alert('Failed to delete scenario: ' + result.error);
+            }
+        } catch (error) {
+            console.error('Error deleting scenario:', error);
+            alert('Error deleting scenario. Please try again.');
+        }
+    }
+    
+    async toggleScenarioActive(scenarioId) {
+        try {
+            const scenario = this.scenarios.get(scenarioId);
+            if (!scenario) return;
+            
+            const newActiveState = !scenario.isActive;
+            
+            const result = await electronAPI.updateScenario(scenarioId, {
+                ...scenario,
+                isActive: newActiveState
+            });
+            
+            if (result.success) {
+                // Update local scenario
+                scenario.isActive = newActiveState;
+                this.scenarios.set(scenarioId, scenario);
+                
+                // Refresh UI
+                this.refreshScenarios();
+                
+                console.log('Scenario toggled:', scenarioId, 'Active:', newActiveState);
+            }
+        } catch (error) {
+            console.error('Error toggling scenario:', error);
+        }
+    }
+    
+    async cloneScenario(scenarioId) {
+        try {
+            const originalScenario = this.scenarios.get(scenarioId);
+            if (!originalScenario) return;
+            
+            const clonedScenario = {
+                ...originalScenario,
+                id: Date.now().toString(),
+                name: `${originalScenario.name} (Copy)`,
+                createdAt: new Date().toISOString()
+            };
+            
+            const result = await electronAPI.createScenario(clonedScenario);
+            
+            if (result.success) {
+                // Update local scenarios
+                this.scenarios.set(result.scenario.id, result.scenario);
+                
+                // Refresh UI
+                this.updateScenarioSelector();
+                this.refreshScenarios();
+                
+                console.log('Scenario cloned successfully:', result.scenario);
+            }
+        } catch (error) {
+            console.error('Error cloning scenario:', error);
+        }
+    }
+    
+    // Context menu functionality
+    showContextMenu(e, scenarioId) {
+        e.preventDefault();
+        
+        const contextMenu = document.getElementById('scenarioContextMenu');
+        contextMenu.classList.remove('hidden');
+        
+        // Position the menu
+        contextMenu.style.left = e.pageX + 'px';
+        contextMenu.style.top = e.pageY + 'px';
+        
+        // Set current scenario for context actions
+        this.contextScenarioId = scenarioId;
+        
+        // Add click handlers
+        contextMenu.addEventListener('click', (e) => {
+            const action = e.target.closest('.context-menu-item')?.dataset.action;
+            if (action) {
+                this.handleContextAction(action, scenarioId);
+                this.hideContextMenu();
+            }
+        });
+        
+        // Hide on outside click
+        document.addEventListener('click', this.hideContextMenu.bind(this));
+    }
+    
+    hideContextMenu() {
+        const contextMenu = document.getElementById('scenarioContextMenu');
+        contextMenu.classList.add('hidden');
+        document.removeEventListener('click', this.hideContextMenu.bind(this));
+    }
+    
+    handleContextAction(action, scenarioId) {
+        switch (action) {
+            case 'edit':
+                this.openScenarioModal(scenarioId);
+                break;
+            case 'clone':
+                this.cloneScenario(scenarioId);
+                break;
+            case 'toggle':
+                this.toggleScenarioActive(scenarioId);
+                break;
+            case 'compare':
+                this.openComparisonModal(scenarioId);
+                break;
+            case 'delete':
+                this.deleteScenario(scenarioId);
+                break;
+        }
+    }
+    
+    openComparisonModal(baseScenarioId = null) {
+        const modal = document.getElementById('comparisonModal');
+        
+        // Populate scenario selectors
+        this.populateScenarioSelectors();
+        
+        if (baseScenarioId) {
+            document.getElementById('baseScenarioSelect').value = baseScenarioId;
+        }
+        
+        modal.classList.remove('hidden');
+        
+        // Add event listeners
+        this.addComparisonModalListeners();
+    }
+    
+    populateScenarioSelectors() {
+        const baseSelect = document.getElementById('baseScenarioSelect');
+        const compareSelect = document.getElementById('compareScenarioSelect');
+        
+        const options = Array.from(this.scenarios.values())
+            .filter(s => s.isActive)
+            .map(s => `<option value="${s.id}">${s.name}</option>`)
+            .join('');
+        
+        baseSelect.innerHTML = '<option value="">Select base scenario...</option>' + options;
+        compareSelect.innerHTML = '<option value="">Select scenario to compare...</option>' + options;
+    }
+    
+    addComparisonModalListeners() {
+        const modal = document.getElementById('comparisonModal');
+        
+        // Close modal
+        document.getElementById('comparisonModalClose').onclick = () => {
+            modal.classList.add('hidden');
+        };
+        
+        document.getElementById('comparisonModalOverlay').onclick = () => {
+            modal.classList.add('hidden');
+        };
+        
+        document.getElementById('closeComparisonBtn').onclick = () => {
+            modal.classList.add('hidden');
+        };
+        
+        // Run comparison
+        document.getElementById('runComparisonBtn').onclick = () => {
+            this.runScenarioComparison();
+        };
+    }
+    
+    async runScenarioComparison() {
+        const baseScenarioId = document.getElementById('baseScenarioSelect').value;
+        const compareScenarioId = document.getElementById('compareScenarioSelect').value;
+        
+        if (!baseScenarioId || !compareScenarioId) {
+            alert('Please select both scenarios to compare');
+            return;
+        }
+        
+        try {
+            // For now, show a simple comparison
+            const baseScenario = this.scenarios.get(baseScenarioId);
+            const compareScenario = this.scenarios.get(compareScenarioId);
+            
+            const resultsDiv = document.getElementById('comparisonResults');
+            const metricsGrid = document.getElementById('metricsGrid');
+            
+            // Simple comparison display
+            metricsGrid.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-label">Base Scenario</div>
+                    <div class="metric-value">${baseScenario.name}</div>
+                    <div class="metric-change">Current Selection</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Compare Scenario</div>
+                    <div class="metric-value">${compareScenario.name}</div>
+                    <div class="metric-change">Comparison Target</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Analysis Status</div>
+                    <div class="metric-value">Ready</div>
+                    <div class="metric-change positive">Data Available</div>
+                </div>
+            `;
+            
+            resultsDiv.classList.remove('hidden');
+            
+        } catch (error) {
+            console.error('Error running comparison:', error);
+            alert('Error running comparison. Please try again.');
+        }
     }
 
     async syncData() {
