@@ -8,6 +8,8 @@ class FutureFundApp {
         this.chatHistory = [];
         this.currentView = 'table'; // 'table' or 'chart'
         this.chartService = null;
+        this.analyticsService = null;
+        this.seasonalChart = null;
         
         this.init();
     }
@@ -20,8 +22,9 @@ class FutureFundApp {
         this.initializeEventListeners();
         this.initializeData();
         
-        // Initialize chart service
+        // Initialize services
         this.initializeChartService();
+        this.initializeAnalyticsService();
         
         // Load initial data
         await this.loadFinancialData();
@@ -42,49 +45,44 @@ class FutureFundApp {
     }
 
     switchTab(tabName) {
-        // Update tab buttons
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+
+        // Show selected tab content
+        document.getElementById(`${tabName}Tab`).classList.add('active');
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 
-        // Update tab content
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-        });
-        document.getElementById(`${tabName}Tab`).classList.add('active');
-
-        this.currentTab = tabName;
-
-        // Load tab-specific data
-        switch(tabName) {
-            case 'ledger':
-                this.refreshLedger();
-                break;
-            case 'chat':
-                this.focusChatInput();
-                break;
-            case 'scenarios':
-                this.refreshScenarios();
-                break;
+        // Handle tab-specific initialization
+        if (tabName === 'ledger') {
+            this.updateLedgerData();
+        } else if (tabName === 'chat') {
+            // Focus chat input when switching to chat tab
+            document.getElementById('chatInput').focus();
+        } else if (tabName === 'scenarios') {
+            this.refreshScenarios();
+        } else if (tabName === 'analytics') {
+            this.initializeAnalytics();
         }
     }
 
     initializeEventListeners() {
-        // Sync button
-        document.getElementById('syncBtn').addEventListener('click', () => {
-            this.syncData();
+        // Tab switching
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tabName = e.currentTarget.dataset.tab;
+                this.switchTab(tabName);
+            });
         });
 
-        // Scenario selector
-        document.getElementById('scenarioSelect').addEventListener('change', (e) => {
-            this.currentScenario = e.target.value;
-            this.refreshLedger();
+        // Ledger controls
+        document.getElementById('dateRange').addEventListener('change', (e) => {
+            this.updateLedgerData();
         });
 
-        // Date range selector
-        document.getElementById('dateRange').addEventListener('change', () => {
-            this.refreshLedger();
+        document.getElementById('toggleView').addEventListener('click', () => {
+            this.toggleLedgerView();
         });
 
         // Chat functionality
@@ -99,44 +97,48 @@ class FutureFundApp {
         });
 
         // Quick questions
-        document.querySelectorAll('.quick-question').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const question = this.getQuickQuestion(e.target.textContent);
-                document.getElementById('chatInput').value = question;
+        document.querySelectorAll('.quick-question').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const question = e.target.textContent.replace('💡 ', '').replace('🏠 ', '').replace('📈 ', '');
+                document.getElementById('chatInput').value = `Tell me about ${question.toLowerCase()}`;
                 this.sendChatMessage();
             });
         });
 
         // Chat management buttons
-        document.getElementById('clearChatBtn').addEventListener('click', () => {
-            this.clearConversation();
+        document.getElementById('chatHealthBtn').addEventListener('click', () => {
+            this.checkChatHealth();
         });
 
         document.getElementById('chatSummaryBtn').addEventListener('click', () => {
             this.showChatSummary();
         });
 
-        document.getElementById('chatHealthBtn').addEventListener('click', () => {
-            this.checkChatHealth();
+        document.getElementById('clearChatBtn').addEventListener('click', () => {
+            this.clearConversation();
         });
 
-        // New scenario button
+        // Scenario functionality
         document.getElementById('newScenarioBtn').addEventListener('click', () => {
-            this.createNewScenario();
+            this.showScenarioModal();
         });
 
-        // Toggle view button
-        document.getElementById('toggleView').addEventListener('click', () => {
-            this.toggleLedgerView();
-        });
-
-        // Chart control event listeners
+        // Chart controls
         document.getElementById('categoryChartType')?.addEventListener('change', (e) => {
             this.updateCategoryChart(e.target.value);
         });
 
         document.getElementById('trendsTimeframe')?.addEventListener('change', (e) => {
-            this.updateTrendsChart(parseInt(e.target.value));
+            this.updateTrendsChart(e.target.value);
+        });
+
+        // Analytics functionality
+        document.getElementById('refreshAnalyticsBtn')?.addEventListener('click', () => {
+            this.refreshAnalytics();
+        });
+
+        document.getElementById('exportAnalyticsBtn')?.addEventListener('click', () => {
+            this.exportAnalyticsReport();
         });
     }
 
@@ -2080,6 +2082,476 @@ ${health.status === 'healthy' ?
         } catch (error) {
             console.error('Error checking chat health:', error);
             this.addChatMessage('❌ Error performing health check. Please try again.', 'bot');
+        }
+    }
+
+    // Service Initialization
+    initializeServices() {
+        this.initializeChartService();
+        this.initializeScenarioSystem();
+        this.initializeAnalyticsService();
+    }
+
+    // Analytics Service Initialization
+    initializeAnalyticsService() {
+        console.log('=== Analytics Service Initialization ===');
+        console.log('typeof AnalyticsService:', typeof AnalyticsService);
+        
+        if (typeof AnalyticsService !== 'undefined') {
+            this.analyticsService = new AnalyticsService();
+            console.log('✅ Analytics service initialized');
+        } else {
+            console.error('❌ AnalyticsService class not available');
+        }
+    }
+
+    // =============================================================================
+    // ANALYTICS FUNCTIONALITY
+    // =============================================================================
+
+    // Initialize Analytics Tab
+    async initializeAnalytics() {
+        if (!this.analyticsService || !this.financialData) {
+            console.warn('Analytics service or financial data not available');
+            return;
+        }
+
+        try {
+            console.log('🔍 Initializing analytics with', this.financialData.length, 'transactions');
+            
+            // Show loading state
+            this.showAnalyticsLoading();
+            
+            // Run complete analysis
+            const analysis = this.analyticsService.runCompleteAnalysis(this.financialData);
+            console.log('📊 Analytics results:', analysis);
+            
+            // Populate UI with results
+            this.populateHealthScore(analysis.healthScore);
+            this.populateSpendingHabits(analysis.spendingHabits);
+            this.populateAnomalies(analysis.anomalies);
+            this.populateSeasonalPatterns(analysis.seasonalPatterns);
+            this.populateGoalProgress(analysis.goalProgress);
+            
+            // Hide loading state
+            this.hideAnalyticsLoading();
+            
+        } catch (error) {
+            console.error('❌ Analytics initialization failed:', error);
+            this.showAnalyticsError(error.message);
+        }
+    }
+
+    // Populate Financial Health Score
+    populateHealthScore(healthScore) {
+        if (!healthScore) return;
+
+                 // Update main score display
+        document.getElementById('healthScoreValue').textContent = Math.round(healthScore.overall);
+        document.getElementById('healthScoreGrade').textContent = healthScore.grade;
+        
+        // Update score circle color based on grade
+        const scoreCircle = document.querySelector('.score-circle');
+        scoreCircle.className = `score-circle grade-${healthScore.grade.toLowerCase().replace('+', '-plus')}`;
+
+        // Populate component scores
+        const componentsContainer = document.getElementById('healthComponents');
+        componentsContainer.innerHTML = '';
+
+                 Object.entries(healthScore.components).forEach(([componentName, data]) => {
+            const componentDiv = document.createElement('div');
+            componentDiv.className = 'health-component';
+            
+            const gradeClass = this.getScoreGradeClass(data.score);
+            const roundedScore = Math.round(data.score);
+            
+            componentDiv.innerHTML = `
+                <div class="component-header">
+                    <span class="component-name">${this.analyticsService.humanizeComponentName(componentName)}</span>
+                    <span class="component-score">${roundedScore}/100</span>
+                </div>
+                <div class="component-bar">
+                    <div class="component-progress ${gradeClass}" style="--progress-width: ${roundedScore}%; width: ${roundedScore}%"></div>
+                </div>
+            `;
+            
+            componentsContainer.appendChild(componentDiv);
+        });
+
+        // Populate insights
+        const insightsContainer = document.getElementById('healthInsights');
+        insightsContainer.innerHTML = '';
+
+        [...healthScore.insights, ...healthScore.recommendations].forEach(insight => {
+            const insightDiv = document.createElement('div');
+            insightDiv.className = 'insight-item';
+            insightDiv.innerHTML = `
+                <span class="insight-icon">💡</span>
+                <span>${insight}</span>
+            `;
+            insightsContainer.appendChild(insightDiv);
+        });
+    }
+
+    // Populate Spending Habits Analysis
+    populateSpendingHabits(spendingHabits) {
+        if (!spendingHabits) return;
+
+        // Category Breakdown
+        const categoryContainer = document.getElementById('categoryHabits');
+        categoryContainer.innerHTML = '';
+
+        const sortedCategories = Object.entries(spendingHabits.categoryBreakdown)
+            .sort((a, b) => b[1].percentage - a[1].percentage)
+            .slice(0, 8); // Top 8 categories
+
+        sortedCategories.forEach(([category, data]) => {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'category-item';
+            
+            categoryDiv.innerHTML = `
+                <div class="category-info">
+                    <div class="category-name">${category}</div>
+                    <div class="category-details">${data.transactionCount} transactions • ${data.consistency} consistency</div>
+                </div>
+                <div class="category-amount">
+                    <div class="category-percentage">${data.percentage.toFixed(1)}%</div>
+                    <div class="category-total">$${data.totalSpent.toFixed(2)}</div>
+                </div>
+            `;
+            
+            categoryContainer.appendChild(categoryDiv);
+        });
+
+        // Time Patterns
+        const patternsContainer = document.getElementById('timePatterns');
+        patternsContainer.innerHTML = '';
+
+        spendingHabits.timePatterns.weekdays.forEach(dayData => {
+            const patternDiv = document.createElement('div');
+            patternDiv.className = 'time-pattern-item';
+            
+            const isHigh = dayData.total === Math.max(...spendingHabits.timePatterns.weekdays.map(d => d.total));
+            
+            patternDiv.innerHTML = `
+                <div class="pattern-day ${isHigh ? 'pattern-peak' : ''}">${dayData.day}</div>
+                <div class="pattern-amount ${isHigh ? 'pattern-peak' : ''}">$${dayData.total.toFixed(2)}</div>
+            `;
+            
+            patternsContainer.appendChild(patternDiv);
+        });
+    }
+
+    // Populate Anomaly Detection
+    populateAnomalies(anomalies) {
+        if (!anomalies) return;
+
+        // Update summary
+        const summaryContainer = document.getElementById('anomalySummary');
+        summaryContainer.innerHTML = `
+            <div class="anomaly-badge high">
+                <span>🚨</span>
+                <span>${anomalies.summary.high} High</span>
+            </div>
+            <div class="anomaly-badge medium">
+                <span>⚠️</span>
+                <span>${anomalies.summary.medium} Medium</span>
+            </div>
+            <div class="anomaly-badge low">
+                <span>ℹ️</span>
+                <span>${anomalies.summary.low} Low</span>
+            </div>
+        `;
+
+        // Populate anomaly list
+        const anomaliesContainer = document.getElementById('anomaliesList');
+        anomaliesContainer.innerHTML = '';
+
+        anomalies.anomalies.slice(0, 10).forEach(anomaly => { // Show top 10
+            const anomalyDiv = document.createElement('div');
+            anomalyDiv.className = `anomaly-item ${anomaly.severity}`;
+            
+            const icon = anomaly.severity === 'high' ? '🚨' : anomaly.severity === 'medium' ? '⚠️' : 'ℹ️';
+            const transaction = anomaly.transaction;
+            
+            anomalyDiv.innerHTML = `
+                <div class="anomaly-icon">${icon}</div>
+                <div class="anomaly-content">
+                    <div class="anomaly-title">${anomaly.description}</div>
+                    <div class="anomaly-description">
+                        ${transaction ? `${transaction.description} - $${Math.abs(transaction.amount).toFixed(2)}` : anomaly.category || 'Category analysis'}
+                    </div>
+                    <div class="anomaly-details">
+                        ${transaction ? `Date: ${transaction.date}` : `Impact: ${anomaly.impact?.toFixed?.(2) || 'N/A'}`}
+                    </div>
+                </div>
+            `;
+            
+            anomaliesContainer.appendChild(anomalyDiv);
+        });
+    }
+
+    // Populate Seasonal Patterns
+    populateSeasonalPatterns(seasonalPatterns) {
+        if (!seasonalPatterns) return;
+
+        // Create seasonal spending chart
+        this.createSeasonalChart(seasonalPatterns.monthly);
+
+        // Populate insights
+        const insightsContainer = document.getElementById('seasonalInsights');
+        insightsContainer.innerHTML = '';
+
+        seasonalPatterns.insights.forEach(insight => {
+            const insightDiv = document.createElement('div');
+            insightDiv.className = 'seasonal-insight-card';
+            
+            insightDiv.innerHTML = `
+                <div class="seasonal-insight-title">Key Insight</div>
+                <div class="seasonal-insight-value">${insight}</div>
+            `;
+            
+            insightsContainer.appendChild(insightDiv);
+        });
+
+        // Add seasonal breakdown
+        Object.entries(seasonalPatterns.seasonal).forEach(([season, data]) => {
+            const seasonDiv = document.createElement('div');
+            seasonDiv.className = 'seasonal-insight-card';
+            
+            seasonDiv.innerHTML = `
+                <div class="seasonal-insight-title">${season.charAt(0).toUpperCase() + season.slice(1)}</div>
+                <div class="seasonal-insight-value">$${data.total.toFixed(2)}</div>
+            `;
+            
+            insightsContainer.appendChild(seasonDiv);
+        });
+    }
+
+    // Populate Goal Progress
+    populateGoalProgress(goalProgress) {
+        if (!goalProgress) return;
+
+        const goalsContainer = document.getElementById('goalsGrid');
+        goalsContainer.innerHTML = '';
+
+        goalProgress.forEach(goal => {
+            const goalDiv = document.createElement('div');
+            goalDiv.className = `goal-card ${goal.status}`;
+            
+            goalDiv.innerHTML = `
+                <div class="goal-header">
+                    <h4 class="goal-name">${goal.name}</h4>
+                    <span class="goal-status ${goal.status}">${goal.status.replace('_', ' ')}</span>
+                </div>
+                
+                <div class="goal-progress-container">
+                    <div class="goal-progress-bar">
+                        <div class="goal-progress-fill ${goal.status}" style="--progress-width: ${goal.progress}%; width: ${goal.progress}%"></div>
+                    </div>
+                    <div class="goal-progress-text">
+                        <span>Progress</span>
+                        <span class="goal-progress-percentage">${goal.progress.toFixed(1)}%</span>
+                    </div>
+                </div>
+                
+                <div class="goal-details">
+                    <div class="goal-detail-item">
+                        <span class="goal-detail-label">Target</span>
+                        <span class="goal-detail-value">$${goal.target.toFixed(2)}</span>
+                    </div>
+                    <div class="goal-detail-item">
+                        <span class="goal-detail-label">Current</span>
+                        <span class="goal-detail-value">$${Math.abs(goal.currentValue).toFixed(2)}</span>
+                    </div>
+                    <div class="goal-detail-item">
+                        <span class="goal-detail-label">Timeframe</span>
+                        <span class="goal-detail-value">${goal.timeframe} months</span>
+                    </div>
+                    <div class="goal-detail-item">
+                        <span class="goal-detail-label">Completion</span>
+                        <span class="goal-detail-value">${goal.projectedCompletion}</span>
+                    </div>
+                </div>
+                
+                <div class="goal-recommendations">
+                    ${goal.recommendations.map(rec => `<div class="goal-recommendation">${rec}</div>`).join('')}
+                </div>
+            `;
+            
+            goalsContainer.appendChild(goalDiv);
+        });
+    }
+
+    // Create Seasonal Spending Chart
+    createSeasonalChart(monthlyData) {
+        if (!this.chartService) return;
+
+        const canvas = document.getElementById('seasonalChart');
+        if (!canvas) return;
+
+        const data = {
+            labels: monthlyData.map(m => m.month),
+            datasets: [{
+                label: 'Monthly Spending',
+                data: monthlyData.map(m => m.total),
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderColor: '#2563eb',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+            }]
+        };
+
+        const options = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Destroy existing chart if it exists
+        if (this.seasonalChart) {
+            this.seasonalChart.destroy();
+        }
+
+        this.seasonalChart = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: data,
+            options: options
+        });
+    }
+
+    // Analytics Helper Methods
+    getScoreGradeClass(score) {
+        if (score >= 90) return 'excellent';
+        if (score >= 70) return 'good';
+        if (score >= 50) return 'fair';
+        return 'poor';
+    }
+
+    showAnalyticsLoading() {
+        // Add loading overlay instead of replacing content
+        const container = document.querySelector('.analytics-container');
+        if (container) {
+            // Remove any existing loading overlay
+            const existingOverlay = container.querySelector('.analytics-loading-overlay');
+            if (existingOverlay) {
+                existingOverlay.remove();
+            }
+            
+            // Create loading overlay
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'analytics-loading-overlay';
+            loadingOverlay.innerHTML = `
+                <div class="analytics-loading">
+                    <div class="spinner"></div>
+                    Analyzing your financial data...
+                </div>
+            `;
+            
+            container.appendChild(loadingOverlay);
+        }
+    }
+
+    hideAnalyticsLoading() {
+        // Remove loading and error overlays
+        const container = document.querySelector('.analytics-container');
+        if (container) {
+            const loadingOverlay = container.querySelector('.analytics-loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.remove();
+            }
+            
+            const errorOverlay = container.querySelector('.analytics-error-overlay');
+            if (errorOverlay) {
+                errorOverlay.remove();
+            }
+        }
+    }
+
+    showAnalyticsError(message) {
+        // Hide loading overlay first
+        this.hideAnalyticsLoading();
+        
+        // Add error overlay instead of replacing content
+        const container = document.querySelector('.analytics-container');
+        if (container) {
+            // Remove any existing error overlay
+            const existingError = container.querySelector('.analytics-error-overlay');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Create error overlay
+            const errorOverlay = document.createElement('div');
+            errorOverlay.className = 'analytics-error-overlay';
+            errorOverlay.innerHTML = `
+                <div class="analytics-error">
+                    <h3>Analytics Error</h3>
+                    <p>${message}</p>
+                    <button class="btn btn-primary" onclick="app.initializeAnalytics()">Retry</button>
+                </div>
+            `;
+            
+            container.appendChild(errorOverlay);
+        }
+    }
+
+    // Analytics Actions
+    async refreshAnalytics() {
+        await this.initializeAnalytics();
+    }
+
+    async exportAnalyticsReport() {
+        if (!this.analyticsService || !this.financialData) return;
+
+        try {
+            const analysis = this.analyticsService.runCompleteAnalysis(this.financialData);
+            const report = {
+                generatedAt: new Date().toISOString(),
+                healthScore: analysis.healthScore,
+                summary: {
+                    totalTransactions: this.financialData.length,
+                    overallScore: analysis.healthScore.overall,
+                    grade: analysis.healthScore.grade,
+                    topAnomalies: analysis.anomalies.anomalies.slice(0, 5),
+                    goalProgress: analysis.goalProgress.map(g => ({
+                        name: g.name,
+                        progress: g.progress,
+                        status: g.status
+                    }))
+                }
+            };
+
+            // Use existing export functionality
+            const result = await electronAPI.exportData({
+                data: report,
+                filename: `financial-analytics-${new Date().toISOString().split('T')[0]}.json`,
+                type: 'analytics'
+            });
+
+            if (result.success) {
+                this.showNotification('Analytics report exported successfully', 'success');
+            } else {
+                this.showNotification('Failed to export analytics report', 'error');
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            this.showNotification('Failed to export analytics report', 'error');
         }
     }
 }

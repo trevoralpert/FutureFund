@@ -44,6 +44,10 @@
             <span class="tab-icon">🎯</span>
             Scenarios
         </button>
+        <button class="tab-btn" data-tab="analytics">
+            <span class="tab-icon">📈</span>
+            Analytics
+        </button>
     </nav>
 
     <!-- Main Content -->
@@ -237,6 +241,101 @@
                 </div>
             </div>
         </div>
+
+        <!-- Analytics Tab -->
+        <div id="analyticsTab" class="tab-content">
+            <div class="analytics-container">
+                <div class="analytics-header">
+                    <h2>Financial Analytics</h2>
+                    <div class="analytics-controls">
+                        <button id="refreshAnalyticsBtn" class="btn btn-secondary">
+                            <span class="btn-icon">🔄</span>
+                            Refresh
+                        </button>
+                        <button id="exportAnalyticsBtn" class="btn btn-secondary">
+                            <span class="btn-icon">📊</span>
+                            Export Report
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Financial Health Score -->
+                <div class="analytics-section">
+                    <div class="section-header">
+                        <h3>Financial Health Score</h3>
+                        <div class="health-score-display" id="healthScoreDisplay">
+                            <div class="score-circle">
+                                <span class="score-value" id="healthScoreValue">--</span>
+                                <span class="score-grade" id="healthScoreGrade">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="health-components" id="healthComponents">
+                        <!-- Dynamic health component bars -->
+                    </div>
+                    <div class="health-insights" id="healthInsights">
+                        <!-- Dynamic insights -->
+                    </div>
+                </div>
+
+                <!-- Spending Habits Analysis -->
+                <div class="analytics-section">
+                    <div class="section-header">
+                        <h3>Spending Habits</h3>
+                    </div>
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <h4>Category Breakdown</h4>
+                            <div class="category-habits" id="categoryHabits">
+                                <!-- Dynamic category analysis -->
+                            </div>
+                        </div>
+                        <div class="analytics-card">
+                            <h4>Time Patterns</h4>
+                            <div class="time-patterns" id="timePatterns">
+                                <!-- Dynamic time pattern analysis -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Anomaly Detection -->
+                <div class="analytics-section">
+                    <div class="section-header">
+                        <h3>Anomaly Detection</h3>
+                        <div class="anomaly-summary" id="anomalySummary">
+                            <!-- Dynamic anomaly summary -->
+                        </div>
+                    </div>
+                    <div class="anomalies-list" id="anomaliesList">
+                        <!-- Dynamic anomaly items -->
+                    </div>
+                </div>
+
+                <!-- Seasonal Patterns -->
+                <div class="analytics-section">
+                    <div class="section-header">
+                        <h3>Seasonal Spending Patterns</h3>
+                    </div>
+                    <div class="seasonal-chart-container">
+                        <canvas id="seasonalChart"></canvas>
+                    </div>
+                    <div class="seasonal-insights" id="seasonalInsights">
+                        <!-- Dynamic seasonal insights -->
+                    </div>
+                </div>
+
+                <!-- Goals Progress -->
+                <div class="analytics-section">
+                    <div class="section-header">
+                        <h3>Goal Progress</h3>
+                    </div>
+                    <div class="goals-grid" id="goalsGrid">
+                        <!-- Dynamic goal progress cards -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <!-- Loading Overlay -->
@@ -401,6 +500,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <script src="chart-service.js"></script>
+    <script src="analytics-service.js"></script>
     <script src="renderer.js"></script>
 </body>
 </html> 

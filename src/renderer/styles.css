@@ -1525,4 +1525,695 @@ body {
     .step-indicator {
         order: -1;
     }
+}
+
+/* Analytics Tab Styles */
+.analytics-container {
+    padding: var(--spacing-lg);
+    max-width: 1200px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.analytics-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.analytics-section {
+    background: white;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+/* Financial Health Score */
+.health-score-display {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.score-circle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    color: white;
+    font-weight: bold;
+    position: relative;
+    box-shadow: 0 8px 16px rgba(37, 99, 235, 0.3);
+}
+
+.score-value {
+    font-size: 2.5rem;
+    line-height: 1;
+}
+
+.score-grade {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin-top: -4px;
+}
+
+.health-components {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.health-component {
+    background: var(--background-secondary);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.component-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.component-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.component-score {
+    font-weight: bold;
+    color: var(--primary-color);
+    font-size: 0.875rem;
+}
+
+.component-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.component-progress {
+    height: 100%;
+    background: linear-gradient(90deg, var(--danger-color), var(--warning-color), var(--success-color));
+    border-radius: 4px;
+    transition: width 0.8s ease;
+    position: relative;
+}
+
+.component-progress.excellent {
+    background: var(--success-color);
+}
+
+.component-progress.good {
+    background: var(--primary-color);
+}
+
+.component-progress.fair {
+    background: var(--warning-color);
+}
+
+.component-progress.poor {
+    background: var(--danger-color);
+}
+
+.health-insights {
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background: var(--background-light);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary-color);
+}
+
+.insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.insight-item:last-child {
+    margin-bottom: 0;
+}
+
+.insight-icon {
+    font-size: 1rem;
+    margin-top: 2px;
+}
+
+/* Analytics Grid */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.analytics-card {
+    background: var(--background-secondary);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.analytics-card h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Category Habits */
+.category-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.category-item:last-child {
+    border-bottom: none;
+}
+
+.category-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.category-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.category-details {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.category-amount {
+    text-align: right;
+}
+
+.category-percentage {
+    font-weight: bold;
+    color: var(--primary-color);
+    font-size: 0.875rem;
+}
+
+.category-total {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Time Patterns */
+.time-pattern-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+    font-size: 0.875rem;
+}
+
+.pattern-day {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.pattern-amount {
+    color: var(--text-secondary);
+}
+
+.pattern-peak {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+/* Anomaly Detection */
+.anomaly-summary {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.anomaly-badge {
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.anomaly-badge.high {
+    background: var(--danger-light);
+    color: var(--danger-color);
+}
+
+.anomaly-badge.medium {
+    background: var(--warning-light);
+    color: var(--warning-color);
+}
+
+.anomaly-badge.low {
+    background: var(--info-light);
+    color: var(--info-color);
+}
+
+.anomalies-list {
+    margin-top: var(--spacing-md);
+}
+
+.anomaly-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--background-light);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-sm);
+    border-left: 4px solid var(--border-color);
+}
+
+.anomaly-item.high {
+    border-left-color: var(--danger-color);
+}
+
+.anomaly-item.medium {
+    border-left-color: var(--warning-color);
+}
+
+.anomaly-item.low {
+    border-left-color: var(--info-color);
+}
+
+.anomaly-icon {
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.anomaly-content {
+    flex: 1;
+}
+
+.anomaly-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    margin-bottom: 4px;
+}
+
+.anomaly-description {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+}
+
+.anomaly-details {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+}
+
+/* Seasonal Chart */
+.seasonal-chart-container {
+    height: 300px;
+    margin: var(--spacing-lg) 0;
+    background: white;
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    border: 1px solid var(--border-color);
+}
+
+.seasonal-insights {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+}
+
+.seasonal-insight-card {
+    background: var(--background-light);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.seasonal-insight-title {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-xs);
+}
+
+.seasonal-insight-value {
+    font-size: 1.125rem;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* Goals Progress */
+.goals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+}
+
+.goal-card {
+    background: var(--background-secondary);
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+}
+
+.goal-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-color);
+}
+
+.goal-card.achieved::before {
+    background: var(--success-color);
+}
+
+.goal-card.on_track::before {
+    background: var(--primary-color);
+}
+
+.goal-card.behind::before {
+    background: var(--warning-color);
+}
+
+.goal-card.critical::before {
+    background: var(--danger-color);
+}
+
+.goal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.goal-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.goal-status {
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.goal-status.achieved {
+    background: var(--success-light);
+    color: var(--success-color);
+}
+
+.goal-status.on_track {
+    background: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.goal-status.behind {
+    background: var(--warning-light);
+    color: var(--warning-color);
+}
+
+.goal-status.critical {
+    background: var(--danger-light);
+    color: var(--danger-color);
+}
+
+.goal-progress-container {
+    margin: var(--spacing-md) 0;
+}
+
+.goal-progress-bar {
+    height: 12px;
+    background: var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: var(--spacing-sm);
+}
+
+.goal-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+    border-radius: 6px;
+    transition: width 0.8s ease;
+    position: relative;
+}
+
+.goal-progress-fill.achieved {
+    background: linear-gradient(90deg, var(--success-color), var(--success-light));
+}
+
+.goal-progress-fill.behind {
+    background: linear-gradient(90deg, var(--warning-color), var(--warning-light));
+}
+
+.goal-progress-fill.critical {
+    background: linear-gradient(90deg, var(--danger-color), var(--danger-light));
+}
+
+.goal-progress-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.goal-progress-percentage {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.goal-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+    font-size: 0.75rem;
+}
+
+.goal-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.goal-detail-label {
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.goal-detail-value {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.goal-recommendations {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background: var(--background-light);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--primary-color);
+}
+
+.goal-recommendation {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+}
+
+.goal-recommendation:last-child {
+    margin-bottom: 0;
+}
+
+.goal-recommendation::before {
+    content: '💡';
+    font-size: 0.75rem;
+    margin-top: 1px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .analytics-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+    
+    .analytics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .goals-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .health-components {
+        grid-template-columns: 1fr;
+    }
+    
+    .seasonal-insights {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animation Classes */
+.analytics-section {
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.component-progress,
+.goal-progress-fill {
+    animation: progressFill 1s ease forwards;
+}
+
+@keyframes progressFill {
+    from {
+        width: 0;
+    }
+    to {
+        width: var(--progress-width);
+    }
+}
+
+/* Loading States */
+.analytics-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(248, 250, 252, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: var(--radius-lg);
+}
+
+.analytics-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    background: white;
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+}
+
+.analytics-loading .spinner {
+    width: 24px;
+    height: 24px;
+    margin-right: var(--spacing-sm);
+}
+
+.analytics-error-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(248, 250, 252, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    border-radius: var(--radius-lg);
+}
+
+.analytics-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    background: white;
+    padding: var(--spacing-xl);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    max-width: 400px;
+}
+
+.analytics-error h3 {
+    color: var(--danger-color);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.analytics-error p {
+    margin: 0 0 var(--spacing-lg) 0;
 } 
