@@ -6,6 +6,8 @@ class FutureFundApp {
         this.financialData = [];
         this.scenarios = new Map();
         this.chatHistory = [];
+        this.currentView = 'table'; // 'table' or 'chart'
+        this.chartService = null;
         
         this.init();
     }
@@ -17,6 +19,9 @@ class FutureFundApp {
         this.initializeTabs();
         this.initializeEventListeners();
         this.initializeData();
+        
+        // Initialize chart service
+        this.initializeChartService();
         
         // Load initial data
         await this.loadFinancialData();
@@ -123,6 +128,15 @@ class FutureFundApp {
         // Toggle view button
         document.getElementById('toggleView').addEventListener('click', () => {
             this.toggleLedgerView();
+        });
+
+        // Chart control event listeners
+        document.getElementById('categoryChartType')?.addEventListener('change', (e) => {
+            this.updateCategoryChart(e.target.value);
+        });
+
+        document.getElementById('trendsTimeframe')?.addEventListener('change', (e) => {
+            this.updateTrendsChart(parseInt(e.target.value));
         });
     }
 
@@ -355,6 +369,7 @@ class FutureFundApp {
     refreshLedger() {
         this.updateSummaryCards();
         this.updateLedgerTable();
+        this.refreshCharts(); // Update charts when data changes
     }
 
     updateSummaryCards() {
@@ -1500,38 +1515,151 @@ class FutureFundApp {
         }
         
         try {
-            // For now, show a simple comparison
             const baseScenario = this.scenarios.get(baseScenarioId);
             const compareScenario = this.scenarios.get(compareScenarioId);
             
             const resultsDiv = document.getElementById('comparisonResults');
             const metricsGrid = document.getElementById('metricsGrid');
             
-            // Simple comparison display
+            // Show loading state
             metricsGrid.innerHTML = `
                 <div class="metric-card">
-                    <div class="metric-label">Base Scenario</div>
-                    <div class="metric-value">${baseScenario.name}</div>
-                    <div class="metric-change">Current Selection</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Compare Scenario</div>
-                    <div class="metric-value">${compareScenario.name}</div>
-                    <div class="metric-change">Comparison Target</div>
-                </div>
-                <div class="metric-card">
-                    <div class="metric-label">Analysis Status</div>
-                    <div class="metric-value">Ready</div>
-                    <div class="metric-change positive">Data Available</div>
+                    <div class="metric-label">Status</div>
+                    <div class="metric-value">
+                        <div class="spinner"></div>
+                        Analyzing...
+                    </div>
                 </div>
             `;
             
             resultsDiv.classList.remove('hidden');
             
+            // Simulate scenario analysis (in real implementation, this would apply scenario parameters)
+            setTimeout(() => {
+                // Calculate comparison metrics
+                const comparisonData = this.calculateScenarioComparison(baseScenario, compareScenario);
+                
+                // Update metrics display
+                metricsGrid.innerHTML = `
+                    <div class="metric-card">
+                        <div class="metric-label">Base Scenario</div>
+                        <div class="metric-value">${baseScenario.name}</div>
+                        <div class="metric-change">Current Selection</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Compare Scenario</div>
+                        <div class="metric-value">${compareScenario.name}</div>
+                        <div class="metric-change">Comparison Target</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">1-Year Impact</div>
+                        <div class="metric-value">${this.formatCurrency(comparisonData.yearOneImpact)}</div>
+                        <div class="metric-change ${comparisonData.yearOneImpact >= 0 ? 'positive' : 'negative'}">
+                            ${comparisonData.yearOneImpact >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.yearOneImpact)}
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">5-Year Impact</div>
+                        <div class="metric-value">${this.formatCurrency(comparisonData.fiveYearImpact)}</div>
+                        <div class="metric-change ${comparisonData.fiveYearImpact >= 0 ? 'positive' : 'negative'}">
+                            ${comparisonData.fiveYearImpact >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.fiveYearImpact)}
+                        </div>
+                    </div>
+                `;
+                
+                // Create comparison chart if chart service is available
+                if (this.chartService) {
+                    this.createScenarioComparisonChart(baseScenario, compareScenario);
+                }
+            }, 1500);
+            
         } catch (error) {
             console.error('Error running comparison:', error);
             alert('Error running comparison. Please try again.');
         }
+    }
+    
+    calculateScenarioComparison(baseScenario, compareScenario) {
+        // This is a simplified calculation - in a real implementation,
+        // you would apply the scenario parameters to financial projections
+        
+        // Simulate different impacts based on scenario types
+        let yearOneImpact = 0;
+        let fiveYearImpact = 0;
+        
+        if (compareScenario.template === 'salary_change') {
+            const salaryIncrease = compareScenario.parameters?.newSalary - compareScenario.parameters?.currentSalary || 10000;
+            yearOneImpact = salaryIncrease * 0.7; // Account for taxes
+            fiveYearImpact = yearOneImpact * 5 * 1.1; // With compound growth
+        } else if (compareScenario.template === 'major_purchase') {
+            const purchaseCost = compareScenario.parameters?.totalCost || 50000;
+            yearOneImpact = -purchaseCost * 0.2; // Down payment impact
+            fiveYearImpact = -purchaseCost * 0.8; // Full cost over time
+        } else if (compareScenario.template === 'investment_strategy') {
+            const monthlyContribution = compareScenario.parameters?.monthlyContribution || 500;
+            const expectedReturn = (compareScenario.parameters?.expectedReturn || 8) / 100;
+            yearOneImpact = monthlyContribution * 12 * (1 + expectedReturn);
+            fiveYearImpact = monthlyContribution * 12 * 5 * (1 + expectedReturn) * 1.5;
+        } else {
+            // Generic positive impact for other scenarios
+            yearOneImpact = Math.random() * 5000 - 2500;
+            fiveYearImpact = yearOneImpact * 5 * (1 + Math.random() * 0.5);
+        }
+        
+        return {
+            yearOneImpact: Math.round(yearOneImpact),
+            fiveYearImpact: Math.round(fiveYearImpact)
+        };
+    }
+    
+    createScenarioComparisonChart(baseScenario, compareScenario) {
+        if (!this.chartService) return;
+        
+        // Generate mock projection data for comparison
+        const baseProjections = this.generateScenarioProjections(baseScenario, 'base');
+        const compareProjections = this.generateScenarioProjections(compareScenario, 'compare');
+        
+        this.chartService.createScenarioComparisonChart('comparisonChart', 
+            { ...baseScenario, projectedData: baseProjections },
+            [{ ...compareScenario, projectedData: compareProjections }]
+        );
+    }
+    
+    generateScenarioProjections(scenario, type) {
+        // Generate mock projection data based on current financial data
+        const startDate = new Date();
+        const projections = [];
+        let currentBalance = this.financialData.find(d => !d.isProjected)?.balance || 10000;
+        
+        // Apply scenario-specific modifiers
+        let monthlyChange = 500; // Base monthly savings
+        
+        if (scenario.template === 'salary_change') {
+            const salaryIncrease = scenario.parameters?.newSalary - scenario.parameters?.currentSalary || 0;
+            monthlyChange += salaryIncrease / 12 * 0.7; // After taxes
+        } else if (scenario.template === 'major_purchase') {
+            const purchaseCost = scenario.parameters?.totalCost || 0;
+            monthlyChange -= purchaseCost / 60; // Spread over 5 years
+        } else if (scenario.template === 'investment_strategy') {
+            const contribution = scenario.parameters?.monthlyContribution || 0;
+            const returnRate = (scenario.parameters?.expectedReturn || 8) / 100 / 12;
+            monthlyChange += contribution * (1 + returnRate);
+        }
+        
+        // Generate 60 months of projections
+        for (let i = 0; i < 60; i++) {
+            const date = new Date(startDate);
+            date.setMonth(date.getMonth() + i);
+            
+            currentBalance += monthlyChange + (Math.random() - 0.5) * 200; // Add some variance
+            
+            projections.push({
+                date: date.toISOString().split('T')[0],
+                balance: Math.round(currentBalance)
+            });
+        }
+        
+        return projections;
     }
 
     async syncData() {
@@ -1562,8 +1690,192 @@ class FutureFundApp {
         }
     }
 
+    // Chart Service Initialization
+    initializeChartService() {
+        if (typeof ChartService !== 'undefined') {
+            this.chartService = new ChartService();
+            console.log('Chart service initialized successfully');
+        } else {
+            console.warn('ChartService not available - charts will be disabled');
+        }
+    }
+
+    // View Toggle Functionality
     toggleLedgerView() {
-        alert('Chart view coming soon!');
+        this.currentView = this.currentView === 'table' ? 'chart' : 'table';
+        
+        const tableView = document.getElementById('tableView');
+        const chartView = document.getElementById('chartView');
+        const toggleBtn = document.getElementById('toggleView');
+        const viewModeText = document.getElementById('viewModeText');
+        
+        if (this.currentView === 'chart') {
+            // Switch to chart view
+            tableView.classList.add('hidden');
+            chartView.classList.remove('hidden');
+            toggleBtn.innerHTML = '<span class="btn-icon">📊</span><span id="viewModeText">Table View</span>';
+            
+            // Initialize charts with current data
+            this.initializeCharts();
+        } else {
+            // Switch to table view
+            chartView.classList.add('hidden');
+            tableView.classList.remove('hidden');
+            toggleBtn.innerHTML = '<span class="btn-icon">📈</span><span id="viewModeText">Chart View</span>';
+        }
+    }
+
+    // Chart Initialization and Management
+    initializeCharts() {
+        if (!this.chartService || !this.financialData || this.financialData.length === 0) {
+            console.warn('Cannot initialize charts - missing service or data');
+            return;
+        }
+
+        try {
+            // Add loading states
+            this.showChartLoading('balanceChart');
+            this.showChartLoading('categoryChart');
+            this.showChartLoading('trendsChart');
+
+            // Initialize charts with a small delay for better UX
+            setTimeout(() => {
+                this.createBalanceChart();
+                this.createCategoryChart();
+                this.createTrendsChart();
+                
+                // Add animation class
+                document.querySelectorAll('.chart-container').forEach(container => {
+                    container.classList.add('animate');
+                });
+            }, 300);
+
+        } catch (error) {
+            console.error('Error initializing charts:', error);
+            this.showChartError('balanceChart', 'Failed to load balance chart');
+            this.showChartError('categoryChart', 'Failed to load category chart');
+            this.showChartError('trendsChart', 'Failed to load trends chart');
+        }
+    }
+
+    createBalanceChart() {
+        if (!this.chartService) return;
+
+        const filteredData = this.getFilteredData(document.getElementById('dateRange').value);
+        this.chartService.createBalanceOverTimeChart('balanceChart', filteredData, {
+            showProjected: true,
+            timeframe: document.getElementById('dateRange').value
+        });
+    }
+
+    createCategoryChart() {
+        if (!this.chartService) return;
+
+        const chartType = document.getElementById('categoryChartType')?.value || 'doughnut';
+        const expenseData = this.financialData.filter(d => d.amount < 0 && !d.isProjected);
+        
+        this.chartService.createCategoryBreakdownChart('categoryChart', expenseData, {
+            chartType: chartType,
+            title: 'Expense Categories',
+            maxCategories: 8
+        });
+    }
+
+    createTrendsChart() {
+        if (!this.chartService) return;
+
+        const timeframe = parseInt(document.getElementById('trendsTimeframe')?.value) || 12;
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - timeframe);
+        
+        const recentData = this.financialData.filter(d => {
+            return new Date(d.date) >= cutoffDate && !d.isProjected;
+        });
+
+        this.chartService.createIncomeExpenseTrendsChart('trendsChart', recentData, {
+            timeframe: timeframe
+        });
+    }
+
+    // Chart Update Methods
+    updateCategoryChart(chartType) {
+        if (!this.chartService) return;
+        
+        this.showChartLoading('categoryChart');
+        setTimeout(() => {
+            this.createCategoryChart();
+        }, 200);
+    }
+
+    updateTrendsChart(timeframe) {
+        if (!this.chartService) return;
+        
+        this.showChartLoading('trendsChart');
+        setTimeout(() => {
+            this.createTrendsChart();
+        }, 200);
+    }
+
+    // Chart State Management
+    showChartLoading(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        const wrapper = canvas?.parentElement;
+        
+        if (wrapper) {
+            wrapper.innerHTML = `
+                <div class="chart-loading">
+                    <div class="spinner"></div>
+                    Loading chart...
+                </div>
+            `;
+        }
+    }
+
+    showChartError(canvasId, message) {
+        const canvas = document.getElementById(canvasId);
+        const wrapper = canvas?.parentElement;
+        
+        if (wrapper) {
+            wrapper.innerHTML = `
+                <div class="chart-error">
+                    <div>
+                        <strong>⚠️ Chart Error</strong><br>
+                        ${message}
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Chart Export Functionality
+    exportChart(canvasId) {
+        if (!this.chartService) {
+            alert('Chart service not available');
+            return;
+        }
+
+        try {
+            const chartNames = {
+                'balanceChart': 'balance-over-time',
+                'categoryChart': 'expense-categories',
+                'trendsChart': 'income-expense-trends'
+            };
+
+            const filename = chartNames[canvasId] || 'chart';
+            this.chartService.exportChart(canvasId, filename);
+            
+            console.log(`Chart exported: ${filename}`);
+        } catch (error) {
+            console.error('Error exporting chart:', error);
+            alert('Failed to export chart. Please try again.');
+        }
+    }
+
+    // Refresh charts when data changes
+    refreshCharts() {
+        if (this.currentView === 'chart' && this.chartService) {
+            this.initializeCharts();
+        }
     }
 
     formatCurrency(amount) {

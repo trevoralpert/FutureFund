@@ -79,12 +79,13 @@
                         <div class="view-mode">
                             <button class="btn btn-secondary" id="toggleView">
                                 <span class="btn-icon">📈</span>
-                                Chart View
+                                <span id="viewModeText">Chart View</span>
                             </button>
                         </div>
                     </div>
                 </div>
-                <div class="ledger-table-container">
+                <!-- Table View -->
+                <div id="tableView" class="ledger-table-container">
                     <table id="ledgerTable" class="ledger-table">
                         <thead>
                             <tr>
@@ -100,6 +101,68 @@
                             <!-- Dynamic content will be inserted here -->
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- Chart View -->
+                <div id="chartView" class="chart-view hidden">
+                    <div class="charts-grid">
+                        <!-- Balance Over Time Chart -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>Balance Over Time</h3>
+                                <div class="chart-controls">
+                                    <button class="btn btn-secondary btn-sm" onclick="app.exportChart('balanceChart')">
+                                        <span class="btn-icon">📊</span>
+                                        Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="balanceChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Category Breakdown Chart -->
+                        <div class="chart-container">
+                            <div class="chart-header">
+                                <h3>Expense Categories</h3>
+                                <div class="chart-controls">
+                                    <select id="categoryChartType" class="chart-type-selector">
+                                        <option value="doughnut">Doughnut</option>
+                                        <option value="pie">Pie</option>
+                                    </select>
+                                    <button class="btn btn-secondary btn-sm" onclick="app.exportChart('categoryChart')">
+                                        <span class="btn-icon">📊</span>
+                                        Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Income vs Expenses Trends -->
+                        <div class="chart-container full-width">
+                            <div class="chart-header">
+                                <h3>Income vs Expenses Trends</h3>
+                                <div class="chart-controls">
+                                    <select id="trendsTimeframe" class="chart-timeframe-selector">
+                                        <option value="6">Last 6 Months</option>
+                                        <option value="12" selected>Last 12 Months</option>
+                                        <option value="24">Last 24 Months</option>
+                                    </select>
+                                    <button class="btn btn-secondary btn-sm" onclick="app.exportChart('trendsChart')">
+                                        <span class="btn-icon">📊</span>
+                                        Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="trendsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -336,6 +399,8 @@
 
     <!-- Scripts -->
     <script src="../node_modules/chart.js/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="chart-service.js"></script>
     <script src="renderer.js"></script>
 </body>
 </html> 
