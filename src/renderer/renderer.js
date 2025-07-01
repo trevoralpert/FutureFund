@@ -102,6 +102,19 @@ class FutureFundApp {
             });
         });
 
+        // Chat management buttons
+        document.getElementById('clearChatBtn').addEventListener('click', () => {
+            this.clearConversation();
+        });
+
+        document.getElementById('chatSummaryBtn').addEventListener('click', () => {
+            this.showChatSummary();
+        });
+
+        document.getElementById('chatHealthBtn').addEventListener('click', () => {
+            this.checkChatHealth();
+        });
+
         // New scenario button
         document.getElementById('newScenarioBtn').addEventListener('click', () => {
             this.createNewScenario();
@@ -116,6 +129,30 @@ class FutureFundApp {
     async initializeData() {
         // Initialize with mock financial data
         this.financialData = this.generateMockData();
+        
+        // Debug: Check what dates we actually have in our data
+        const april10Transactions = this.financialData.filter(t => t.date === '2025-04-10');
+        console.log('🔍 April 10, 2025 transactions in raw data:', april10Transactions);
+        
+        // Check for any April 2025 transactions
+        const april2025Transactions = this.financialData.filter(t => t.date.startsWith('2025-04'));
+        console.log('🔍 All April 2025 transactions:', april2025Transactions.length, 'found');
+        
+        // Send debug info to terminal
+        electronAPI.logDebug('Mock Data Generation', {
+            april10Count: april10Transactions.length,
+            april10Details: april10Transactions,
+            april2025Count: april2025Transactions.length
+        });
+        
+        const allDates = this.financialData.map(t => t.date).sort();
+        console.log('🔍 Date range in raw data:', {
+            first: allDates[0],
+            last: allDates[allDates.length - 1],
+            totalTransactions: this.financialData.length,
+            actualTransactions: this.financialData.filter(d => !d.isProjected).length,
+            projectedTransactions: this.financialData.filter(d => d.isProjected).length
+        });
         
         // Initialize base scenario
         this.scenarios.set('base', {
@@ -176,12 +213,13 @@ class FutureFundApp {
             }
         }
 
-        // Generate future projections
+        // Generate future projections with more frequent transactions
         const futureStartDate = new Date();
         for (let i = 1; i <= 365; i++) {
             const date = new Date(futureStartDate);
             date.setDate(date.getDate() + i);
             
+            // Monthly salary on the 1st
             if (date.getDate() === 1) {
                 currentBalance += 2500;
                 data.push({
@@ -196,6 +234,37 @@ class FutureFundApp {
                 });
             }
             
+            // Investment return on the 10th of each month
+            if (date.getDate() === 10) {
+                const investmentAmount = Math.random() * 1000 + 1500; // $1500-2500
+                currentBalance += investmentAmount;
+                data.push({
+                    id: `proj-${date.toISOString().split('T')[0]}-investment`,
+                    date: date.toISOString().split('T')[0],
+                    description: 'Investment Return',
+                    category: 'Income',
+                    amount: Math.round(investmentAmount * 100) / 100,
+                    balance: Math.round(currentBalance * 100) / 100,
+                    type: 'Income',
+                    isProjected: true
+                });
+                
+                // Also add some shopping expense on the same day
+                const shoppingAmount = -(Math.random() * 200 + 50); // $50-250
+                currentBalance += shoppingAmount;
+                data.push({
+                    id: `proj-${date.toISOString().split('T')[0]}-shopping`,
+                    date: date.toISOString().split('T')[0],
+                    description: 'Shopping',
+                    category: 'Debt',
+                    amount: Math.round(shoppingAmount * 100) / 100,
+                    balance: Math.round(currentBalance * 100) / 100,
+                    type: 'Expense',
+                    isProjected: true
+                });
+            }
+            
+            // Monthly rent on the 15th
             if (date.getDate() === 15) {
                 currentBalance -= 1200;
                 data.push({
@@ -210,7 +279,8 @@ class FutureFundApp {
                 });
             }
             
-            if (Math.random() < 0.3) {
+            // More frequent random transactions (70% chance instead of 30%)
+            if (Math.random() < 0.7) {
                 const category = categories[Math.floor(Math.random() * (categories.length - 1)) + 1];
                 const amount = -(Math.random() * 150 + 5);
                 currentBalance += amount;
@@ -384,24 +454,110 @@ class FutureFundApp {
     }
 
     async generateChatResponse(message) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const lowerMessage = message.toLowerCase();
-        
-        if (lowerMessage.includes('balance') || lowerMessage.includes('much will i have')) {
-            const balance = this.financialData.find(d => d.isProjected)?.balance || 0;
-            return `Based on your current financial trajectory, you're projected to have ${this.formatCurrency(balance)} in your account by the end of next year.`;
+        try {
+            // Prepare financial context from current data
+            const context = this.buildFinancialContext();
+            
+            // Debug: Log the context being sent to AI
+            console.log('🔍 Financial context being sent to AI:', {
+                hasData: context.hasData,
+                totalTransactions: context.totalTransactions,
+                totalProjectedTransactions: context.totalProjectedTransactions,
+                dateRange: context.dateRange,
+                allTransactionsCount: context.allTransactions?.length,
+                allTransactionDates: context.allTransactions?.map(t => t.date)
+            });
+            
+            // Also send debug info to main process (visible in terminal)
+            electronAPI.logDebug('Financial Context Debug', {
+                message: `Sending ALL ${context.allTransactions?.length || 0} transactions to AI`,
+                hasApril10: context.allTransactions?.some(t => t.date === '2025-04-10') || false,
+                april10Transactions: context.allTransactions?.filter(t => t.date === '2025-04-10') || [],
+                dateRange: context.dateRange,
+                allTransactionsInRawData: this.financialData.filter(t => t.date === '2025-04-10').length,
+                sampleDates: context.allTransactions?.slice(0, 10).map(t => t.date) || []
+            });
+            
+            // Use enhanced chat service
+            const result = await electronAPI.askChatbot(message, context);
+            
+            if (result.success) {
+                // Store additional response data for debugging
+                if (result.parsedQuery && result.confidence) {
+                    console.log('Chat response metadata:', {
+                        intent: result.parsedQuery.intent,
+                        confidence: result.confidence,
+                        sessionId: result.sessionId
+                    });
+                }
+                
+                return result.response;
+            } else {
+                if (result.setup) {
+                    return '🔧 To enable AI chat features, please set up your OpenAI API key in the .env file. See the README for instructions.';
+                }
+                return `❌ Sorry, I encountered an error: ${result.error}`;
+            }
+        } catch (error) {
+            console.error('Error generating chat response:', error);
+            return '❌ Sorry, I encountered an unexpected error. Please try again.';
+        }
+    }
+    
+    buildFinancialContext() {
+        if (!this.financialData || this.financialData.length === 0) {
+            return {
+                hasData: false,
+                currentBalance: 0,
+                monthlyNetIncome: 0,
+                totalTransactions: 0
+            };
         }
         
-        if (lowerMessage.includes('retirement')) {
-            return `For retirement planning, I recommend focusing on consistent savings and investment growth. Based on your current savings rate, you might want to consider increasing your monthly contributions.`;
-        }
+        // Calculate current balance and metrics using actual transactions
+        const actualTransactions = this.financialData.filter(d => !d.isProjected);
+        const currentBalance = actualTransactions.length > 0 ? 
+            actualTransactions[actualTransactions.length - 1].balance : 0;
         
-        if (lowerMessage.includes('house') || lowerMessage.includes('home')) {
-            return `For home buying, I can help you plan based on your projected savings. Typically, you'll want 10-20% down payment plus closing costs.`;
-        }
+        const totalIncome = actualTransactions
+            .filter(d => d.amount > 0)
+            .reduce((sum, d) => sum + d.amount, 0);
+            
+        const totalExpenses = Math.abs(actualTransactions
+            .filter(d => d.amount < 0)
+            .reduce((sum, d) => sum + d.amount, 0));
         
-        return `I understand you're asking about "${message}". I can help you analyze your financial projections and scenarios.`;
+        const monthlyNetIncome = (totalIncome - totalExpenses) / 12;
+        
+        // Get ALL transactions (actual and projected) for comprehensive context
+        const allTransactions = [...this.financialData].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Send ALL transactions to AI - let it analyze the complete dataset
+        // Modern LLMs like GPT-4 can handle thousands of transactions easily
+        const allTransactionsForAI = allTransactions.map(t => ({
+            date: t.date,
+            description: t.description,
+            amount: t.amount,
+            category: t.category,
+            balance: t.balance,
+            type: t.type,
+            isProjected: t.isProjected || false
+        }));
+        
+        return {
+            hasData: true,
+            currentBalance,
+            monthlyNetIncome,
+            totalTransactions: actualTransactions.length,
+            totalProjectedTransactions: this.financialData.filter(d => d.isProjected).length,
+            totalIncome,
+            totalExpenses,
+            allTransactions: allTransactionsForAI,  // Send ALL data to AI
+            dateRange: {
+                start: allTransactions[0]?.date,
+                end: allTransactions[allTransactions.length - 1]?.date
+            }
+        };
     }
 
     addChatMessage(message, sender) {
@@ -411,15 +567,35 @@ class FutureFundApp {
         
         const avatar = sender === 'user' ? '👤' : '🤖';
         
+        // Parse basic markdown formatting for AI responses
+        let formattedMessage = message;
+        if (sender === 'bot') {
+            formattedMessage = this.parseMarkdown(message);
+        }
+        
         messageDiv.innerHTML = `
             <div class="message-avatar">${avatar}</div>
             <div class="message-content">
-                <p>${message}</p>
+                <div>${formattedMessage}</div>
             </div>
         `;
         
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    parseMarkdown(text) {
+        return text
+            // Bold text: **text** -> <strong>text</strong>
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            // Italic text: *text* -> <em>text</em>
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            // Convert line breaks to <br> tags
+            .replace(/\n/g, '<br>')
+            // Convert bullet points (• or -) to proper list items
+            .replace(/^[•\-]\s(.+)$/gm, '<div class="bullet-point">• $1</div>')
+            // Convert numbered lists (1. 2. 3.) 
+            .replace(/^(\d+)\.\s(.+)$/gm, '<div class="numbered-point">$1. $2</div>');
     }
 
     showChatLoading() {
@@ -566,11 +742,108 @@ class FutureFundApp {
     }
 
     formatDate(dateString) {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        // Parse date without timezone conversion to avoid April 10 -> April 9 issues
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
         });
+    }
+
+    // Chat management methods
+    async clearConversation() {
+        try {
+            const result = await electronAPI.clearConversation();
+            
+            if (result.success) {
+                // Clear the chat UI
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = '';
+                
+                // Add welcome message back
+                this.addChatMessage(`Hello! I'm your AI financial assistant. Your conversation has been cleared and I'm ready to help with fresh context.
+                
+Try asking me something like:
+• "How much will I have saved by December 2025?"
+• "What happens if I get a 20% raise next year?"
+• "Can I afford a $300,000 house in 3 years?"`, 'bot');
+                
+                console.log('Conversation cleared successfully');
+            } else {
+                this.addChatMessage('❌ Failed to clear conversation. Please try again.', 'bot');
+            }
+        } catch (error) {
+            console.error('Error clearing conversation:', error);
+            this.addChatMessage('❌ Error clearing conversation. Please try again.', 'bot');
+        }
+    }
+
+    async showChatSummary() {
+        try {
+            const result = await electronAPI.getChatSummary();
+            
+            if (result.success) {
+                const summary = result.summary;
+                const messageCount = summary.messageCount || 0;
+                const sessionId = summary.sessionId || 'Unknown';
+                const hasContext = summary.hasContext ? 'Yes' : 'No';
+                const startTime = summary.startTime ? new Date(summary.startTime).toLocaleString() : 'No messages yet';
+                const lastActivity = summary.lastActivity ? new Date(summary.lastActivity).toLocaleString() : 'No activity';
+
+                const summaryMessage = `📋 **Conversation Summary**
+
+**Session ID:** ${sessionId}
+**Messages exchanged:** ${messageCount}
+**Has financial context:** ${hasContext}
+**Started:** ${startTime}
+**Last activity:** ${lastActivity}
+
+This conversation contains ${messageCount} messages and ${hasContext === 'Yes' ? 'includes' : 'does not include'} your financial data context.`;
+
+                this.addChatMessage(summaryMessage, 'bot');
+            } else {
+                this.addChatMessage('❌ Failed to get conversation summary. Please try again.', 'bot');
+            }
+        } catch (error) {
+            console.error('Error getting chat summary:', error);
+            this.addChatMessage('❌ Error getting conversation summary. Please try again.', 'bot');
+        }
+    }
+
+    async checkChatHealth() {
+        try {
+            this.addChatMessage('🔍 Checking AI chat system health...', 'bot');
+            
+            const result = await electronAPI.chatHealthCheck();
+            
+            if (result.success) {
+                const health = result.health;
+                const status = health.status === 'healthy' ? '✅ Healthy' : '❌ Unhealthy';
+                const model = health.model || 'Unknown';
+                const conversationLength = health.conversationLength || 0;
+                const hasContext = health.hasContext ? 'Yes' : 'No';
+
+                const healthMessage = `🩺 **AI Chat Health Check**
+
+**Status:** ${status}
+**Model:** ${model}
+**Conversation length:** ${conversationLength} messages
+**Has financial context:** ${hasContext}
+
+${health.status === 'healthy' ? 
+    'All systems are operational and ready to assist with your financial questions!' : 
+    `System issues detected: ${health.error || 'Unknown error'}`}`;
+
+                this.addChatMessage(healthMessage, 'bot');
+            } else {
+                this.addChatMessage(`❌ Health check failed: ${result.error}`, 'bot');
+            }
+        } catch (error) {
+            console.error('Error checking chat health:', error);
+            this.addChatMessage('❌ Error performing health check. Please try again.', 'bot');
+        }
     }
 }
 

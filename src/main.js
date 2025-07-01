@@ -315,9 +315,12 @@ ipcMain.handle('clear-workflow-cache', async () => {
   }
 });
 
+// Import enhanced chat service
+const { chatService } = require('./ai/chat-service');
+
 ipcMain.handle('ask-chatbot', async (event, question, context) => {
   try {
-    console.log('Chatbot question:', question);
+    console.log('Enhanced chatbot question:', question);
     
     if (!config.isAIEnabled) {
       return {
@@ -327,47 +330,72 @@ ipcMain.handle('ask-chatbot', async (event, question, context) => {
       };
     }
 
-    // Use OpenAI API
-    const OpenAI = require('openai');
-    const openai = new OpenAI({
-      apiKey: config.openai.apiKey,
-      timeout: config.openai.timeout
-    });
-
-    // Build context-aware prompt
-    const systemPrompt = `You are FutureFund AI, a personal finance assistant. You help users with financial planning, budgeting, and forecasting.
-
-Current context:
-- User has financial data: ${context?.hasData || false}
-- Current balance: ${context?.currentBalance || 'Unknown'}
-- Date range: ${context?.dateRange || 'Not specified'}
-
-Be helpful, accurate, and professional. If you need more specific financial data to answer properly, ask for it.`;
-
-    const completion = await openai.chat.completions.create({
-      model: config.openai.model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: question }
-      ],
-      max_tokens: config.openai.maxTokens,
-      temperature: config.openai.temperature
-    });
-
-    return {
-      success: true,
-      response: completion.choices[0].message.content,
-      usage: completion.usage,
-      model: config.openai.model
-    };
+    // Use enhanced chat service with financial context
+    const result = await chatService.sendMessage(question, context);
+    
+    if (result.success) {
+      return {
+        success: true,
+        response: result.response,
+        sessionId: result.sessionId,
+        parsedQuery: result.parsedQuery,
+        confidence: result.confidence,
+        usage: result.usage,
+        model: config.openai.model
+      };
+    } else {
+      return {
+        success: false,
+        error: result.error,
+        code: result.code || 'CHATBOT_ERROR'
+      };
+    }
+    
   } catch (error) {
-    console.error('Error with chatbot:', error);
+    console.error('Error with enhanced chatbot:', error);
     return { 
       success: false, 
       error: error.message,
       code: error.code || 'CHATBOT_ERROR'
     };
   }
+});
+
+// Add new chat management handlers
+ipcMain.handle('chat-clear-conversation', async () => {
+  try {
+    chatService.clearConversation();
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing conversation:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('chat-get-summary', async () => {
+  try {
+    const summary = chatService.getConversationSummary();
+    return { success: true, summary };
+  } catch (error) {
+    console.error('Error getting conversation summary:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('chat-health-check', async () => {
+  try {
+    const health = await chatService.healthCheck();
+    return { success: true, health };
+  } catch (error) {
+    console.error('Error checking chat health:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Debug logging handler
+ipcMain.handle('log-debug', async (event, title, data) => {
+  console.log(`🔍 ${title}:`, data);
+  return { success: true };
 });
 
 // File operations

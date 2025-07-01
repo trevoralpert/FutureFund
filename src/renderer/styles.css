@@ -317,17 +317,44 @@ body {
 .chat-header {
     padding: var(--spacing-xl);
     border-bottom: 1px solid var(--border-color);
-    text-align: center;
 }
 
-.chat-header h2 {
+.chat-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-lg);
+}
+
+.chat-title {
+    flex: 1;
+}
+
+.chat-title h2 {
     margin-bottom: var(--spacing-sm);
     color: var(--text-primary);
 }
 
-.chat-header p {
+.chat-title p {
     color: var(--text-secondary);
     font-size: 0.875rem;
+    margin: 0;
+}
+
+.chat-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.chat-controls .btn {
+    font-size: 0.75rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+    min-width: auto;
+}
+
+.chat-controls .btn-icon {
+    margin-right: 0.25rem;
 }
 
 .chat-messages {
@@ -390,6 +417,26 @@ body {
 
 .message-content li {
     margin-bottom: var(--spacing-xs);
+}
+
+.message-content .bullet-point {
+    margin: var(--spacing-xs) 0;
+    padding-left: var(--spacing-sm);
+}
+
+.message-content .numbered-point {
+    margin: var(--spacing-xs) 0;
+    padding-left: var(--spacing-sm);
+}
+
+.message-content strong {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.message-content em {
+    font-style: italic;
+    color: var(--text-secondary);
 }
 
 .chat-input-container {
@@ -542,6 +589,20 @@ body {
     
     .chat-container {
         height: 500px;
+    }
+    
+    .chat-header-content {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--spacing-md);
+    }
+    
+    .chat-title {
+        text-align: center;
+    }
+    
+    .chat-controls {
+        justify-content: center;
     }
     
     .message {

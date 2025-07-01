@@ -108,8 +108,26 @@
         <div id="chatTab" class="tab-content">
             <div class="chat-container">
                 <div class="chat-header">
-                    <h2>AI Financial Assistant</h2>
-                    <p>Ask me anything about your financial future!</p>
+                    <div class="chat-header-content">
+                        <div class="chat-title">
+                            <h2>AI Financial Assistant</h2>
+                            <p>Ask me anything about your financial future!</p>
+                        </div>
+                        <div class="chat-controls">
+                            <button id="chatHealthBtn" class="btn btn-secondary" title="Check AI Health">
+                                <span class="btn-icon">🩺</span>
+                                Health
+                            </button>
+                            <button id="chatSummaryBtn" class="btn btn-secondary" title="Get Conversation Summary">
+                                <span class="btn-icon">📋</span>
+                                Summary
+                            </button>
+                            <button id="clearChatBtn" class="btn btn-secondary" title="Clear Conversation">
+                                <span class="btn-icon">🗑️</span>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="chat-messages" id="chatMessages">
                     <div class="message bot-message">

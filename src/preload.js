@@ -18,6 +18,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   runForecast: (params) => ipcRenderer.invoke('run-forecast', params),
   askChatbot: (question, context) => ipcRenderer.invoke('ask-chatbot', question, context),
   
+  // Enhanced Chat Management
+  clearConversation: () => ipcRenderer.invoke('chat-clear-conversation'),
+  getChatSummary: () => ipcRenderer.invoke('chat-get-summary'),
+  chatHealthCheck: () => ipcRenderer.invoke('chat-health-check'),
+  
+  // Debug logging
+  logDebug: (title, data) => ipcRenderer.invoke('log-debug', title, data),
+  
   // Workflow Management
   cancelForecast: (workflowId) => ipcRenderer.invoke('cancel-forecast', workflowId),
   getWorkflowStatus: (workflowId) => ipcRenderer.invoke('get-workflow-status', workflowId),
