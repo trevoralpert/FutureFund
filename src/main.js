@@ -3,6 +3,12 @@ const path = require('path');
 const config = require('./config');
 const isDev = process.argv.includes('--dev');
 
+// Database imports
+const { dbManager } = require('./database/database');
+const TransactionDAO = require('./database/transaction-dao');
+const ScenarioDAO = require('./database/scenario-dao');
+const DataMigrationService = require('./database/data-migration');
+
 let mainWindow;
 
 function createWindow() {
@@ -42,7 +48,25 @@ function createWindow() {
 }
 
 // App event listeners
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Initialize database first
+  try {
+    console.log('🚀 Initializing FutureFund database...');
+    await dbManager.initialize();
+    
+    // Import mock data if database is empty
+    const stats = await dbManager.getStats();
+    if (stats.transactions === 0) {
+      console.log('📊 Database is empty, importing mock data...');
+      await DataMigrationService.importMockData();
+    }
+    
+    console.log('✅ Database ready with', stats.transactions, 'transactions');
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    // Continue with app startup even if database fails
+  }
+  
   createWindow();
   
   // Set up menu
@@ -185,11 +209,23 @@ ipcMain.handle('get-config-status', () => {
 });
 
 // Financial data operations
-ipcMain.handle('load-financial-data', async () => {
+ipcMain.handle('load-financial-data', async (event, options = {}) => {
   try {
-    // In real app, this would load from database or API
-    console.log('Loading financial data...');
-    return { success: true, data: [] };
+    console.log('Loading financial data from database...');
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const transactions = await TransactionDAO.getAll(options);
+    const stats = await TransactionDAO.getStatistics(options);
+    
+    return { 
+      success: true, 
+      data: transactions,
+      statistics: stats,
+      count: transactions.length
+    };
   } catch (error) {
     console.error('Error loading financial data:', error);
     return { success: false, error: error.message };
@@ -198,20 +234,116 @@ ipcMain.handle('load-financial-data', async () => {
 
 ipcMain.handle('save-financial-data', async (event, data) => {
   try {
-    console.log('Saving financial data...');
-    // In real app, this would save to database
-    return { success: true };
+    console.log('Saving financial data to database...');
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    let result;
+    if (Array.isArray(data)) {
+      // Bulk save
+      result = await TransactionDAO.bulkCreate(data);
+    } else {
+      // Single transaction
+      result = await TransactionDAO.create(data);
+    }
+    
+    return { success: true, result };
   } catch (error) {
     console.error('Error saving financial data:', error);
     return { success: false, error: error.message };
   }
 });
 
-// Scenario management
-ipcMain.handle('load-scenarios', async () => {
+// New database-specific transaction handlers
+ipcMain.handle('create-transaction', async (event, transaction) => {
   try {
-    console.log('Loading scenarios...');
-    return { success: true, scenarios: new Map() };
+    const result = await TransactionDAO.create(transaction);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-transaction', async (event, id, updates) => {
+  try {
+    const result = await TransactionDAO.update(id, updates);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error updating transaction:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-transaction', async (event, id) => {
+  try {
+    const result = await TransactionDAO.delete(id);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error deleting transaction:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-transaction', async (event, id) => {
+  try {
+    const transaction = await TransactionDAO.getById(id);
+    return { success: true, transaction };
+  } catch (error) {
+    console.error('Error getting transaction:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-transaction-statistics', async (event, options = {}) => {
+  try {
+    const stats = await TransactionDAO.getStatistics(options);
+    return { success: true, statistics: stats };
+  } catch (error) {
+    console.error('Error getting transaction statistics:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('bulk-delete-transactions', async (event, ids) => {
+  try {
+    const result = await TransactionDAO.bulkDelete(ids);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error bulk deleting transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('calculate-running-balances', async () => {
+  try {
+    const result = await TransactionDAO.calculateRunningBalances();
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error calculating running balances:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Scenario management
+ipcMain.handle('load-scenarios', async (event, options = {}) => {
+  try {
+    console.log('Loading scenarios from database...');
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const scenarios = await ScenarioDAO.getAll(options);
+    const count = await ScenarioDAO.count(options);
+    
+    return { 
+      success: true, 
+      scenarios: scenarios,
+      count: count
+    };
   } catch (error) {
     console.error('Error loading scenarios:', error);
     return { success: false, error: error.message };
@@ -221,7 +353,13 @@ ipcMain.handle('load-scenarios', async () => {
 ipcMain.handle('save-scenario', async (event, scenario) => {
   try {
     console.log('Saving scenario:', scenario.name);
-    return { success: true };
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const result = await ScenarioDAO.create(scenario);
+    return { success: true, ...result };
   } catch (error) {
     console.error('Error saving scenario:', error);
     return { success: false, error: error.message };
@@ -231,9 +369,86 @@ ipcMain.handle('save-scenario', async (event, scenario) => {
 ipcMain.handle('delete-scenario', async (event, scenarioId) => {
   try {
     console.log('Deleting scenario:', scenarioId);
-    return { success: true };
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const result = await ScenarioDAO.delete(scenarioId);
+    return { success: true, ...result };
   } catch (error) {
     console.error('Error deleting scenario:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Additional scenario handlers
+ipcMain.handle('create-scenario', async (event, scenario) => {
+  try {
+    const result = await ScenarioDAO.create(scenario);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error creating scenario:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-scenario', async (event, id, updates) => {
+  try {
+    const result = await ScenarioDAO.update(id, updates);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error updating scenario:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-scenario', async (event, id) => {
+  try {
+    const scenario = await ScenarioDAO.getById(id);
+    return { success: true, scenario };
+  } catch (error) {
+    console.error('Error getting scenario:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('clone-scenario', async (event, id, newName) => {
+  try {
+    const result = await ScenarioDAO.clone(id, newName);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error cloning scenario:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('toggle-scenario-active', async (event, id, isActive) => {
+  try {
+    const result = await ScenarioDAO.setActive(id, isActive);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error toggling scenario active status:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-scenario-templates', async () => {
+  try {
+    const templates = ScenarioDAO.getTemplates();
+    return { success: true, templates };
+  } catch (error) {
+    console.error('Error getting scenario templates:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('validate-scenario-parameters', async (event, type, parameters) => {
+  try {
+    const validation = ScenarioDAO.validateScenarioParameters(type, parameters);
+    return { success: true, validation };
+  } catch (error) {
+    console.error('Error validating scenario parameters:', error);
     return { success: false, error: error.message };
   }
 });
@@ -398,10 +613,11 @@ ipcMain.handle('log-debug', async (event, title, data) => {
   return { success: true };
 });
 
-// File operations
+// File operations and data migration
 ipcMain.handle('import-csv', async (event, filePath) => {
   try {
     console.log('Importing CSV from:', filePath);
+    // TODO: Implement CSV parsing
     return { success: true, data: [] };
   } catch (error) {
     console.error('Error importing CSV:', error);
@@ -409,10 +625,103 @@ ipcMain.handle('import-csv', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('export-data', async (event, format) => {
+ipcMain.handle('import-transactions', async (event, source, options = {}) => {
+  try {
+    const result = await DataMigrationService.importTransactions(source, options);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error importing transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('export-transactions', async (event, filePath, options = {}) => {
+  try {
+    const result = await DataMigrationService.exportTransactions(filePath, options);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error exporting transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('create-backup', async (event, backupPath) => {
+  try {
+    const result = await DataMigrationService.createBackup(backupPath);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error creating backup:', error);  
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('restore-backup', async (event, backupPath, options = {}) => {
+  try {
+    const result = await DataMigrationService.restoreBackup(backupPath, options);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error restoring backup:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-database-stats', async () => {
+  try {
+    const stats = await DataMigrationService.getMigrationStats();
+    return { success: true, stats };
+  } catch (error) {
+    console.error('Error getting database stats:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('validate-data-integrity', async () => {
+  try {
+    const result = await DataMigrationService.validateDataIntegrity();
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error validating data integrity:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('cleanup-old-data', async (event, cutoffDate, options = {}) => {
+  try {
+    const result = await DataMigrationService.cleanupOldData(cutoffDate, options);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error cleaning up old data:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('optimize-database', async () => {
+  try {
+    const result = await dbManager.optimize();
+    return { success: true, optimized: result };
+  } catch (error) {
+    console.error('Error optimizing database:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('export-data', async (event, format, options = {}) => {
   try {
     console.log('Exporting data in format:', format);
-    return { success: true, filePath: '/path/to/exported/file' };
+    
+    if (format === 'json') {
+      // Use the export transactions function
+      const filePath = options.filePath || path.join(__dirname, '../data/exports', `export_${Date.now()}.json`);
+      const result = await DataMigrationService.exportTransactions(filePath, options);
+      return { success: true, ...result };
+    } else if (format === 'backup') {
+      // Create full backup
+      const backupPath = options.backupPath || path.join(__dirname, '../data/backups', `backup_${Date.now()}.json`);
+      const result = await DataMigrationService.createBackup(backupPath);
+      return { success: true, ...result };
+    } else {
+      throw new Error(`Unsupported export format: ${format}`);
+    }
   } catch (error) {
     console.error('Error exporting data:', error);
     return { success: false, error: error.message };
@@ -444,7 +753,14 @@ ipcMain.handle('select-file', async (event, options) => {
 });
 
 // Handle app closing
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   // Save any necessary data before closing
   console.log('FutureFund is closing...');
+  
+  try {
+    await dbManager.close();
+    console.log('✅ Database connection closed');
+  } catch (error) {
+    console.error('❌ Error closing database:', error);
+  }
 }); 

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "test_transaction_1751381199807",
+    "date": "2025-01-15",
+    "description": "Updated Test Transaction",
+    "amount": -75,
+    "category": "Food",
+    "type": "Expense",
+    "balance": null,
+    "isProjected": false,
+    "isRecurring": false,
+    "recurringPattern": null,
+    "source": "test",
+    "createdAt": "2025-07-01 14:46:39",
+    "updatedAt": "2025-07-01 14:46:39"
+  }
+]

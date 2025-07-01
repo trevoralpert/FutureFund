@@ -6,13 +6,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppInfo: () => ipcRenderer.invoke('get-app-info'),
   
   // Financial data operations
-  loadFinancialData: () => ipcRenderer.invoke('load-financial-data'),
+  loadFinancialData: (options) => ipcRenderer.invoke('load-financial-data', options),
   saveFinancialData: (data) => ipcRenderer.invoke('save-financial-data', data),
   
+  // Transaction management
+  createTransaction: (transaction) => ipcRenderer.invoke('create-transaction', transaction),
+  updateTransaction: (id, updates) => ipcRenderer.invoke('update-transaction', id, updates),
+  deleteTransaction: (id) => ipcRenderer.invoke('delete-transaction', id),
+  getTransaction: (id) => ipcRenderer.invoke('get-transaction', id),
+  getTransactionStatistics: (options) => ipcRenderer.invoke('get-transaction-statistics', options),
+  bulkDeleteTransactions: (ids) => ipcRenderer.invoke('bulk-delete-transactions', ids),
+  calculateRunningBalances: () => ipcRenderer.invoke('calculate-running-balances'),
+  
   // Scenario management
-  loadScenarios: () => ipcRenderer.invoke('load-scenarios'),
+  loadScenarios: (options) => ipcRenderer.invoke('load-scenarios', options),
   saveScenario: (scenario) => ipcRenderer.invoke('save-scenario', scenario),
   deleteScenario: (scenarioId) => ipcRenderer.invoke('delete-scenario', scenarioId),
+  createScenario: (scenario) => ipcRenderer.invoke('create-scenario', scenario),
+  updateScenario: (id, updates) => ipcRenderer.invoke('update-scenario', id, updates),
+  getScenario: (id) => ipcRenderer.invoke('get-scenario', id),
+  cloneScenario: (id, newName) => ipcRenderer.invoke('clone-scenario', id, newName),
+  toggleScenarioActive: (id, isActive) => ipcRenderer.invoke('toggle-scenario-active', id, isActive),
+  getScenarioTemplates: () => ipcRenderer.invoke('get-scenario-templates'),
+  validateScenarioParameters: (type, parameters) => ipcRenderer.invoke('validate-scenario-parameters', type, parameters),
   
   // AI/LangGraph operations
   runForecast: (params) => ipcRenderer.invoke('run-forecast', params),
@@ -38,7 +54,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Data import/export
   importCSV: (filePath) => ipcRenderer.invoke('import-csv', filePath),
-  exportData: (format) => ipcRenderer.invoke('export-data', format),
+  exportData: (format, options) => ipcRenderer.invoke('export-data', format, options),
+  importTransactions: (source, options) => ipcRenderer.invoke('import-transactions', source, options),
+  exportTransactions: (filePath, options) => ipcRenderer.invoke('export-transactions', filePath, options),
+  
+  // Database management
+  createBackup: (backupPath) => ipcRenderer.invoke('create-backup', backupPath),
+  restoreBackup: (backupPath, options) => ipcRenderer.invoke('restore-backup', backupPath, options),
+  getDatabaseStats: () => ipcRenderer.invoke('get-database-stats'),
+  validateDataIntegrity: () => ipcRenderer.invoke('validate-data-integrity'),
+  cleanupOldData: (cutoffDate, options) => ipcRenderer.invoke('cleanup-old-data', cutoffDate, options),
+  optimizeDatabase: () => ipcRenderer.invoke('optimize-database'),
   
   // Notification system
   showNotification: (title, body) => ipcRenderer.invoke('show-notification', title, body),
