@@ -177,6 +177,77 @@ FutureFund/
 - Background processing for AI tasks
 - Memory management for long-running processes
 
+## Development Workflow & Git Strategy
+
+### Step-by-Step Development with Smoke Tests
+Follow this proven workflow for rapid, traceable development:
+
+#### 1. **Step Completion Pattern**
+```bash
+# Complete a logical step/feature
+# Commit with clear step marker
+git add .
+git commit -m "✅ Step X.Y: [Feature Name] - [Brief description]"
+
+# Examples:
+# "✅ Step 4.1: Scenario Modeling System - Added 3-step wizard with 8 templates"
+# "✅ Step 4.2: Data Visualization - Integrated Chart.js with 3 chart types"
+# "✅ Step 4.3: Advanced Analytics - Added spending analysis and anomaly detection"
+```
+
+#### 2. **Quick Smoke Test (2 minutes max)**
+After each commit, perform rapid validation:
+```bash
+npm start  # Launch app
+```
+
+**Check List:**
+- ✅ App launches without errors
+- ✅ No console errors in DevTools  
+- ✅ Basic navigation works (tabs switch)
+- ✅ New feature is accessible (button/menu appears)
+- ❌ **If smoke test fails**: Fix immediately, don't proceed
+
+#### 3. **Rollback Strategy**
+If major issues arise:
+```bash
+# Quick rollback to last working step
+git log --oneline | head -5  # Find last working commit
+git reset --hard [commit-hash]  # Rollback safely
+```
+
+### **Why This Strategy Works**
+- **Rapid Development**: Maintains velocity without debugging rabbit holes
+- **Clear Bisecting**: `git bisect` can pinpoint exactly which step broke functionality
+- **Documentation**: Commit history becomes development journal  
+- **Integration Safety**: Clear rollback points for each feature
+- **Industry Standard**: Mirrors CI/CD best practices used by major tech companies
+
+### **When to Break the Pattern**
+- **Critical bugs**: Fix immediately, don't commit broken code
+- **Integration tests**: Full testing after completing major phases
+- **Deployment**: Comprehensive testing before final delivery
+
+### **Commit Message Format**
+```
+✅ Step X.Y: [Feature Area] - [What was accomplished]
+
+Examples:
+✅ Step 4.1: Scenario Modeling System - Added 3-step wizard with 8 templates
+✅ Step 4.2: Data Visualization - Integrated Chart.js with balance/category/trends charts  
+✅ Step 4.3: Advanced Analytics - Added spending analysis and anomaly detection
+🔧 Fix: Chart rendering - Resolved canvas sizing issue
+🎨 Polish: UI improvements - Enhanced modal animations and responsiveness
+```
+
+### **Development Phases & Milestones**
+Track progress through major milestones:
+- **Phase 1**: Foundation & Architecture ✅
+- **Phase 2**: AI Integration & Workflows ✅  
+- **Phase 3**: Data Management & Persistence ✅
+- **Phase 4**: Advanced Features & Scenarios 🔄
+- **Phase 5**: Polish & Optimization ⏳
+
 ## Common Patterns to Follow
 
 ### Error Handling
