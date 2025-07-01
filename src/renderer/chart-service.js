@@ -1,6 +1,9 @@
 // FutureFund Chart Service - Data Visualization Engine
 class ChartService {
     constructor() {
+        console.log('=== ChartService Constructor ===');
+        console.log('Chart available in constructor:', typeof Chart !== 'undefined');
+        
         this.charts = new Map(); // Store chart instances
         this.defaultColors = {
             primary: '#2563eb',
@@ -19,35 +22,54 @@ class ChartService {
         
         // Chart.js global defaults
         this.initializeChartDefaults();
+        console.log('✅ ChartService constructor completed');
     }
     
     initializeChartDefaults() {
+        console.log('=== Initializing Chart Defaults ===');
+        console.log('Chart available:', typeof Chart !== 'undefined');
+        
         if (typeof Chart !== 'undefined') {
+            console.log('✅ Setting Chart.js defaults');
             Chart.defaults.font.family = 'Inter';
             Chart.defaults.font.size = 12;
             Chart.defaults.color = '#64748b';
             Chart.defaults.borderColor = '#e2e8f0';
             Chart.defaults.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+            console.log('Chart.defaults after setting:', Chart.defaults);
+        } else {
+            console.error('❌ Chart.js not available for defaults initialization');
         }
     }
     
     // Balance Over Time Chart
     createBalanceOverTimeChart(canvasId, financialData, options = {}) {
+        console.log('=== Creating Balance Over Time Chart ===');
+        console.log('Canvas ID:', canvasId);
+        console.log('Financial data length:', financialData?.length);
+        console.log('Options:', options);
+        
         const canvas = document.getElementById(canvasId);
+        console.log('Canvas element:', canvas);
+        
         if (!canvas) {
-            console.error(`Canvas with id ${canvasId} not found`);
+            console.error(`❌ Canvas with id ${canvasId} not found`);
             return null;
         }
         
         const ctx = canvas.getContext('2d');
+        console.log('Canvas context:', ctx);
         
         // Destroy existing chart if it exists
         if (this.charts.has(canvasId)) {
+            console.log('🗑️ Destroying existing chart');
             this.charts.get(canvasId).destroy();
         }
         
         // Prepare data
+        console.log('📊 Preparing balance data...');
         const chartData = this.prepareBalanceData(financialData, options);
+        console.log('Prepared chart data:', chartData);
         
         const config = {
             type: 'line',
@@ -119,10 +141,21 @@ class ChartService {
             }
         };
         
-        const chart = new Chart(ctx, config);
-        this.charts.set(canvasId, chart);
+        console.log('Chart config:', config);
         
-        return chart;
+        try {
+            console.log('🎯 Creating Chart.js instance...');
+            const chart = new Chart(ctx, config);
+            console.log('✅ Chart created successfully:', chart);
+            
+            this.charts.set(canvasId, chart);
+            console.log('📝 Chart stored in charts map');
+            
+            return chart;
+        } catch (error) {
+            console.error('❌ Error creating Chart.js instance:', error);
+            return null;
+        }
     }
     
     // Expense Category Breakdown (Pie/Doughnut Chart)

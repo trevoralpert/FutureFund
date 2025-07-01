@@ -144,25 +144,7 @@ class FutureFundApp {
         // Initialize with mock financial data
         this.financialData = this.generateMockData();
         
-        // Debug: Check what dates we actually have in our data
-        const april10Transactions = this.financialData.filter(t => t.date === '2025-04-10');
-        console.log('🔍 April 10, 2025 transactions in raw data:', april10Transactions);
-        
-        // Check for any April 2025 transactions
-        const april2025Transactions = this.financialData.filter(t => t.date.startsWith('2025-04'));
-        console.log('🔍 All April 2025 transactions:', april2025Transactions.length, 'found');
-        
-        // Send debug info to terminal
-        electronAPI.logDebug('Mock Data Generation', {
-            april10Count: april10Transactions.length,
-            april10Details: april10Transactions,
-            april2025Count: april2025Transactions.length
-        });
-        
-        const allDates = this.financialData.map(t => t.date).sort();
-        console.log('🔍 Date range in raw data:', {
-            first: allDates[0],
-            last: allDates[allDates.length - 1],
+        console.log('📊 Mock data generated:', {
             totalTransactions: this.financialData.length,
             actualTransactions: this.financialData.filter(d => !d.isProjected).length,
             projectedTransactions: this.financialData.filter(d => d.isProjected).length
@@ -501,13 +483,10 @@ class FutureFundApp {
                 allTransactionDates: context.allTransactions?.map(t => t.date)
             });
             
-            // Also send debug info to main process (visible in terminal)
+            // Send debug info to main process (visible in terminal)
             electronAPI.logDebug('Financial Context Debug', {
                 message: `Sending ALL ${context.allTransactions?.length || 0} transactions to AI`,
-                hasApril10: context.allTransactions?.some(t => t.date === '2025-04-10') || false,
-                april10Transactions: context.allTransactions?.filter(t => t.date === '2025-04-10') || [],
                 dateRange: context.dateRange,
-                allTransactionsInRawData: this.financialData.filter(t => t.date === '2025-04-10').length,
                 sampleDates: context.allTransactions?.slice(0, 10).map(t => t.date) || []
             });
             
@@ -1692,11 +1671,25 @@ class FutureFundApp {
 
     // Chart Service Initialization
     initializeChartService() {
+        console.log('=== Chart Service Initialization Debug ===');
+        console.log('typeof Chart:', typeof Chart);
+        console.log('typeof ChartService:', typeof ChartService);
+        console.log('Chart available:', typeof Chart !== 'undefined');
+        console.log('ChartService available:', typeof ChartService !== 'undefined');
+        
+        if (typeof Chart !== 'undefined') {
+            console.log('✅ Chart.js is loaded');
+            console.log('Chart.defaults:', Chart.defaults);
+        } else {
+            console.error('❌ Chart.js is NOT loaded');
+        }
+        
         if (typeof ChartService !== 'undefined') {
             this.chartService = new ChartService();
-            console.log('Chart service initialized successfully');
+            console.log('✅ Chart service initialized successfully');
+            console.log('Chart service instance:', this.chartService);
         } else {
-            console.warn('ChartService not available - charts will be disabled');
+            console.error('❌ ChartService not available - charts will be disabled');
         }
     }
 
@@ -1727,31 +1720,59 @@ class FutureFundApp {
 
     // Chart Initialization and Management
     initializeCharts() {
+        console.log('=== Initialize Charts Debug ===');
+        console.log('chartService exists:', !!this.chartService);
+        console.log('financialData exists:', !!this.financialData);
+        console.log('financialData length:', this.financialData?.length);
+        console.log('financialData sample:', this.financialData?.slice(0, 3));
+        
         if (!this.chartService || !this.financialData || this.financialData.length === 0) {
-            console.warn('Cannot initialize charts - missing service or data');
+            console.warn('❌ Cannot initialize charts - missing service or data');
+            console.log('Missing:', {
+                chartService: !this.chartService,
+                financialData: !this.financialData,
+                emptyData: this.financialData?.length === 0
+            });
             return;
         }
 
         try {
+            console.log('🔄 Adding loading states...');
             // Add loading states
             this.showChartLoading('balanceChart');
             this.showChartLoading('categoryChart');
             this.showChartLoading('trendsChart');
 
+            console.log('⏰ Setting timeout for chart creation...');
             // Initialize charts with a small delay for better UX
             setTimeout(() => {
+                console.log('🎯 Starting chart creation...');
+                
+                console.log('📊 Creating balance chart...');
                 this.createBalanceChart();
+                
+                console.log('📊 Creating category chart...');
                 this.createCategoryChart();
+                
+                console.log('📊 Creating trends chart...');
                 this.createTrendsChart();
+                
+                // Hide loading overlays
+                console.log('🔄 Hiding loading overlays...');
+                this.hideChartLoading('balanceChart');
+                this.hideChartLoading('categoryChart');
+                this.hideChartLoading('trendsChart');
                 
                 // Add animation class
                 document.querySelectorAll('.chart-container').forEach(container => {
                     container.classList.add('animate');
                 });
+                
+                console.log('✅ Chart initialization completed');
             }, 300);
 
         } catch (error) {
-            console.error('Error initializing charts:', error);
+            console.error('❌ Error initializing charts:', error);
             this.showChartError('balanceChart', 'Failed to load balance chart');
             this.showChartError('categoryChart', 'Failed to load category chart');
             this.showChartError('trendsChart', 'Failed to load trends chart');
@@ -1759,42 +1780,87 @@ class FutureFundApp {
     }
 
     createBalanceChart() {
-        if (!this.chartService) return;
+        console.log('=== Creating Balance Chart ===');
+        if (!this.chartService) {
+            console.error('❌ No chart service for balance chart');
+            return;
+        }
 
-        const filteredData = this.getFilteredData(document.getElementById('dateRange').value);
-        this.chartService.createBalanceOverTimeChart('balanceChart', filteredData, {
-            showProjected: true,
-            timeframe: document.getElementById('dateRange').value
-        });
+        const dateRangeElement = document.getElementById('dateRange');
+        console.log('Date range element:', dateRangeElement);
+        console.log('Date range value:', dateRangeElement?.value);
+        
+        const filteredData = this.getFilteredData(dateRangeElement?.value || '1y');
+        console.log('Filtered data for balance chart:', filteredData?.length, 'transactions');
+        console.log('Sample filtered data:', filteredData?.slice(0, 3));
+        
+        try {
+            const result = this.chartService.createBalanceOverTimeChart('balanceChart', filteredData, {
+                showProjected: true,
+                timeframe: dateRangeElement?.value || '1y'
+            });
+            console.log('Balance chart creation result:', result);
+        } catch (error) {
+            console.error('❌ Error creating balance chart:', error);
+        }
     }
 
     createCategoryChart() {
-        if (!this.chartService) return;
+        console.log('=== Creating Category Chart ===');
+        if (!this.chartService) {
+            console.error('❌ No chart service for category chart');
+            return;
+        }
 
-        const chartType = document.getElementById('categoryChartType')?.value || 'doughnut';
-        const expenseData = this.financialData.filter(d => d.amount < 0 && !d.isProjected);
+        const chartTypeElement = document.getElementById('categoryChartType');
+        const chartType = chartTypeElement?.value || 'doughnut';
+        console.log('Chart type:', chartType);
         
-        this.chartService.createCategoryBreakdownChart('categoryChart', expenseData, {
-            chartType: chartType,
-            title: 'Expense Categories',
-            maxCategories: 8
-        });
+        const expenseData = this.financialData.filter(d => d.amount < 0 && !d.isProjected);
+        console.log('Expense data for category chart:', expenseData?.length, 'expenses');
+        console.log('Sample expense data:', expenseData?.slice(0, 3));
+        
+        try {
+            const result = this.chartService.createCategoryBreakdownChart('categoryChart', expenseData, {
+                chartType: chartType,
+                title: 'Expense Categories',
+                maxCategories: 8
+            });
+            console.log('Category chart creation result:', result);
+        } catch (error) {
+            console.error('❌ Error creating category chart:', error);
+        }
     }
 
     createTrendsChart() {
-        if (!this.chartService) return;
+        console.log('=== Creating Trends Chart ===');
+        if (!this.chartService) {
+            console.error('❌ No chart service for trends chart');
+            return;
+        }
 
-        const timeframe = parseInt(document.getElementById('trendsTimeframe')?.value) || 12;
+        const timeframeElement = document.getElementById('trendsTimeframe');
+        const timeframe = parseInt(timeframeElement?.value) || 12;
+        console.log('Timeframe:', timeframe, 'months');
+        
         const cutoffDate = new Date();
         cutoffDate.setMonth(cutoffDate.getMonth() - timeframe);
+        console.log('Cutoff date:', cutoffDate);
         
         const recentData = this.financialData.filter(d => {
             return new Date(d.date) >= cutoffDate && !d.isProjected;
         });
+        console.log('Recent data for trends chart:', recentData?.length, 'transactions');
+        console.log('Sample recent data:', recentData?.slice(0, 3));
 
-        this.chartService.createIncomeExpenseTrendsChart('trendsChart', recentData, {
-            timeframe: timeframe
-        });
+        try {
+            const result = this.chartService.createIncomeExpenseTrendsChart('trendsChart', recentData, {
+                timeframe: timeframe
+            });
+            console.log('Trends chart creation result:', result);
+        } catch (error) {
+            console.error('❌ Error creating trends chart:', error);
+        }
     }
 
     // Chart Update Methods
@@ -1804,6 +1870,7 @@ class FutureFundApp {
         this.showChartLoading('categoryChart');
         setTimeout(() => {
             this.createCategoryChart();
+            this.hideChartLoading('categoryChart');
         }, 200);
     }
 
@@ -1813,6 +1880,7 @@ class FutureFundApp {
         this.showChartLoading('trendsChart');
         setTimeout(() => {
             this.createTrendsChart();
+            this.hideChartLoading('trendsChart');
         }, 200);
     }
 
@@ -1821,13 +1889,38 @@ class FutureFundApp {
         const canvas = document.getElementById(canvasId);
         const wrapper = canvas?.parentElement;
         
-        if (wrapper) {
-            wrapper.innerHTML = `
-                <div class="chart-loading">
-                    <div class="spinner"></div>
-                    Loading chart...
-                </div>
+        if (wrapper && canvas) {
+            // Hide canvas and show loading overlay instead of replacing
+            canvas.style.display = 'none';
+            
+            // Remove any existing loading overlay
+            const existingOverlay = wrapper.querySelector('.chart-loading');
+            if (existingOverlay) {
+                existingOverlay.remove();
+            }
+            
+            // Add loading overlay
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'chart-loading';
+            loadingDiv.innerHTML = `
+                <div class="spinner"></div>
+                Loading chart...
             `;
+            wrapper.appendChild(loadingDiv);
+        }
+    }
+
+    hideChartLoading(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        const wrapper = canvas?.parentElement;
+        
+        if (wrapper && canvas) {
+            // Show canvas and remove loading overlay
+            canvas.style.display = 'block';
+            const loadingOverlay = wrapper.querySelector('.chart-loading');
+            if (loadingOverlay) {
+                loadingOverlay.remove();
+            }
         }
     }
 
