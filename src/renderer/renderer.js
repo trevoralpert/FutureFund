@@ -1323,7 +1323,13 @@ class FutureFundApp {
         this.isLoadingScenarios = true;
         
         try {
-            const result = await electronAPI.loadScenarios();
+            // Add timeout to prevent hanging
+            const loadPromise = electronAPI.loadScenarios();
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Scenario loading timeout')), 10000)
+            );
+            
+            const result = await Promise.race([loadPromise, timeoutPromise]);
             
             if (result.success) {
                 // Clear existing scenarios
@@ -1359,11 +1365,17 @@ class FutureFundApp {
                         grid.appendChild(card);
                     });
                 }
+            } else {
+                console.error('Failed to load scenarios:', result.error);
             }
         } catch (error) {
             console.error('Error loading scenarios:', error);
+            // Don't retry automatically to prevent infinite loops
         } finally {
-            this.isLoadingScenarios = false;
+            // Ensure flag is always reset
+            setTimeout(() => {
+                this.isLoadingScenarios = false;
+            }, 100);
         }
     }
     
@@ -3553,7 +3565,7 @@ class PerformanceManager {
         this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
         this.maxCacheSize = 100;
         this.memoryUsage = {
-            components: new WeakMap(),
+            components: new Map(), // Changed from WeakMap to Map for iteration support
             cleanupIntervals: new Set()
         };
         
@@ -3687,24 +3699,34 @@ class PerformanceManager {
      * Clean up unused DOM references and event listeners
      */
     cleanupMemory() {
+        // Safety check: ensure components is properly initialized
+        if (!this.memoryUsage?.components || typeof this.memoryUsage.components[Symbol.iterator] !== 'function') {
+            console.warn('⚠️ Memory components not properly initialized, skipping cleanup');
+            return;
+        }
+
         // Clean up detached DOM elements
         const elementsToClean = [];
         
-        for (const [element, data] of this.memoryUsage.components) {
-            if (!document.contains(element)) {
-                elementsToClean.push(element);
-            } else if (Date.now() - data.lastAccessed > 10 * 60 * 1000) { // 10 minutes
-                // Mark for potential cleanup if not accessed recently
-                data.markedForCleanup = true;
+        try {
+            for (const [element, data] of this.memoryUsage.components) {
+                if (!document.contains(element)) {
+                    elementsToClean.push(element);
+                } else if (data && Date.now() - data.lastAccessed > 10 * 60 * 1000) { // 10 minutes
+                    // Mark for potential cleanup if not accessed recently
+                    data.markedForCleanup = true;
+                }
             }
+
+            // Remove detached elements
+            elementsToClean.forEach(element => {
+                this.memoryUsage.components.delete(element);
+            });
+
+            console.log(`🧹 Memory cleanup: Removed ${elementsToClean.length} detached elements`);
+        } catch (error) {
+            console.error('❌ Memory cleanup error:', error);
         }
-
-        // Remove detached elements
-        elementsToClean.forEach(element => {
-            this.memoryUsage.components.delete(element);
-        });
-
-        console.log(`🧹 Memory cleanup: Removed ${elementsToClean.length} detached elements`);
     }
 
     /**
@@ -3877,6 +3899,11 @@ class PerformanceManager {
         
         // Clear cache
         this.responseCache.clear();
+        
+        // Clear component tracking
+        if (this.memoryUsage?.components) {
+            this.memoryUsage.components.clear();
+        }
         
         // Clear cleanup intervals
         for (const interval of this.memoryUsage.cleanupIntervals) {

@@ -17,6 +17,7 @@ class DatabaseManager {
     this.db = null;
     this.dbPath = null;
     this.isInitialized = false;
+    this.isClosing = false;
   }
 
   /**
@@ -295,22 +296,31 @@ class DatabaseManager {
   }
 
   /**
-   * Close database connection
+   * Close database connection (with safety guards)
    */
   close() {
     return new Promise((resolve, reject) => {
-      if (this.db) {
-        this.db.close((err) => {
-          if (err) {
-            reject(err);
-          } else {
-            console.log('✅ Database connection closed');
-            resolve();
-          }
-        });
-      } else {
+      // Safety guard: prevent multiple close attempts
+      if (!this.db || this.isClosing) {
         resolve();
+        return;
       }
+      
+      this.isClosing = true;
+      
+      this.db.close((err) => {
+        if (err) {
+          console.error('❌ Database close error:', err);
+          this.isClosing = false;
+          reject(err);
+        } else {
+          console.log('✅ Database connection closed');
+          this.db = null;
+          this.isInitialized = false;
+          this.isClosing = false;
+          resolve();
+        }
+      });
     });
   }
 

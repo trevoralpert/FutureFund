@@ -49,22 +49,26 @@ function createWindow() {
 
 // App event listeners
 app.whenReady().then(async () => {
-  // Initialize database first
-  try {
-    console.log('🚀 Initializing FutureFund database...');
-    await dbManager.initialize();
-    
-    // Import mock data if database is empty
-    const stats = await dbManager.getStats();
-    if (stats.transactions === 0) {
-      console.log('📊 Database is empty, importing mock data...');
-      await DataMigrationService.importMockData();
+  // Initialize database first (with safety check)
+  if (dbManager.isInitialized) {
+    console.log('⚠️ Database already initialized, skipping...');
+  } else {
+    try {
+      console.log('🚀 Initializing FutureFund database...');
+      await dbManager.initialize();
+      
+      // Import mock data if database is empty
+      const stats = await dbManager.getStats();
+      if (stats && stats.transactions === 0) {
+        console.log('📊 Database is empty, importing mock data...');
+        await DataMigrationService.importMockData();
+      }
+      
+      console.log('✅ Database ready with', stats?.transactions || 0, 'transactions');
+    } catch (error) {
+      console.error('❌ Database initialization failed:', error);
+      // Continue with app startup even if database fails
     }
-    
-    console.log('✅ Database ready with', stats.transactions, 'transactions');
-  } catch (error) {
-    console.error('❌ Database initialization failed:', error);
-    // Continue with app startup even if database fails
   }
   
   // Environment-specific optimizations
@@ -772,15 +776,27 @@ ipcMain.handle('select-file', async (event, options) => {
 });
 
 // Handle app closing
-app.on('before-quit', async () => {
-  // Save any necessary data before closing
+app.on('before-quit', async (event) => {
+  // Prevent default quit to allow graceful cleanup
+  event.preventDefault();
+  
   console.log('FutureFund is closing...');
   
   try {
-    await dbManager.close();
-    console.log('✅ Database connection closed');
+    // Close database with timeout
+    const closePromise = dbManager.close();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database close timeout')), 3000)
+    );
+    
+    await Promise.race([closePromise, timeoutPromise]);
+    
   } catch (error) {
-    console.error('❌ Error closing database:', error);
+    console.error('❌ Error during shutdown:', error);
+  } finally {
+    // Force quit regardless of database status
+    console.log('🔚 Forcing app shutdown');
+    app.exit(0);
   }
 });
 
