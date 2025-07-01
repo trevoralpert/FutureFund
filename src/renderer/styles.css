@@ -3,17 +3,25 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    transition: all 0.2s ease;
 }
 
 :root {
     /* Color Palette */
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
+    --primary-light: #60a5fa;
     --secondary-color: #64748b;
     --accent-color: #10b981;
     --accent-hover: #059669;
+    --success-color: #10b981;
+    --success-light: #34d399;
     --danger-color: #ef4444;
+    --danger-light: #f87171;
     --warning-color: #f59e0b;
+    --warning-light: #fbbf24;
+    --info-color: #3b82f6;
+    --info-light: #60a5fa;
     
     /* Background Colors */
     --bg-primary: #ffffff;
@@ -130,17 +138,29 @@ body {
     display: flex;
     align-items: center;
     gap: var(--spacing-sm);
+    position: relative;
 }
 
-.tab-btn:hover {
-    color: var(--text-primary);
-    background-color: var(--bg-secondary);
+.tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    background: var(--primary-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-50%);
+    border-radius: 2px;
 }
 
-.tab-btn.active {
+.tab-btn.active::after {
+    width: 80%;
+}
+
+.tab-btn:hover:not(.active) {
     color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
-    background-color: var(--bg-secondary);
+    background: rgba(37, 99, 235, 0.05);
 }
 
 .tab-icon {
@@ -156,10 +176,17 @@ body {
 
 .tab-content {
     display: none;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
 }
 
 .tab-content.active {
     display: block;
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
 }
 
 /* Buttons */
@@ -175,6 +202,43 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+    transition: all 0.1s;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+    z-index: 0;
+}
+
+.btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn * {
+    position: relative;
+    z-index: 1;
 }
 
 .btn-primary {
@@ -226,6 +290,12 @@ body {
     padding: var(--spacing-lg);
     border-radius: var(--radius-lg);
     text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.summary-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
 }
 
 .summary-card h3 {
@@ -300,8 +370,13 @@ body {
     font-size: 0.875rem;
 }
 
+.ledger-table tbody tr {
+    transition: all 0.2s ease;
+}
+
 .ledger-table tbody tr:hover {
-    background-color: var(--bg-secondary);
+    background-color: rgba(37, 99, 235, 0.05);
+    transform: translateX(4px);
 }
 
 /* Chat Tab */
@@ -461,7 +536,8 @@ body {
 
 .chat-input-wrapper input:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    transform: scale(1.02);
 }
 
 .quick-questions {
@@ -646,6 +722,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal:not(.hidden) {
+    animation: modalFadeIn 0.3s ease forwards;
 }
 
 .modal.hidden {
@@ -671,17 +752,26 @@ body {
     overflow: hidden;
     position: relative;
     z-index: 1;
-    animation: modalFadeIn 0.3s ease-out;
+    animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes modalFadeIn {
     from {
         opacity: 0;
-        transform: scale(0.9) translateY(-20px);
     }
     to {
         opacity: 1;
-        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
     }
 }
 
@@ -838,7 +928,8 @@ body {
 .form-group textarea:focus,
 .form-group select:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    transform: scale(1.02);
 }
 
 .form-group textarea {
@@ -1317,7 +1408,7 @@ body {
 .chart-type-selector:focus,
 .chart-timeframe-selector:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgb(37 99 235 / 0.1);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .btn-sm {
@@ -1385,7 +1476,18 @@ body {
 }
 
 .chart-container.animate {
-    animation: chartFadeIn 0.5s ease-out;
+    animation: chartReveal 0.8s ease forwards;
+}
+
+@keyframes chartReveal {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 /* Chart responsive behavior */
@@ -1556,6 +1658,7 @@ body {
     margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .section-header {
@@ -1650,8 +1753,28 @@ body {
     height: 100%;
     background: linear-gradient(90deg, var(--danger-color), var(--warning-color), var(--success-color));
     border-radius: 4px;
-    transition: width 0.8s ease;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+}
+
+.component-progress::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
 }
 
 .component-progress.excellent {
@@ -2012,7 +2135,7 @@ body {
     height: 100%;
     background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
     border-radius: 6px;
-    transition: width 0.8s ease;
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
 }
 
@@ -2120,17 +2243,17 @@ body {
 
 /* Animation Classes */
 .analytics-section {
-    animation: fadeInUp 0.5s ease forwards;
+    animation: slideInFromRight 0.6s ease forwards;
 }
 
-@keyframes fadeInUp {
+@keyframes slideInFromRight {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateX(30px);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateX(0);
     }
 }
 
@@ -2216,4 +2339,394 @@ body {
 
 .analytics-error p {
     margin: 0 0 var(--spacing-lg) 0;
+}
+
+/* =============================================================================
+   ENHANCED ANIMATIONS & MICRO-INTERACTIONS
+============================================================================= */
+
+/* Smooth transitions for all interactive elements */
+* {
+    transition: all 0.2s ease;
+}
+
+/* Enhanced button interactions */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transform: translateY(0);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+    transform: translateY(0);
+    transition: all 0.1s;
+}
+
+/* Button ripple effect */
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+    z-index: 0;
+}
+
+.btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+.btn * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Enhanced tab transitions */
+.tab-btn {
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 3px;
+    background: var(--primary-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(-50%);
+    border-radius: 2px;
+}
+
+.tab-btn.active::after {
+    width: 80%;
+}
+
+.tab-btn:hover:not(.active) {
+    color: var(--primary-color);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+/* Enhanced tab content transitions */
+.tab-content {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.tab-content.active {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: all;
+}
+
+/* Card hover effects */
+.summary-card,
+.analytics-card,
+.goal-card,
+.scenario-card,
+.analytics-section {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.summary-card:hover,
+.analytics-card:hover,
+.goal-card:hover,
+.scenario-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced loading animations */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideInFromLeft {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Apply animations to different elements */
+.summary-card {
+    animation: slideInFromLeft 0.6s ease forwards;
+}
+
+.summary-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.summary-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.analytics-section {
+    animation: slideInFromRight 0.6s ease forwards;
+}
+
+.analytics-section:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.analytics-section:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+.goal-card {
+    animation: scaleIn 0.5s ease forwards;
+}
+
+.goal-card:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.goal-card:nth-child(3) {
+    animation-delay: 0.2s;
+}
+
+/* Enhanced spinner */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid var(--border-color);
+    border-top: 3px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Improved focus states for accessibility */
+*:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* Enhanced input focus effects */
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    transform: scale(1.02);
+}
+
+/* Smooth scrolling */
+* {
+    scroll-behavior: smooth;
+}
+
+/* Enhanced table row hover effects */
+.ledger-table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.ledger-table tbody tr:hover {
+    background-color: rgba(37, 99, 235, 0.05);
+    transform: translateX(4px);
+}
+
+/* Progress bar animations */
+.component-progress,
+.goal-progress-fill {
+    transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.component-progress::after,
+.goal-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Enhanced modal animations */
+.modal {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.modal:not(.hidden) {
+    animation: modalFadeIn 0.3s ease forwards;
+}
+
+.modal-content {
+    animation: modalSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Chart loading animations */
+.chart-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-container.animate {
+    animation: chartReveal 0.8s ease forwards;
+}
+
+@keyframes chartReveal {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Notification system styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 24px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    transform: translateX(400px);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.notification.show {
+    transform: translateX(0);
+}
+
+.notification.success {
+    background: var(--success-color);
+}
+
+.notification.error {
+    background: var(--danger-color);
+}
+
+.notification.info {
+    background: var(--primary-color);
+}
+
+/* Enhanced loading states */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Improved responsive design */
+@media (max-width: 768px) {
+    .btn:hover {
+        transform: none;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .summary-card:hover,
+    .analytics-card:hover,
+    .goal-card:hover,
+    .scenario-card:hover {
+        transform: none;
+    }
+    
+    .ledger-table tbody tr:hover {
+        transform: none;
+    }
 } 

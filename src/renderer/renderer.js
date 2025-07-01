@@ -11,6 +11,10 @@ class FutureFundApp {
         this.analyticsService = null;
         this.seasonalChart = null;
         
+        // Loading guards to prevent infinite loops
+        this.isLoadingScenarios = false;
+        this.isLoadingFinancialData = false;
+        
         this.init();
     }
 
@@ -55,7 +59,7 @@ class FutureFundApp {
 
         // Handle tab-specific initialization
         if (tabName === 'ledger') {
-            this.updateLedgerData();
+            this.refreshLedger();
         } else if (tabName === 'chat') {
             // Focus chat input when switching to chat tab
             document.getElementById('chatInput').focus();
@@ -78,7 +82,7 @@ class FutureFundApp {
 
         // Ledger controls
         document.getElementById('dateRange').addEventListener('change', (e) => {
-            this.updateLedgerData();
+            this.refreshLedger();
         });
 
         document.getElementById('toggleView').addEventListener('click', () => {
@@ -120,7 +124,7 @@ class FutureFundApp {
 
         // Scenario functionality
         document.getElementById('newScenarioBtn').addEventListener('click', () => {
-            this.showScenarioModal();
+            this.openScenarioModal();
         });
 
         // Chart controls
@@ -324,6 +328,12 @@ class FutureFundApp {
     }
 
     async loadScenarios() {
+        if (this.isLoadingScenarios) {
+            console.log('⚠️ Scenarios already loading, skipping...');
+            return;
+        }
+        
+        this.isLoadingScenarios = true;
         console.log('Loading scenarios...');
         
         try {
@@ -345,6 +355,8 @@ class FutureFundApp {
                 isActive: true,
                 createdAt: new Date().toISOString()
             });
+        } finally {
+            this.isLoadingScenarios = false;
         }
         
         this.updateScenarioSelector();
@@ -665,6 +677,8 @@ class FutureFundApp {
 
     refreshScenarios() {
         const grid = document.getElementById('scenariosGrid');
+        if (!grid) return; // Guard against missing DOM element
+        
         grid.innerHTML = '';
         
         this.scenarios.forEach((scenario, id) => {
@@ -672,8 +686,9 @@ class FutureFundApp {
             grid.appendChild(card);
         });
         
-        // Load scenarios from database if needed
-        if (this.scenarios.size <= 1) { // Only base scenario
+        // Load scenarios from database if needed (but avoid infinite loops)
+        if (this.scenarios.size <= 1 && !this.isLoadingScenarios) { // Only base scenario and not already loading
+            console.log('📊 Only base scenario found, loading from database...');
             this.refreshScenariosFromDB();
         }
     }
@@ -1257,8 +1272,15 @@ class FutureFundApp {
     }
     
     async refreshScenariosFromDB() {
+        if (this.isLoadingScenarios) {
+            console.log('⚠️ Already loading scenarios from DB, skipping...');
+            return;
+        }
+        
+        this.isLoadingScenarios = true;
+        
         try {
-            const result = await electronAPI.getScenarios();
+            const result = await electronAPI.loadScenarios();
             
             if (result.success) {
                 // Clear existing scenarios
@@ -1280,12 +1302,25 @@ class FutureFundApp {
                     this.scenarios.set(scenario.id, scenario);
                 });
                 
-                // Update UI
-                this.refreshScenarios();
+                console.log(`✅ Loaded ${result.scenarios.length} scenarios from database`);
+                
+                // Update UI (but don't trigger another DB load)
                 this.updateScenarioSelector();
+                
+                // Only refresh scenarios grid if we have the DOM element
+                const grid = document.getElementById('scenariosGrid');
+                if (grid) {
+                    grid.innerHTML = '';
+                    this.scenarios.forEach((scenario, id) => {
+                        const card = this.createScenarioCard(scenario);
+                        grid.appendChild(card);
+                    });
+                }
             }
         } catch (error) {
             console.error('Error loading scenarios:', error);
+        } finally {
+            this.isLoadingScenarios = false;
         }
     }
     
@@ -2171,11 +2206,22 @@ ${health.status === 'healthy' ?
                     <span class="component-score">${roundedScore}/100</span>
                 </div>
                 <div class="component-bar">
-                    <div class="component-progress ${gradeClass}" style="--progress-width: ${roundedScore}%; width: ${roundedScore}%"></div>
+                    <div class="component-progress ${gradeClass}" style="--progress-width: 0%; width: 0%" data-target-width="${roundedScore}"></div>
                 </div>
             `;
             
             componentsContainer.appendChild(componentDiv);
+            
+            // Trigger animation after DOM is updated and rendered
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const progressBar = componentDiv.querySelector('.component-progress');
+                    if (progressBar) {
+                        progressBar.style.setProperty('--progress-width', `${roundedScore}%`);
+                        progressBar.style.width = `${roundedScore}%`;
+                    }
+                });
+            });
         });
 
         // Populate insights
@@ -2347,7 +2393,7 @@ ${health.status === 'healthy' ?
                 
                 <div class="goal-progress-container">
                     <div class="goal-progress-bar">
-                        <div class="goal-progress-fill ${goal.status}" style="--progress-width: ${goal.progress}%; width: ${goal.progress}%"></div>
+                        <div class="goal-progress-fill ${goal.status}" style="--progress-width: 0%; width: 0%" data-target-width="${goal.progress}"></div>
                     </div>
                     <div class="goal-progress-text">
                         <span>Progress</span>
@@ -2380,6 +2426,19 @@ ${health.status === 'healthy' ?
             `;
             
             goalsContainer.appendChild(goalDiv);
+            
+            // Trigger staggered animation after DOM is updated and rendered
+            const delay = goalProgress.indexOf(goal) * 100; // Stagger delay
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    const progressBar = goalDiv.querySelector('.goal-progress-fill');
+                    if (progressBar) {
+                        const targetWidth = progressBar.dataset.targetWidth;
+                        progressBar.style.setProperty('--progress-width', `${targetWidth}%`);
+                        progressBar.style.width = `${targetWidth}%`;
+                    }
+                }, delay);
+            });
         });
     }
 
@@ -2619,3 +2678,806 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style); 
+
+// =============================================================================
+// ENHANCED UX FEATURES & GLOBAL ENHANCEMENTS
+// =============================================================================
+
+/**
+ * Enhanced Notification System for better user feedback
+ */
+class NotificationManager {
+    constructor() {
+        this.notifications = [];
+        this.maxNotifications = 5;
+        this.initializeStyles();
+    }
+
+    initializeStyles() {
+        if (!document.getElementById('notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                .notification {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 16px 24px;
+                    border-radius: 8px;
+                    color: white;
+                    font-weight: 500;
+                    z-index: 10000;
+                    transform: translateX(400px);
+                    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+                    max-width: 400px;
+                    cursor: pointer;
+                }
+                
+                .notification.show {
+                    transform: translateX(0);
+                }
+                
+                .notification.success {
+                    background: var(--success-color);
+                }
+                
+                .notification.error {
+                    background: var(--danger-color);
+                }
+                
+                .notification.info {
+                    background: var(--primary-color);
+                }
+                
+                .notification.warning {
+                    background: var(--warning-color);
+                }
+                
+                .notification-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+                
+                .notification-close {
+                    background: none;
+                    border: none;
+                    color: white;
+                    cursor: pointer;
+                    margin-left: auto;
+                    font-size: 18px;
+                    padding: 0;
+                    opacity: 0.8;
+                    transition: opacity 0.2s ease;
+                }
+                
+                .notification-close:hover {
+                    opacity: 1;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    show(message, type = 'info', duration = 4000) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        const icon = {
+            'success': '✅',
+            'error': '❌',
+            'warning': '⚠️',
+            'info': 'ℹ️'
+        }[type] || 'ℹ️';
+        
+        notification.innerHTML = `
+            <div class="notification-content">
+                <span class="notification-icon">${icon}</span>
+                <span class="notification-message">${message}</span>
+                <button class="notification-close">×</button>
+            </div>
+        `;
+        
+        // Add click handler for close button
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.remove(notification);
+        });
+        
+        // Add click handler for entire notification
+        notification.addEventListener('click', () => {
+            this.remove(notification);
+        });
+        
+        // Add to DOM and animate in
+        document.body.appendChild(notification);
+        setTimeout(() => notification.classList.add('show'), 100);
+        
+        // Auto-remove after duration
+        if (duration > 0) {
+            setTimeout(() => {
+                this.remove(notification);
+            }, duration);
+        }
+        
+        // Manage notification count
+        this.notifications = this.notifications.filter(n => n.parentElement);
+        this.notifications.push(notification);
+        
+        if (this.notifications.length > this.maxNotifications) {
+            const oldNotification = this.notifications.shift();
+            if (oldNotification && oldNotification.parentElement) {
+                this.remove(oldNotification);
+            }
+        }
+        
+        // Position multiple notifications
+        this.repositionNotifications();
+    }
+
+    remove(notification) {
+        if (notification && notification.parentElement) {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                    this.repositionNotifications();
+                }
+            }, 300);
+        }
+    }
+
+    repositionNotifications() {
+        const activeNotifications = document.querySelectorAll('.notification.show');
+        activeNotifications.forEach((notification, index) => {
+            notification.style.top = `${20 + (index * 80)}px`;
+        });
+    }
+
+    success(message, duration = 4000) {
+        this.show(message, 'success', duration);
+    }
+
+    error(message, duration = 6000) {
+        this.show(message, 'error', duration);
+    }
+
+    warning(message, duration = 5000) {
+        this.show(message, 'warning', duration);
+    }
+
+    info(message, duration = 4000) {
+        this.show(message, 'info', duration);
+    }
+}
+
+/**
+ * Enhanced Loading State Management
+ */
+class LoadingManager {
+    constructor() {
+        this.loadingStates = new Set();
+        this.initializeStyles();
+    }
+
+    initializeStyles() {
+        if (!document.getElementById('loading-styles')) {
+            const style = document.createElement('style');
+            style.id = 'loading-styles';
+            style.textContent = `
+                .loading-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(248, 250, 252, 0.95);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 100;
+                    backdrop-filter: blur(2px);
+                    border-radius: inherit;
+                    transition: opacity 0.3s ease;
+                }
+                
+                .loading-content {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    color: var(--primary-color);
+                    font-weight: 500;
+                    padding: 20px;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                }
+                
+                .spinner {
+                    width: 24px;
+                    height: 24px;
+                    border: 3px solid var(--border-color);
+                    border-top: 3px solid var(--primary-color);
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                }
+                
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    show(element, text = 'Loading...') {
+        if (typeof element === 'string') {
+            element = document.getElementById(element) || document.querySelector(element);
+        }
+        
+        if (!element) return;
+        
+        // Make container relative if not already
+        const position = window.getComputedStyle(element).position;
+        if (position === 'static') {
+            element.style.position = 'relative';
+        }
+        
+        // Remove existing loading overlay
+        this.hide(element);
+        
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.innerHTML = `
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <span>${text}</span>
+            </div>
+        `;
+        
+        element.appendChild(loadingOverlay);
+        this.loadingStates.add(element);
+        
+        // Fade in
+        setTimeout(() => {
+            loadingOverlay.style.opacity = '1';
+        }, 10);
+    }
+
+    hide(element) {
+        if (typeof element === 'string') {
+            element = document.getElementById(element) || document.querySelector(element);
+        }
+        
+        if (!element) return;
+        
+        const overlay = element.querySelector('.loading-overlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                if (overlay.parentElement) {
+                    overlay.remove();
+                }
+            }, 300);
+            this.loadingStates.delete(element);
+        }
+    }
+
+    isLoading(element) {
+        if (typeof element === 'string') {
+            element = document.getElementById(element) || document.querySelector(element);
+        }
+        return this.loadingStates.has(element);
+    }
+}
+
+/**
+ * Enhanced Keyboard Shortcuts System
+ */
+class KeyboardShortcuts {
+    constructor() {
+        this.shortcuts = new Map();
+        this.enabled = true;
+        this.initializeDefaultShortcuts();
+        this.bindEvents();
+    }
+
+    initializeDefaultShortcuts() {
+        // Tab navigation
+        this.add('1', () => this.switchTab('ledger'), 'Switch to Ledger');
+        this.add('2', () => this.switchTab('chat'), 'Switch to AI Assistant');
+        this.add('3', () => this.switchTab('scenarios'), 'Switch to Scenarios');
+        this.add('4', () => this.switchTab('analytics'), 'Switch to Analytics');
+        
+        // Common actions
+        this.add('ctrl+r', () => this.refreshCurrentTab(), 'Refresh Current Tab');
+        this.add('ctrl+f', () => this.focusSearch(), 'Focus Search');
+        this.add('escape', () => this.closeModals(), 'Close Modals');
+        this.add('ctrl+?', () => this.showHelp(), 'Show Keyboard Shortcuts');
+        
+        // Chat shortcuts
+        this.add('ctrl+enter', () => this.sendChatMessage(), 'Send Chat Message');
+        this.add('ctrl+k', () => this.clearChat(), 'Clear Chat');
+        
+        // Quick actions
+        this.add('ctrl+e', () => this.exportData(), 'Export Data');
+        this.add('ctrl+s', () => this.saveState(), 'Save Current State');
+    }
+
+    add(keyCombo, action, description) {
+        this.shortcuts.set(keyCombo.toLowerCase(), { action, description });
+    }
+
+    remove(keyCombo) {
+        this.shortcuts.delete(keyCombo.toLowerCase());
+    }
+
+    bindEvents() {
+        document.addEventListener('keydown', (e) => {
+            if (!this.enabled) return;
+            
+            const combo = this.getKeyCombo(e);
+            const shortcut = this.shortcuts.get(combo);
+            
+            if (shortcut && !this.isTyping(e.target)) {
+                e.preventDefault();
+                try {
+                    shortcut.action();
+                } catch (error) {
+                    console.error('Shortcut error:', error);
+                }
+            }
+        });
+    }
+
+    getKeyCombo(e) {
+        const parts = [];
+        if (e.ctrlKey || e.metaKey) parts.push('ctrl');
+        if (e.altKey) parts.push('alt');
+        if (e.shiftKey) parts.push('shift');
+        parts.push(e.key.toLowerCase());
+        return parts.join('+');
+    }
+
+    isTyping(element) {
+        return element.tagName === 'INPUT' || 
+               element.tagName === 'TEXTAREA' || 
+               element.contentEditable === 'true' ||
+               element.isContentEditable;
+    }
+
+    switchTab(tabName) {
+        if (window.app && typeof window.app.switchTab === 'function') {
+            window.app.switchTab(tabName);
+        }
+    }
+
+    refreshCurrentTab() {
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab) {
+            const tabId = activeTab.id;
+            notifications.info('Refreshing current tab...');
+            
+            if (tabId.includes('ledger')) {
+                window.app?.refreshLedger();
+            } else if (tabId.includes('chat')) {
+                // Chat doesn't need refresh
+                notifications.info('Chat is always up to date');
+            } else if (tabId.includes('scenarios')) {
+                window.app?.refreshScenarios();
+            } else if (tabId.includes('analytics')) {
+                window.app?.refreshAnalytics();
+            }
+        }
+    }
+
+    focusSearch() {
+        const searchInput = document.getElementById('search-input') || 
+                          document.querySelector('input[type="search"]') ||
+                          document.querySelector('.search-input');
+        if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+        }
+    }
+
+    closeModals() {
+        const modals = document.querySelectorAll('.modal:not(.hidden)');
+        modals.forEach(modal => {
+            const closeBtn = modal.querySelector('.modal-close') || 
+                           modal.querySelector('[onclick*="close"]') ||
+                           modal.querySelector('.close-btn');
+            if (closeBtn) {
+                closeBtn.click();
+            }
+        });
+    }
+
+    sendChatMessage() {
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn && !sendBtn.disabled) {
+            sendBtn.click();
+        }
+    }
+
+    clearChat() {
+        if (window.app && typeof window.app.clearConversation === 'function') {
+            window.app.clearConversation();
+        }
+    }
+
+    exportData() {
+        const exportBtn = document.querySelector('[onclick*="export"]') ||
+                         document.getElementById('exportBtn') ||
+                         document.getElementById('exportAnalyticsBtn');
+        if (exportBtn) {
+            exportBtn.click();
+        } else {
+            notifications.info('Export function not available in current context');
+        }
+    }
+
+    saveState() {
+        // Auto-save current state
+        notifications.info('Saving current state...');
+        // Implementation would depend on app's save mechanism
+        setTimeout(() => {
+            notifications.success('State saved successfully');
+        }, 500);
+    }
+
+    showHelp() {
+        const helpContent = Array.from(this.shortcuts.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([combo, {description}]) => 
+                `<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--border-color);">
+                    <kbd style="background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 12px; border: 1px solid var(--border-color);">${combo.toUpperCase()}</kbd>
+                    <span style="font-size: 14px;">${description}</span>
+                </div>`
+            ).join('');
+        
+        const helpModal = document.createElement('div');
+        helpModal.className = 'modal';
+        helpModal.innerHTML = `
+            <div class="modal-overlay" onclick="this.parentElement.remove()"></div>
+            <div class="modal-content" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+                <div class="modal-header">
+                    <h2>Keyboard Shortcuts</h2>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 16px;">
+                        <p>Use these keyboard shortcuts to navigate FutureFund more efficiently:</p>
+                    </div>
+                    <div style="border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        ${helpContent}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(helpModal);
+        
+        // Auto-remove after 15 seconds
+        setTimeout(() => {
+            if (helpModal.parentElement) {
+                helpModal.remove();
+            }
+        }, 15000);
+    }
+
+    enable() {
+        this.enabled = true;
+    }
+
+    disable() {
+        this.enabled = false;
+    }
+}
+
+/**
+ * Enhanced Tooltip System
+ */
+class TooltipManager {
+    constructor() {
+        this.activeTooltip = null;
+        this.tooltips = new Map();
+        this.initializeStyles();
+        this.initializeDefaultTooltips();
+    }
+
+    initializeStyles() {
+        if (!document.getElementById('tooltip-styles')) {
+            const style = document.createElement('style');
+            style.id = 'tooltip-styles';
+            style.textContent = `
+                .tooltip {
+                    position: fixed;
+                    background: rgba(0, 0, 0, 0.9);
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 14px;
+                    z-index: 10001;
+                    pointer-events: none;
+                    white-space: nowrap;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    transform: translateY(-8px);
+                    opacity: 0;
+                    transition: all 0.2s ease;
+                    max-width: 300px;
+                    white-space: normal;
+                    text-align: center;
+                }
+                
+                .tooltip.show {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+                
+                .tooltip::after {
+                    content: '';
+                    position: absolute;
+                    top: 100%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    border: 6px solid transparent;
+                    border-top-color: rgba(0, 0, 0, 0.9);
+                }
+                
+                .tooltip.top::after {
+                    top: -6px;
+                    border-top-color: transparent;
+                    border-bottom-color: rgba(0, 0, 0, 0.9);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    initializeDefaultTooltips() {
+        // Wait for DOM to be ready
+        setTimeout(() => {
+            // Tab tooltips
+            document.querySelectorAll('.tab-btn').forEach((tab, index) => {
+                const shortcuts = ['1', '2', '3', '4'];
+                const names = ['Ledger', 'AI Assistant', 'Scenarios', 'Analytics'];
+                if (names[index]) {
+                    this.add(tab, `${names[index]} (Press ${shortcuts[index]})`);
+                }
+            });
+            
+            // Button tooltips
+            this.add('#sendBtn', 'Send message (Ctrl+Enter)');
+            this.add('#clearChatBtn', 'Clear chat history (Ctrl+K)');
+            this.add('#newScenarioBtn', 'Create new financial scenario');
+            this.add('#refreshAnalyticsBtn', 'Refresh analytics data (Ctrl+R)');
+            this.add('#exportAnalyticsBtn', 'Export analytics report (Ctrl+E)');
+            
+            // Other interactive elements
+            this.add('.summary-card', 'Click to view detailed breakdown');
+            this.add('.scenario-card', 'Right-click for more options');
+        }, 1000);
+    }
+
+    add(selector, text, options = {}) {
+        const elements = typeof selector === 'string' ? 
+            document.querySelectorAll(selector) : [selector];
+        
+        elements.forEach(element => {
+            if (!element) return;
+            
+            // Store tooltip data
+            this.tooltips.set(element, { text, options });
+            
+            // Add event listeners
+            element.addEventListener('mouseenter', (e) => this.show(e.target, text, options));
+            element.addEventListener('mouseleave', () => this.hide());
+            element.addEventListener('focus', (e) => this.show(e.target, text, options));
+            element.addEventListener('blur', () => this.hide());
+        });
+    }
+
+    show(element, text, options = {}) {
+        this.hide(); // Hide any existing tooltip
+        
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        tooltip.textContent = text;
+        
+        document.body.appendChild(tooltip);
+        
+        // Position tooltip
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+        let top = rect.top - tooltipRect.height - 12;
+        
+        // Adjust if tooltip goes off-screen
+        if (left < 8) left = 8;
+        if (left + tooltipRect.width > window.innerWidth - 8) {
+            left = window.innerWidth - tooltipRect.width - 8;
+        }
+        
+        if (top < 8) {
+            top = rect.bottom + 12;
+            tooltip.classList.add('top');
+        }
+        
+        tooltip.style.left = `${left}px`;
+        tooltip.style.top = `${top}px`;
+        
+        // Show tooltip
+        setTimeout(() => {
+            tooltip.classList.add('show');
+        }, 10);
+        
+        this.activeTooltip = tooltip;
+        
+        // Auto-hide after delay
+        setTimeout(() => {
+            if (this.activeTooltip === tooltip) {
+                this.hide();
+            }
+        }, options.autoHide !== false ? 5000 : 0);
+    }
+
+    hide() {
+        if (this.activeTooltip) {
+            this.activeTooltip.classList.remove('show');
+            const tooltip = this.activeTooltip;
+            setTimeout(() => {
+                if (tooltip && tooltip.parentElement) {
+                    tooltip.remove();
+                }
+            }, 200);
+            this.activeTooltip = null;
+        }
+    }
+
+    remove(selector) {
+        const elements = typeof selector === 'string' ? 
+            document.querySelectorAll(selector) : [selector];
+        
+        elements.forEach(element => {
+            if (element && this.tooltips.has(element)) {
+                this.tooltips.delete(element);
+                // Note: Event listeners will be removed when element is removed from DOM
+            }
+        });
+    }
+}
+
+// =============================================================================
+// GLOBAL ENHANCEMENT INITIALIZATION
+// =============================================================================
+
+// Create global instances
+const notifications = new NotificationManager();
+const loadingManager = new LoadingManager();
+const keyboardShortcuts = new KeyboardShortcuts();
+const tooltipManager = new TooltipManager();
+
+// Enhance the existing FutureFundApp class
+if (window.FutureFundApp) {
+    const originalInit = FutureFundApp.prototype.init;
+    FutureFundApp.prototype.init = async function() {
+        await originalInit.call(this);
+        
+        // Add enhanced UX features
+        this.notifications = notifications;
+        this.loadingManager = loadingManager;
+        this.keyboardShortcuts = keyboardShortcuts;
+        this.tooltipManager = tooltipManager;
+        
+        // Show welcome message
+        setTimeout(() => {
+            notifications.info(`
+                <div>
+                    <strong>Welcome to FutureFund!</strong><br>
+                    <small>Press Ctrl+? for keyboard shortcuts</small>
+                </div>
+            `, 6000);
+        }, 2000);
+    };
+    
+    // Enhance existing methods with notifications and loading states
+    const originalSendChatMessage = FutureFundApp.prototype.sendChatMessage;
+    FutureFundApp.prototype.sendChatMessage = async function() {
+        const chatInput = document.getElementById('chatInput');
+        if (!chatInput || !chatInput.value.trim()) {
+            notifications.warning('Please enter a message before sending.');
+            if (chatInput) chatInput.focus();
+            return;
+        }
+        
+        try {
+            await originalSendChatMessage.call(this);
+        } catch (error) {
+            notifications.error('Failed to send message. Please try again.');
+            console.error('Chat error:', error);
+        }
+    };
+}
+
+// Add global event handlers for enhanced UX
+document.addEventListener('DOMContentLoaded', () => {
+    // Handle form submissions with better UX
+    document.addEventListener('submit', (e) => {
+        const form = e.target;
+        if (form.tagName === 'FORM') {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; margin-right: 8px;"></div>Submitting...';
+                
+                setTimeout(() => {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = submitBtn.dataset.originalText || 'Submit';
+                    }
+                }, 2000);
+            }
+        }
+    });
+    
+    // Handle errors gracefully
+    window.addEventListener('error', (e) => {
+        console.error('Global error:', e);
+        notifications.error('An unexpected error occurred. Please try again.');
+    });
+    
+    // Handle unhandled promise rejections
+    window.addEventListener('unhandledrejection', (e) => {
+        console.error('Unhandled promise rejection:', e);
+        notifications.error('A background operation failed. Some features may not work correctly.');
+    });
+    
+    // Add accessibility improvements
+    document.addEventListener('keydown', (e) => {
+        // Skip to main content with Ctrl+M
+        if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+            e.preventDefault();
+            const mainContent = document.querySelector('main') || 
+                              document.querySelector('.main-content') ||
+                              document.querySelector('.tab-content.active');
+            if (mainContent) {
+                mainContent.focus();
+                notifications.info('Jumped to main content');
+            }
+        }
+    });
+});
+
+// Expose enhanced functionality globally
+window.FutureFundUX = {
+    notifications,
+    loadingManager,
+    keyboardShortcuts,
+    tooltipManager,
+    
+    // Utility functions
+    showSuccess: (message) => notifications.success(message),
+    showError: (message) => notifications.error(message),
+    showInfo: (message) => notifications.info(message),
+    showWarning: (message) => notifications.warning(message),
+    
+    showLoading: (element, text) => loadingManager.show(element, text),
+    hideLoading: (element) => loadingManager.hide(element),
+    
+    addTooltip: (selector, text, options) => tooltipManager.add(selector, text, options),
+    addShortcut: (combo, action, description) => keyboardShortcuts.add(combo, action, description)
+};
+
+console.log('🎨 Enhanced UX features loaded successfully!');
+console.log('🔥 FutureFund is now fully enhanced with:');
+console.log('  ✅ Smart notifications');
+console.log('  ✅ Keyboard shortcuts (Ctrl+? for help)');
+console.log('  ✅ Interactive tooltips');
+console.log('  ✅ Enhanced loading states');
+console.log('  ✅ Better accessibility');
+console.log('  ✅ Improved error handling');

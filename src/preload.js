@@ -42,6 +42,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Debug logging
   logDebug: (title, data) => ipcRenderer.invoke('log-debug', title, data),
   
+  // Hard refresh to clear cache
+  hardRefresh: () => ipcRenderer.invoke('hard-refresh'),
+  
   // Workflow Management
   cancelForecast: (workflowId) => ipcRenderer.invoke('cancel-forecast', workflowId),
   getWorkflowStatus: (workflowId) => ipcRenderer.invoke('get-workflow-status', workflowId),

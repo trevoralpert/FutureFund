@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, session } = require('electron');
 const path = require('path');
 const config = require('./config');
 const isDev = process.argv.includes('--dev');
@@ -65,6 +65,12 @@ app.whenReady().then(async () => {
   } catch (error) {
     console.error('❌ Database initialization failed:', error);
     // Continue with app startup even if database fails
+  }
+  
+  // Clear cache to prevent old API calls
+  if (process.env.NODE_ENV !== 'production') {
+    session.defaultSession.clearCache();
+    session.defaultSession.clearStorageData();
   }
   
   createWindow();
@@ -762,5 +768,22 @@ app.on('before-quit', async () => {
     console.log('✅ Database connection closed');
   } catch (error) {
     console.error('❌ Error closing database:', error);
+  }
+});
+
+// Hard refresh handler to clear cache
+ipcMain.handle('hard-refresh', async () => {
+  try {
+    await session.defaultSession.clearCache();
+    await session.defaultSession.clearStorageData();
+    
+    if (mainWindow) {
+      mainWindow.webContents.reloadIgnoringCache();
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Hard refresh failed:', error);
+    return { success: false, error: error.message };
   }
 }); 
