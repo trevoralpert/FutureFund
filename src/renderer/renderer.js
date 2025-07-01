@@ -1215,13 +1215,16 @@ class FutureFundApp {
     
     renderScenarioPreview() {
         const form = document.getElementById('scenarioForm');
-        const formData = new FormData(form);
         const preview = document.getElementById('scenarioPreview');
+        const formData = new FormData(form);
+        
+        const template = this.getScenarioTemplates().find(t => t.id === this.selectedTemplate);
         
         const scenarioData = {
             name: formData.get('scenarioName'),
             description: formData.get('scenarioDescription'),
             template: this.selectedTemplate,
+            type: template.name, // Add the missing type field
             parameters: {}
         };
         
@@ -1236,7 +1239,6 @@ class FutureFundApp {
         this.scenarioToCreate = scenarioData;
         
         // Render preview
-        const template = this.getScenarioTemplates().find(t => t.id === this.selectedTemplate);
         preview.innerHTML = `
             <div class="preview-section">
                 <h4>Scenario Information</h4>

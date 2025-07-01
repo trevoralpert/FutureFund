@@ -409,7 +409,9 @@ ipcMain.handle('delete-scenario', async (event, scenarioId) => {
 ipcMain.handle('create-scenario', async (event, scenario) => {
   try {
     const result = await ScenarioDAO.create(scenario);
-    return { success: true, ...result };
+    // Fetch the complete created scenario to return to frontend
+    const createdScenario = await ScenarioDAO.getById(result.id);
+    return { success: true, scenario: createdScenario, id: result.id, changes: result.changes };
   } catch (error) {
     console.error('Error creating scenario:', error);
     return { success: false, error: error.message };

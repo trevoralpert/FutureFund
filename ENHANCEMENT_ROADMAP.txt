@@ -1,0 +1,227 @@
+# FutureFund Enhancement Roadmap
+# Major Feature Additions for Multi-Account Support, Dynamic Scenarios, and AI-Driven Onboarding
+# **DEPENDENCY-OPTIMIZED DEVELOPMENT ORDER**
+
+## PHASE 0: RESEARCH & PLANNING FOUNDATION
+### Step 0.1: Northwestern Mutual Document Analysis ✅ COMPLETE
+- [x] Parse Northwestern Mutual PDF onboarding documents
+- [x] Extract financial advisor methodology and best practices  
+- [x] Identify required account types and categories (20+ account types)
+- [x] Document comprehensive user profile data requirements
+- [x] Extract onboarding question patterns and flow logic
+- [x] Define financial modeling requirements from NM approach
+- [x] **DELIVERABLE**: NORTHWESTERN_MUTUAL_ANALYSIS.md created
+
+### Step 0.2: Comprehensive Data Model Design
+- [ ] Design account types enum based on NM analysis
+- [ ] Define user profile schema with NM-informed fields
+- [ ] Plan scenario data model with consequence tracking
+- [ ] Design transaction-account-scenario relationship structure
+- [ ] Create financial health scoring data requirements
+- [ ] Plan AI integration data touchpoints
+
+## PHASE 1: CORE DATA FOUNDATION
+### Step 1.1: Database Schema Implementation (Based on Phase 0 Analysis)
+- [ ] Create accounts table with NM-informed account types
+- [ ] Create user_profiles table with comprehensive financial data
+- [ ] Add account_id foreign key to transactions table
+- [ ] Implement scenario_effects table for consequence tracking
+- [ ] Create account_balances table with historical tracking
+- [ ] Add scenario_combinations table for active scenario state
+- [ ] Migrate existing transactions to default checking account
+
+### Step 1.2: Account Management UI
+- [ ] Create account management tab/section
+- [ ] Account creation modal with type selection
+- [ ] Account list/grid view with balances and status
+- [ ] Account edit/delete functionality
+- [ ] Account connection status indicators
+
+### Step 1.3: Multi-Account Ledger Integration
+- [ ] Update ledger to show account filters
+- [ ] Add account column to transaction table
+- [ ] Implement account-specific transaction filtering
+- [ ] Update transaction import/creation to specify account
+- [ ] Account balance calculations and reconciliation
+
+### Step 1.4: Multi-Account Analytics
+- [ ] Update financial health scoring for all accounts
+- [ ] Account-specific spending analysis
+- [ ] Cross-account transfer tracking
+- [ ] Portfolio-style account overview dashboard
+- [ ] Net worth calculation across all accounts
+
+## PHASE 2: MULTI-ACCOUNT UI FOUNDATION
+### Step 2.1: Account Management Interface
+- [ ] Create account management tab/section
+- [ ] Account creation modal with NM-informed type selection
+- [ ] Account list/grid view with balances and status
+- [ ] Account edit/delete functionality
+- [ ] Account connection status indicators
+
+### Step 2.2: Multi-Account Ledger Integration
+- [ ] Update ledger to show account filters
+- [ ] Add account column to transaction table
+- [ ] Implement account-specific transaction filtering
+- [ ] Update transaction import/creation to specify account
+- [ ] Account balance calculations and reconciliation
+- [ ] Aggregate vs individual account view toggle
+
+### Step 2.3: Basic Multi-Account Analytics
+- [ ] Update financial health scoring for all accounts
+- [ ] Account-specific spending analysis
+- [ ] Cross-account transfer tracking
+- [ ] Portfolio-style account overview dashboard
+- [ ] Net worth calculation across all accounts
+
+## PHASE 3: SCENARIO FRAMEWORK FOUNDATION
+### Step 3.1: Basic Scenario Management
+- [ ] Scenario activation/deactivation toggle UI
+- [ ] Store active scenario combinations in database
+- [ ] Basic scenario effect calculation on transactions
+- [ ] Update ledger to show scenario-affected projections
+- [ ] Scenario impact preview before activation
+
+### Step 3.2: Scenario Combination Logic
+- [ ] Implement additive scenario effect system
+- [ ] Separate historical vs predicted transactions in data model
+- [ ] Basic scenario conflict detection
+- [ ] Multiple active scenario state management
+- [ ] What-if scenario comparison interface
+
+## PHASE 4: INTELLIGENT SCENARIO CONSEQUENCE ENGINE
+### Step 4.1: Realistic Financial Consequence Modeling
+- [ ] Build realistic consequence modeling (overdraft fees, credit fallbacks)
+- [ ] Create intelligent payment method switching (checking → credit → loans)
+- [ ] Implement automatic fallback account selection logic
+- [ ] Add overdraft fee calculation and timing
+- [ ] Credit limit tracking and maxing out detection
+
+### Step 4.2: BUST Scenario Detection & AI Recommendations
+- [ ] Implement "BUST scenario" detection and warnings
+- [ ] Add scenario recommendation scoring system (0-100 feasibility)
+- [ ] Creative financial solution suggestions (payment method switching)
+- [ ] "What if I also..." scenario combination suggestions
+- [ ] AI-powered scenario viability analysis
+
+### Step 4.3: Advanced Scenario Intelligence
+- [ ] Scenario dependency mapping (e.g., house purchase requires job)
+- [ ] Conflict resolution UI (warn when scenarios contradict)
+- [ ] Scenario timeline visualization
+- [ ] Scenario groups/categories with intelligent combinations
+- [ ] Temporary vs permanent scenario effects
+- [ ] Scenario scheduling (activate/deactivate on dates)
+
+## PHASE 5: AI INTEGRATION & DYNAMIC FEATURES
+### Step 5.1: Chatbot Integration for Dynamic Account/Scenario Creation
+- [ ] "Ask AI to add account" functionality throughout app
+- [ ] Natural language account description processing
+- [ ] AI-powered account type detection from user input
+- [ ] Dynamic form generation for custom account types
+- [ ] Chatbot scenario creation from natural language
+
+### Step 5.2: Dynamic Account Type Creation
+- [ ] Custom account type validation and approval workflow
+- [ ] Integration with existing account management system
+- [ ] AI analysis of user's complete financial picture
+- [ ] Dynamic app feature enabling/disabling based on profile
+- [ ] Personalized dashboard layout generation
+
+## PHASE 6: ONBOARDING & USER EXPERIENCE
+### Step 6.1: Northwestern Mutual-Informed Onboarding Flow
+- [ ] Create flexible guided setup wizard UI based on Phase 0 analysis
+- [ ] Personal information collection (demographics, goals, risk tolerance)
+- [ ] Account discovery and selection interface
+- [ ] Financial situation assessment questionnaire (NM-based)
+- [ ] Goal-setting and priority ranking system
+- [ ] Custom scenario template creation based on user situation
+
+### Step 6.2: Advanced Chat Integration
+- [ ] Account-specific chatbot queries ("How's my savings account?")
+- [ ] Multi-account financial advice
+- [ ] Scenario recommendation through chat
+- [ ] Custom account setup through conversational AI
+- [ ] Natural language account management
+
+### Step 6.3: Personalized Financial Modeling
+- [ ] AI-driven personal financial model generation
+- [ ] Dynamic scenario weighting based on user behavior
+- [ ] Machine learning from user financial patterns
+- [ ] Personalized goal achievement probability calculations
+- [ ] Custom risk assessment models
+- [ ] AI-powered financial advice and recommendations
+
+## PHASE 7: ENTERPRISE FEATURES
+### Step 7.1: Read-Only Bank Account Integration Preparation
+- [ ] Read-only bank API integration framework (Plaid/Yodlee prep)
+- [ ] Secure credential management system (read-only access)
+- [ ] Real-time account balance and transaction synchronization
+- [ ] Automatic transaction categorization across accounts
+- [ ] Account verification and validation (read-only)
+
+### Step 7.2: Advanced Document Processing
+- [ ] OCR for financial statements
+- [ ] Automatic data extraction from bank statements
+- [ ] Tax document integration
+- [ ] Investment portfolio import
+- [ ] Insurance policy analysis
+
+### Step 7.3: Collaboration Features
+- [ ] Family/household account sharing
+- [ ] Financial advisor collaboration tools
+- [ ] Shared scenario planning
+- [ ] Multi-user permission system
+- [ ] Collaborative financial goal setting
+
+## TECHNICAL INFRASTRUCTURE REQUIREMENTS
+### Database Enhancements
+- [ ] Account-centric data model redesign
+- [ ] Transaction-account relationship optimization
+- [ ] Scenario state persistence
+- [ ] User profile extensibility
+- [ ] Performance optimization for multi-account queries
+
+### AI/ML Pipeline
+- [ ] Enhanced LangChain workflow for multi-account analysis
+- [ ] Document processing pipeline integration
+- [ ] Natural language account type detection
+- [ ] Personalization engine architecture
+- [ ] Real-time recommendation system
+
+### Security & Privacy
+- [ ] Enhanced data encryption for multiple accounts
+- [ ] Account-level access controls
+- [ ] Privacy settings for different account types
+- [ ] Audit logging for account access
+- [ ] Compliance framework for financial data
+
+## DEPENDENCY-OPTIMIZED DEVELOPMENT RATIONALE
+**Why This Order Prevents Rework:**
+- **Phase 0 Research First**: NM documents inform account types, user profile structure, and onboarding flow
+- **Data Model Design**: Comprehensive schema based on real financial advisor methodology
+- **Foundation Before Features**: Database structure established before UI/features are built
+- **Basic Before Advanced**: Simple multi-account support before complex scenario intelligence
+- **Structure Before AI**: Data relationships established before AI integration layer
+
+## IMMEDIATE NEXT STEPS (Dependency-Optimized Order)
+1. **Phase 0.1: Parse Northwestern Mutual PDFs**: Extract account types, onboarding methodology, and user profile requirements
+2. **Phase 0.2: Design comprehensive data model**: Account types, user profiles, scenario structure based on NM analysis
+3. **Phase 1.1: Implement database schema**: Multi-account foundation informed by Phase 0 research
+4. **Phase 2.1: Build account management UI**: Basic multi-account interface
+5. **Phase 3.1: Basic scenario framework**: Foundation for intelligent scenario system
+
+**Ready to proceed with Phase 0.1 - Please provide Northwestern Mutual PDFs!**
+
+## REMAINING QUESTIONS FOR CLARIFICATION
+- **Northwestern Mutual PDFs**: Are you ready to share them now, or should we proceed with Phase 1.1 first?
+- **Scenario Complexity**: Should we start with basic additive scenarios or dive straight into the sophisticated consequence modeling?
+- **Demo Timeline**: How much time do you want to spend on this enhancement vs the original demo?
+- **Account Types Priority**: Beyond checking, which accounts are most important? (Savings, Credit Card, Investment?)
+- **BUST Scenario Sophistication**: How detailed should the initial "this won't work" analysis be?
+
+## SUCCESS METRICS
+- [ ] Support for 8+ account types with full transaction history
+- [ ] Scenario combinations affecting 500+ predicted transactions
+- [ ] 90%+ user onboarding completion rate
+- [ ] AI successfully creating custom account types
+- [ ] Multi-account financial health scoring accuracy 
