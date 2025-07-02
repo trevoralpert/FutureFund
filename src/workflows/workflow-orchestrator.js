@@ -10,6 +10,7 @@ const { createBackgroundIntelligenceWorkflow, BackgroundIntelligenceManager } = 
 const { createScenarioAnalysisWorkflow } = require('./scenario-analysis');
 const { createSmartScenarioWorkflows } = require('./smart-scenario-workflows');
 const { createAdvancedScenarioModelingWorkflow } = require('./advanced-scenario-modeling');
+const { createMultiAccountIntelligenceWorkflow } = require('./multi-account-intelligence');
 const config = require('../config');
 
 /**
@@ -31,6 +32,8 @@ class WorkflowOrchestrator {
     this.smartScenarioWorkflow = null;
     this.advancedScenarioModelingWorkflow = null;
     this.backgroundManager = null;
+    this.multiAccountIntelligenceWorkflow = null;
+    this.isInitialized = false;
     
     // Initialize LangGraph workflow on startup
     this.initializeLangGraph();
@@ -49,6 +52,9 @@ class WorkflowOrchestrator {
     
     // Initialize Advanced Scenario Modeling for Phase 3.6.3  
     this.initializeAdvancedScenarioModeling();
+
+    // Initialize Multi-Account Intelligence workflow for Phase 3.7.1
+    this.initializeMultiAccountIntelligence();
   }
 
   /**
@@ -149,6 +155,20 @@ class WorkflowOrchestrator {
     } catch (error) {
       console.error('❌ Failed to initialize Advanced Scenario Modeling:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Initialize Multi-Account Intelligence workflow - Phase 3.7.1
+   */
+  initializeMultiAccountIntelligence() {
+    try {
+      console.log('🧠 [Orchestrator] Initializing Multi-Account Intelligence workflow...');
+      this.multiAccountIntelligenceWorkflow = createMultiAccountIntelligenceWorkflow();
+      console.log('✅ Multi-Account Intelligence workflow initialized successfully');
+    } catch (error) {
+      console.error('❌ [Orchestrator] Failed to initialize Multi-Account Intelligence:', error);
+      this.multiAccountIntelligenceWorkflow = null;
     }
   }
 
@@ -1243,6 +1263,84 @@ class WorkflowOrchestrator {
         workflowId,
         error: error.message,
         code: error.code || 'ADVANCED_SCENARIO_MODELING_ERROR'
+      };
+    }
+  }
+
+  /**
+   * Run Multi-Account Intelligence Analysis - Phase 3.7.1
+   * Provides comprehensive portfolio analysis and cross-account insights
+   */
+  async runMultiAccountIntelligence(userId, options = {}) {
+    const startTime = Date.now();
+    
+    try {
+      console.log(`🧠 [Multi-Account Intelligence] Starting analysis for user ${userId}...`);
+      
+      if (!this.multiAccountIntelligenceWorkflow) {
+        throw new Error('Multi-Account Intelligence workflow not initialized');
+      }
+      
+      // Set progress callback
+      const progressTracker = this.createProgressTracker('multiAccountIntelligence');
+      
+      // Execute workflow
+      const result = await this.multiAccountIntelligenceWorkflow.invoke({
+        userId,
+        ...options
+      });
+      
+      const duration = Date.now() - startTime;
+      
+      // Track performance
+      this.trackPerformance('multiAccountIntelligence', {
+        duration,
+        accountCount: result.accountPortfolio?.accountCount,
+        netWorth: result.accountPortfolio?.netWorth,
+        diversificationScore: result.portfolioAnalysis?.diversificationScore,
+        opportunityCount: result.optimizationOpportunities?.length,
+        recommendationCount: result.actionableRecommendations?.length,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Cache results
+      this.cacheResult('multiAccountIntelligence', userId, result, {
+        ttl: 30 * 60 * 1000 // 30 minutes
+      });
+      
+      console.log(`✅ [Multi-Account Intelligence] Analysis completed in ${duration}ms`);
+      console.log(`   📊 Portfolio: $${result.accountPortfolio?.netWorth?.toLocaleString() || 'N/A'} net worth`);
+      console.log(`   🎯 Generated: ${result.actionableRecommendations?.length || 0} recommendations`);
+      
+      return {
+        success: true,
+        data: result,
+        metadata: {
+          executionTime: duration,
+          timestamp: new Date().toISOString(),
+          workflowVersion: '3.7.1'
+        }
+      };
+      
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      
+      console.error(`❌ [Multi-Account Intelligence] Analysis failed after ${duration}ms:`, error);
+      
+      this.trackError('multiAccountIntelligence', {
+        error: error.message,
+        duration,
+        userId,
+        timestamp: new Date().toISOString()
+      });
+      
+      return {
+        success: false,
+        error: error.message,
+        metadata: {
+          executionTime: duration,
+          timestamp: new Date().toISOString()
+        }
       };
     }
   }
