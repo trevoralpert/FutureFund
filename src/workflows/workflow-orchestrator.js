@@ -5,6 +5,7 @@
  */
 
 const { createLangGraphWorkflow } = require('./langgraph-foundation');
+const { createFinancialIntelligenceWorkflow } = require('./financial-intelligence');
 const config = require('../config');
 
 /**
@@ -19,9 +20,13 @@ class WorkflowOrchestrator {
     this.maxCacheSize = 50;
     this.defaultTimeout = 60000; // 60 seconds
     this.langGraphWorkflow = null;
+    this.financialIntelligenceWorkflow = null;
     
     // Initialize LangGraph workflow on startup
     this.initializeLangGraph();
+    
+    // Initialize Financial Intelligence workflow for Phase 3.5.2
+    this.initializeFinancialIntelligence();
   }
 
   /**
@@ -35,6 +40,20 @@ class WorkflowOrchestrator {
     } catch (error) {
       console.error('❌ [Orchestrator] Failed to initialize LangGraph:', error);
       this.langGraphWorkflow = null;
+    }
+  }
+
+  /**
+   * Initialize Financial Intelligence workflow - Phase 3.5.2
+   */
+  async initializeFinancialIntelligence() {
+    try {
+      console.log('🧠 [Orchestrator] Initializing Financial Intelligence workflow...');
+      this.financialIntelligenceWorkflow = createFinancialIntelligenceWorkflow();
+      console.log('✅ [Orchestrator] Financial Intelligence workflow initialized successfully');
+    } catch (error) {
+      console.error('❌ [Orchestrator] Failed to initialize Financial Intelligence:', error);
+      this.financialIntelligenceWorkflow = null;
     }
   }
 
@@ -143,6 +162,177 @@ class WorkflowOrchestrator {
   }
 
   /**
+   * Execute Financial Intelligence workflow - Phase 3.5.2
+   */
+  async executeFinancialIntelligenceWorkflow(inputData, options = {}) {
+    const workflowId = this.generateWorkflowId();
+    const startTime = Date.now();
+    
+    console.log(`🧠 [Orchestrator] Starting Financial Intelligence workflow: ${workflowId}`);
+
+    try {
+      // Ensure Financial Intelligence is initialized
+      if (!this.financialIntelligenceWorkflow) {
+        await this.initializeFinancialIntelligence();
+        if (!this.financialIntelligenceWorkflow) {
+          throw new Error('Financial Intelligence workflow initialization failed');
+        }
+      }
+
+      // Check cache first
+      const cacheKey = this.generateCacheKey(inputData, 'financial_intelligence');
+      if (options.useCache !== false && this.cache.has(cacheKey)) {
+        console.log('📦 [Orchestrator] Returning cached Financial Intelligence result');
+        const cachedResult = this.cache.get(cacheKey);
+        return {
+          ...cachedResult,
+          metadata: {
+            ...cachedResult.metadata,
+            cached: true,
+            retrievalTime: Date.now() - startTime
+          }
+        };
+      }
+
+      // Validate input data
+      const validationErrors = this.validateInputData(inputData);
+      if (validationErrors.length > 0) {
+        return {
+          success: false,
+          workflowId,
+          error: 'Invalid input data',
+          details: validationErrors
+        };
+      }
+
+      // Track active workflow
+      this.activeWorkflows.set(workflowId, {
+        startTime,
+        timeout: options.timeout || this.defaultTimeout,
+        status: 'running',
+        type: 'financial_intelligence'
+      });
+
+      // Set up progress tracking
+      if (options.onProgress) {
+        this.progressCallbacks.set(workflowId, options.onProgress);
+      }
+
+      // Execute Financial Intelligence workflow with timeout
+      const result = await Promise.race([
+        this.executeFinancialIntelligenceWithProgress(inputData, workflowId),
+        this.createTimeoutPromise(options.timeout || this.defaultTimeout)
+      ]);
+
+      // Cache successful results
+      if (result && result.executionMetadata?.phases?.every(p => p.success)) {
+        this.cacheResult(cacheKey, result);
+      }
+
+      // Cleanup
+      this.activeWorkflows.delete(workflowId);
+      this.progressCallbacks.delete(workflowId);
+
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [Orchestrator] Financial Intelligence workflow completed in ${totalTime}ms: ${workflowId}`);
+
+      return {
+        success: true,
+        workflowId,
+        data: result,
+        metadata: {
+          totalExecutionTime: totalTime,
+          workflowId,
+          framework: 'FinancialIntelligence',
+          version: '3.5.2',
+          phases: result.executionMetadata?.phases?.length || 0,
+          healthScore: result.healthScore?.overall?.score || 0,
+          anomalies: result.anomalies?.totalAnomalies || 0
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Financial Intelligence workflow failed: ${workflowId}`, error);
+      
+      // Cleanup on error
+      this.activeWorkflows.delete(workflowId);
+      this.progressCallbacks.delete(workflowId);
+
+      return {
+        success: false,
+        workflowId,
+        error: error.message,
+        code: error.code || 'FINANCIAL_INTELLIGENCE_ERROR'
+      };
+    }
+  }
+
+  /**
+   * Execute Financial Intelligence workflow with progress tracking
+   */
+  async executeFinancialIntelligenceWithProgress(inputData, workflowId) {
+    const progressCallback = this.progressCallbacks.get(workflowId);
+    
+    // Financial Intelligence workflow phases
+    const phases = [
+      'loadAndPreprocess',
+      'analyzePatterns',
+      'detectAnomalies',
+      'calculateHealth',
+      'categorizeTransactions',
+      'generateInsights'
+    ];
+    
+    let currentPhaseIndex = 0;
+    
+    // Progress tracking
+    const progressInterval = setInterval(() => {
+      if (progressCallback && currentPhaseIndex < phases.length) {
+        const progress = {
+          stage: phases[currentPhaseIndex],
+          progress: Math.min(95, ((currentPhaseIndex + 1) / phases.length) * 95),
+          message: this.getFinancialIntelligenceProgressMessage(phases[currentPhaseIndex]),
+          framework: 'FinancialIntelligence'
+        };
+        
+        progressCallback(progress);
+        currentPhaseIndex++;
+      }
+    }, 1500); // Realistic processing time for advanced analysis
+
+    try {
+      // Execute the Financial Intelligence workflow
+      console.log('🧠 [Orchestrator] Invoking Financial Intelligence workflow...');
+      const result = await this.financialIntelligenceWorkflow.invoke({
+        transactionData: inputData
+      });
+      
+      // Final progress update
+      if (progressCallback) {
+        progressCallback({
+          stage: 'complete',
+          progress: 100,
+          message: 'Financial Intelligence analysis complete',
+          framework: 'FinancialIntelligence',
+          results: {
+            healthScore: result.healthScore?.overall?.score || 0,
+            anomalies: result.anomalies?.totalAnomalies || 0,
+            insights: result.insights?.keyFindings?.length || 0
+          }
+        });
+      }
+      
+      clearInterval(progressInterval);
+      return result;
+      
+    } catch (error) {
+      clearInterval(progressInterval);
+      console.error('❌ [Orchestrator] Financial Intelligence execution error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Execute LangGraph workflow with progress tracking
    */
   async executeWithProgress(inputData, workflowId) {
@@ -217,6 +407,22 @@ class WorkflowOrchestrator {
   }
 
   /**
+   * Get progress message for Financial Intelligence workflow
+   */
+  getFinancialIntelligenceProgressMessage(stage) {
+    const messages = {
+      loadAndPreprocess: 'Financial Intelligence: Loading and preprocessing transaction data...',
+      analyzePatterns: 'Financial Intelligence: Analyzing spending patterns with AI...',
+      detectAnomalies: 'Financial Intelligence: Detecting spending anomalies...',
+      calculateHealth: 'Financial Intelligence: Calculating financial health score...',
+      categorizeTransactions: 'Financial Intelligence: Categorizing transactions with AI...',
+      generateInsights: 'Financial Intelligence: Generating insights and recommendations...'
+    };
+    
+    return messages[stage] || 'Financial Intelligence: Processing advanced analysis...';
+  }
+
+  /**
    * Create timeout promise
    */
   createTimeoutPromise(timeout) {
@@ -237,12 +443,12 @@ class WorkflowOrchestrator {
   /**
    * Generate cache key from input data
    */
-  generateCacheKey(inputData) {
+  generateCacheKey(inputData, workflowType = 'langgraph') {
     const key = {
       transactionCount: inputData.transactions?.length || 0,
       dateRange: inputData.dateRange,
       scenarios: inputData.scenarios?.map(s => ({ type: s.type, amount: s.amount })) || [],
-      framework: 'langgraph'
+      framework: workflowType
     };
     
     return JSON.stringify(key);
