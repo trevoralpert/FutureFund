@@ -3581,4 +3581,134 @@ select:focus {
 .account-skeleton .account-loading:nth-child(5) {
     width: 30%;
     height: 14px;
+}
+
+/* =================== TRANSACTION MANAGEMENT STYLES =================== */
+
+/* Transaction Controls */
+.transaction-controls {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Transaction Modal */
+.transaction-modal .modal-content {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.transaction-form .form-section h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.recurring-options {
+    margin-top: 1rem;
+}
+
+/* View Toggle Styles */
+.view-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.view-toggle label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+#aggregateViewToggle {
+    transition: all 0.3s ease;
+    min-width: 120px;
+    text-align: center;
+}
+
+#aggregateViewToggle[data-mode="individual"] {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+#aggregateViewToggle[data-mode="individual"]:hover {
+    background-color: var(--accent-hover);
+}
+
+/* Individual Account View Styles */
+.account-header-row td {
+    background-color: var(--bg-tertiary, #f8f9fa) !important;
+    font-weight: bold !important;
+    padding: 1rem !important;
+    border-top: 2px solid var(--border-color, #dee2e6) !important;
+    color: var(--text-primary) !important;
+}
+
+.account-grouped {
+    background-color: var(--bg-secondary, #ffffff);
+}
+
+.account-grouped:hover {
+    background-color: var(--bg-tertiary, #f8f9fa);
+}
+
+/* Transaction Form Specific Styles */
+.transaction-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.transaction-form .form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.transaction-form .form-row .form-group {
+    flex: 1;
+}
+
+.transaction-form .checkbox-group {
+    margin-bottom: 0.5rem;
+}
+
+.transaction-form #recurringOptions {
+    border-left: 3px solid var(--primary-color);
+    padding-left: 1rem;
+    margin-left: 1rem;
+}
+
+/* Responsive Design for New Features */
+@media (max-width: 768px) {
+    .view-toggle {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .view-toggle label {
+        font-size: 0.8rem;
+    }
+    
+    #aggregateViewToggle {
+        min-width: 100px;
+        font-size: 0.8rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .transaction-controls {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
+    }
+    
+    .transaction-form .form-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .account-header-row td {
+        padding: 0.5rem !important;
+        font-size: 0.9rem !important;
+    }
 } 

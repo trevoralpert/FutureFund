@@ -91,10 +91,23 @@
                                 <!-- Account options will be dynamically loaded -->
                             </select>
                         </div>
+                        <div class="view-toggle">
+                            <label>View Mode:</label>
+                            <button class="btn btn-secondary btn-sm" id="aggregateViewToggle" data-mode="aggregate">
+                                <span class="btn-icon">📊</span>
+                                <span id="viewToggleText">Aggregate</span>
+                            </button>
+                        </div>
                         <div class="view-mode">
                             <button class="btn btn-secondary" id="toggleView">
                                 <span class="btn-icon">📈</span>
                                 <span id="viewModeText">Chart View</span>
+                            </button>
+                        </div>
+                        <div class="transaction-controls">
+                            <button class="btn btn-primary" id="addTransactionBtn">
+                                <span class="btn-icon">➕</span>
+                                Add Transaction
                             </button>
                         </div>
                     </div>
@@ -798,6 +811,128 @@
         <div class="context-menu-item dangerous" data-action="delete">
             <span class="context-icon">🗑️</span>
             Delete Account
+        </div>
+    </div>
+
+    <!-- Transaction Creation/Edit Modal -->
+    <div id="transactionModal" class="modal hidden">
+        <div class="modal-overlay" id="transactionModalOverlay"></div>
+        <div class="modal-content transaction-modal">
+            <div class="modal-header">
+                <h2 id="transactionModalTitle">Add New Transaction</h2>
+                <button class="modal-close" id="transactionModalClose">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="transactionForm" class="transaction-form">
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3>Transaction Details</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="transactionDate">Date *</label>
+                                <input type="date" id="transactionDate" name="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="transactionAccount">Account *</label>
+                                <select id="transactionAccount" name="account_id" required>
+                                    <option value="">Select Account</option>
+                                    <!-- Account options will be dynamically loaded -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="transactionDescription">Description *</label>
+                                <input type="text" id="transactionDescription" name="description" 
+                                       placeholder="e.g., Groceries, Salary, Rent payment" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="transactionCategory">Category *</label>
+                                <select id="transactionCategory" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Income">Income</option>
+                                    <option value="Housing">Housing</option>
+                                    <option value="Transportation">Transportation</option>
+                                    <option value="Food">Food</option>
+                                    <option value="Utilities">Utilities</option>
+                                    <option value="Insurance">Insurance</option>
+                                    <option value="Healthcare">Healthcare</option>
+                                    <option value="Savings">Savings</option>
+                                    <option value="Debt">Debt</option>
+                                    <option value="Entertainment">Entertainment</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="transactionType">Type *</label>
+                                <select id="transactionType" name="type" required>
+                                    <option value="Income">Income (+)</option>
+                                    <option value="Expense">Expense (-)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="transactionAmount">Amount *</label>
+                                <input type="number" id="transactionAmount" name="amount" 
+                                       step="0.01" min="0" placeholder="0.00" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Settings -->
+                    <div class="form-section collapsible">
+                        <h3 class="collapsible-header">
+                            <span>Advanced Options</span>
+                            <span class="collapse-icon">▼</span>
+                        </h3>
+                        <div class="collapsible-content">
+                            <div class="form-row">
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="isRecurring" name="is_recurring">
+                                        <span class="checkmark"></span>
+                                        Recurring transaction
+                                    </label>
+                                </div>
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="isProjected" name="is_projected">
+                                        <span class="checkmark"></span>
+                                        Future/projected transaction
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row" id="recurringOptions" style="display: none;">
+                                <div class="form-group">
+                                    <label for="recurringFrequency">Frequency</label>
+                                    <select id="recurringFrequency" name="recurring_frequency">
+                                        <option value="weekly">Weekly</option>
+                                        <option value="monthly" selected>Monthly</option>
+                                        <option value="quarterly">Quarterly</option>
+                                        <option value="annually">Annually</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="recurringEnd">End Date (Optional)</label>
+                                    <input type="date" id="recurringEnd" name="recurring_end">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="modal-actions">
+                    <button type="button" id="cancelTransactionBtn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="saveTransactionBtn" class="btn btn-primary" form="transactionForm">
+                        <span class="btn-icon">💾</span>
+                        <span id="saveTransactionText">Save Transaction</span>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

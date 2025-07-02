@@ -10,6 +10,7 @@ class FutureFundApp {
         this.chartService = null;
         this.analyticsService = null;
         this.seasonalChart = null;
+        this.aggregateView = true; // true for aggregate, false for individual account view
         
         // Loading guards to prevent infinite loops
         this.isLoadingScenarios = false;
@@ -95,6 +96,16 @@ class FutureFundApp {
                 this.refreshLedger();
             }, 200)
         );
+
+        // Transaction functionality
+        document.getElementById('addTransactionBtn')?.addEventListener('click', () => {
+            this.openTransactionModal();
+        });
+
+        // Aggregate view toggle
+        document.getElementById('aggregateViewToggle')?.addEventListener('click', () => {
+            this.toggleAggregateView();
+        });
 
         document.getElementById('toggleView').addEventListener('click', () => {
             this.toggleLedgerView();
@@ -432,41 +443,101 @@ class FutureFundApp {
             // Use document fragment for efficient DOM manipulation
             const fragment = document.createDocumentFragment();
             
-            filteredData.forEach(transaction => {
-                const row = document.createElement('tr');
-                row.className = transaction.isProjected ? 'projected-row' : '';
+            if (this.aggregateView) {
+                // Standard aggregate view - show all transactions in chronological order
+                filteredData.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    row.className = transaction.isProjected ? 'projected-row' : '';
+                    
+                    // Get account name for display
+                    const accountName = this.getAccountNameForTransaction(transaction);
+                    
+                    row.innerHTML = `
+                        <td>${this.formatDate(transaction.date)}</td>
+                        <td>${transaction.description}</td>
+                        <td>
+                            <span class="category-badge">
+                                ${transaction.category}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="account-badge">
+                                ${accountName}
+                            </span>
+                        </td>
+                        <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
+                            ${this.formatCurrency(transaction.amount)}
+                        </td>
+                        <td class="text-right">
+                            ${this.formatCurrency(transaction.balance)}
+                        </td>
+                        <td>
+                            <span class="type-badge ${transaction.isProjected ? 'projected' : 'actual'}">
+                                ${transaction.isProjected ? 'Projected' : 'Actual'}
+                            </span>
+                        </td>
+                    `;
+                    
+                    fragment.appendChild(row);
+                });
+            } else {
+                // Individual account view - group transactions by account
+                const transactionsByAccount = {};
                 
-                // Get account name for display
-                const accountName = this.getAccountNameForTransaction(transaction);
+                // Group transactions by account
+                filteredData.forEach(transaction => {
+                    const accountName = this.getAccountNameForTransaction(transaction);
+                    if (!transactionsByAccount[accountName]) {
+                        transactionsByAccount[accountName] = [];
+                    }
+                    transactionsByAccount[accountName].push(transaction);
+                });
                 
-                row.innerHTML = `
-                    <td>${this.formatDate(transaction.date)}</td>
-                    <td>${transaction.description}</td>
-                    <td>
-                        <span class="category-badge">
-                            ${transaction.category}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="account-badge">
-                            ${accountName}
-                        </span>
-                    </td>
-                    <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
-                        ${this.formatCurrency(transaction.amount)}
-                    </td>
-                    <td class="text-right">
-                        ${this.formatCurrency(transaction.balance)}
-                    </td>
-                    <td>
-                        <span class="type-badge ${transaction.isProjected ? 'projected' : 'actual'}">
-                            ${transaction.isProjected ? 'Projected' : 'Actual'}
-                        </span>
-                    </td>
-                `;
-                
-                fragment.appendChild(row);
-            });
+                // Create rows for each account group
+                Object.keys(transactionsByAccount).sort().forEach(accountName => {
+                    const transactions = transactionsByAccount[accountName];
+                    
+                    // Add account header row
+                    const headerRow = document.createElement('tr');
+                    headerRow.className = 'account-header-row';
+                    headerRow.innerHTML = `
+                        <td colspan="7" style="background-color: var(--bg-tertiary, #f8f9fa); font-weight: bold; padding: 1rem; border-top: 2px solid var(--border-color, #dee2e6);">
+                            🏦 ${accountName} (${transactions.length} transactions)
+                        </td>
+                    `;
+                    fragment.appendChild(headerRow);
+                    
+                    // Add transactions for this account
+                    transactions.forEach(transaction => {
+                        const row = document.createElement('tr');
+                        row.className = `${transaction.isProjected ? 'projected-row' : ''} account-grouped`.trim();
+                        
+                        row.innerHTML = `
+                            <td>${this.formatDate(transaction.date)}</td>
+                            <td>${transaction.description}</td>
+                            <td>
+                                <span class="category-badge">
+                                    ${transaction.category}
+                                </span>
+                            </td>
+                            <td style="opacity: 0.5; font-size: 0.85rem;">—</td>
+                            <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
+                                ${this.formatCurrency(transaction.amount)}
+                            </td>
+                            <td class="text-right">
+                                ${this.formatCurrency(transaction.balance)}
+                            </td>
+                            <td>
+                                <span class="type-badge ${transaction.isProjected ? 'projected' : 'actual'}">
+                                    ${transaction.isProjected ? 'Projected' : 'Actual'}
+                                </span>
+                            </td>
+                        `;
+                        
+                        fragment.appendChild(row);
+                    });
+                });
+            }
             
             // Single DOM update for better performance
             tbody.appendChild(fragment);
@@ -474,7 +545,8 @@ class FutureFundApp {
             // Track table for memory optimization
             window.performanceManager.trackComponent(tbody, {
                 type: 'ledger-table',
-                transactionCount: filteredData.length
+                transactionCount: filteredData.length,
+                viewMode: this.aggregateView ? 'aggregate' : 'individual'
             });
         });
     }
@@ -3440,6 +3512,163 @@ ${health.status === 'healthy' ?
             console.error('Error importing accounts:', error);
             window.notificationManager.error('Failed to import accounts');
         }
+    }
+
+    // Transaction Management Methods
+    openTransactionModal(transactionId = null) {
+        const modal = document.getElementById('transactionModal');
+        const title = document.getElementById('transactionModalTitle');
+        
+        if (transactionId) {
+            title.textContent = 'Edit Transaction';
+            // Load transaction data for editing
+            this.loadTransactionForEditing(transactionId);
+        } else {
+            title.textContent = 'Add New Transaction';
+            this.resetTransactionForm();
+        }
+        
+        // Load accounts for the dropdown
+        this.loadAccountsForTransaction();
+        
+        // Set today's date as default
+        document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+        
+        modal.classList.remove('hidden');
+        this.initializeTransactionModalListeners();
+    }
+
+    initializeTransactionModalListeners() {
+        // Close modal listeners
+        document.getElementById('transactionModalClose').onclick = () => this.closeTransactionModal();
+        document.getElementById('transactionModalOverlay').onclick = () => this.closeTransactionModal();
+        document.getElementById('cancelTransactionBtn').onclick = () => this.closeTransactionModal();
+
+        // Form submission
+        document.getElementById('transactionForm').onsubmit = (e) => {
+            e.preventDefault();
+            this.saveTransaction();
+        };
+
+        // Recurring transaction toggle
+        document.getElementById('isRecurring').onchange = (e) => {
+            const recurringOptions = document.getElementById('recurringOptions');
+            recurringOptions.style.display = e.target.checked ? 'flex' : 'none';
+        };
+
+        // Transaction type change updates amount sign handling
+        document.getElementById('transactionType').onchange = (e) => {
+            const amountInput = document.getElementById('transactionAmount');
+            const label = amountInput.previousElementSibling;
+            if (e.target.value === 'Income') {
+                label.textContent = 'Amount * (Income)';
+            } else {
+                label.textContent = 'Amount * (Expense)';
+            }
+        };
+    }
+
+    closeTransactionModal() {
+        document.getElementById('transactionModal').classList.add('hidden');
+        this.resetTransactionForm();
+    }
+
+    resetTransactionForm() {
+        document.getElementById('transactionForm').reset();
+        document.getElementById('recurringOptions').style.display = 'none';
+        document.getElementById('transactionDate').value = new Date().toISOString().split('T')[0];
+    }
+
+    async loadAccountsForTransaction() {
+        try {
+            const accounts = await electronAPI.getAccounts(this.currentUserId);
+            const select = document.getElementById('transactionAccount');
+            
+            // Clear existing options except the first one
+            select.innerHTML = '<option value="">Select Account</option>';
+            
+            if (accounts.success && accounts.accounts) {
+                accounts.accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.id;
+                    option.textContent = `${account.account_name} (${account.institution_name})`;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading accounts for transaction:', error);
+        }
+    }
+
+    async saveTransaction() {
+        try {
+            const formData = new FormData(document.getElementById('transactionForm'));
+            const transactionData = {
+                date: formData.get('date'),
+                account_id: formData.get('account_id'),
+                description: formData.get('description'),
+                category: formData.get('category'),
+                type: formData.get('type'),
+                amount: parseFloat(formData.get('amount')),
+                is_recurring: formData.get('is_recurring') === 'on',
+                is_projected: formData.get('is_projected') === 'on',
+                recurring_frequency: formData.get('recurring_frequency'),
+                recurring_end: formData.get('recurring_end')
+            };
+
+            // Validate required fields
+            if (!transactionData.date || !transactionData.account_id || !transactionData.description || 
+                !transactionData.category || !transactionData.type || !transactionData.amount) {
+                window.notificationManager.error('Please fill in all required fields');
+                return;
+            }
+
+            // Convert amount to negative for expenses
+            if (transactionData.type === 'Expense') {
+                transactionData.amount = -Math.abs(transactionData.amount);
+            } else {
+                transactionData.amount = Math.abs(transactionData.amount);
+            }
+
+            const result = await electronAPI.createTransaction(transactionData);
+            
+            if (result.success) {
+                window.notificationManager.success('Transaction created successfully');
+                this.closeTransactionModal();
+                this.refreshLedger();
+            } else {
+                window.notificationManager.error(`Failed to create transaction: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error saving transaction:', error);
+            window.notificationManager.error('Failed to save transaction');
+        }
+    }
+
+    // Aggregate View Toggle Methods
+    toggleAggregateView() {
+        this.aggregateView = !this.aggregateView;
+        
+        const toggleBtn = document.getElementById('aggregateViewToggle');
+        const toggleText = document.getElementById('viewToggleText');
+        const icon = toggleBtn.querySelector('.btn-icon');
+        
+        if (this.aggregateView) {
+            toggleBtn.setAttribute('data-mode', 'aggregate');
+            toggleText.textContent = 'Aggregate';
+            icon.textContent = '📊';
+            toggleBtn.title = 'Switch to Individual Account View';
+        } else {
+            toggleBtn.setAttribute('data-mode', 'individual');
+            toggleText.textContent = 'Individual';
+            icon.textContent = '🏦';
+            toggleBtn.title = 'Switch to Aggregate View';
+        }
+        
+        // Refresh the ledger with new view mode
+        this.refreshLedger();
+        
+        console.log(`📊 Switched to ${this.aggregateView ? 'Aggregate' : 'Individual Account'} view`);
     }
 }
 

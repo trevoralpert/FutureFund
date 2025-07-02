@@ -71,13 +71,13 @@
 - [x] Account edit/delete functionality
 - [x] Account connection status indicators
 
-### Step 2.2: Multi-Account Ledger Integration
+### Step 2.2: Multi-Account Ledger Integration ✅ COMPLETE
 - [x] Update ledger to show account filters
 - [x] Add account column to transaction table
 - [x] Implement account-specific transaction filtering
-- [ ] Update transaction import/creation to specify account
+- [x] Update transaction import/creation to specify account
 - [x] Account balance calculations and reconciliation
-- [ ] Aggregate vs individual account view toggle
+- [x] Aggregate vs individual account view toggle
 
 ### Step 2.3: Basic Multi-Account Analytics ✅ COMPLETE
 - [x] Update financial health scoring for all accounts
