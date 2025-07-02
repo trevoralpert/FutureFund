@@ -1,16 +1,18 @@
 /**
- * Workflow Orchestrator - Phase 3.5.1 Updated
- * Manages LangGraph workflow execution with progress tracking and caching
- * FlowGenius Assignment: LangGraph Integration Complete
+ * Workflow Orchestrator - Phase 3.5.3 Updated
+ * Enhanced with Background Intelligence continuous monitoring capabilities
+ * FlowGenius Assignment: Advanced LangGraph Integration Complete
  */
 
 const { createLangGraphWorkflow } = require('./langgraph-foundation');
 const { createFinancialIntelligenceWorkflow } = require('./financial-intelligence');
+const { createBackgroundIntelligenceWorkflow, BackgroundIntelligenceManager } = require('./background-intelligence');
 const config = require('../config');
 
 /**
  * Workflow Orchestrator Class
- * Handles execution, progress tracking, and caching for LangGraph workflows
+ * Handles execution, progress tracking, and caching for all LangGraph workflows
+ * Enhanced with Background Intelligence continuous monitoring
  */
 class WorkflowOrchestrator {
   constructor() {
@@ -21,12 +23,17 @@ class WorkflowOrchestrator {
     this.defaultTimeout = 60000; // 60 seconds
     this.langGraphWorkflow = null;
     this.financialIntelligenceWorkflow = null;
+    this.backgroundIntelligenceWorkflow = null;
+    this.backgroundManager = null;
     
     // Initialize LangGraph workflow on startup
     this.initializeLangGraph();
     
     // Initialize Financial Intelligence workflow for Phase 3.5.2
     this.initializeFinancialIntelligence();
+    
+    // Initialize Background Intelligence system for Phase 3.5.3
+    this.initializeBackgroundIntelligence();
   }
 
   /**
@@ -54,6 +61,37 @@ class WorkflowOrchestrator {
     } catch (error) {
       console.error('❌ [Orchestrator] Failed to initialize Financial Intelligence:', error);
       this.financialIntelligenceWorkflow = null;
+    }
+  }
+
+  /**
+   * Initialize Background Intelligence system - Phase 3.5.3
+   */
+  async initializeBackgroundIntelligence() {
+    try {
+      console.log('🔄 [Orchestrator] Initializing Background Intelligence system...');
+      
+      // Create workflow
+      this.backgroundIntelligenceWorkflow = createBackgroundIntelligenceWorkflow();
+      
+      // Create manager with event handlers
+      this.backgroundManager = new BackgroundIntelligenceManager({
+        interval: 30000, // 30 seconds default for production
+        autoStart: false, // Manual start for better control
+        alertCallback: this.handleBackgroundAlert.bind(this),
+        insightCallback: this.handleBackgroundInsight.bind(this)
+      });
+      
+      // Set up event listeners
+      this.backgroundManager.on('alert', this.handleBackgroundAlert.bind(this));
+      this.backgroundManager.on('insight', this.handleBackgroundInsight.bind(this));
+      this.backgroundManager.on('cycleComplete', this.handleBackgroundCycleComplete.bind(this));
+      this.backgroundManager.on('error', this.handleBackgroundError.bind(this));
+      
+      console.log('✅ [Orchestrator] Background Intelligence system initialized');
+    } catch (error) {
+      console.error('❌ [Orchestrator] Failed to initialize Background Intelligence system:', error);
+      throw error;
     }
   }
 
@@ -638,6 +676,166 @@ class WorkflowOrchestrator {
       uptime: process.uptime(),
       memoryUsage: process.memoryUsage()
     };
+  }
+
+  // === BACKGROUND INTELLIGENCE MANAGEMENT ===
+
+  /**
+   * Start Background Intelligence Monitoring
+   */
+  async startBackgroundMonitoring() {
+    if (!this.backgroundManager) {
+      throw new Error('Background Intelligence not initialized');
+    }
+    
+    console.log('🚀 Starting Background Intelligence monitoring...');
+    await this.backgroundManager.start();
+    
+    return {
+      success: true,
+      message: 'Background monitoring started',
+      status: this.backgroundManager.getStatus()
+    };
+  }
+
+  /**
+   * Stop Background Intelligence Monitoring
+   */
+  async stopBackgroundMonitoring() {
+    if (!this.backgroundManager) {
+      throw new Error('Background Intelligence not initialized');
+    }
+    
+    console.log('🛑 Stopping Background Intelligence monitoring...');
+    await this.backgroundManager.stop();
+    
+    return {
+      success: true,
+      message: 'Background monitoring stopped',
+      status: this.backgroundManager.getStatus()
+    };
+  }
+
+  /**
+   * Get Background Intelligence Status
+   */
+  getBackgroundStatus() {
+    if (!this.backgroundManager) {
+      return {
+        available: false,
+        message: 'Background Intelligence not initialized'
+      };
+    }
+    
+    return {
+      available: true,
+      ...this.backgroundManager.getStatus(),
+      alerts: this.backgroundManager.getAlerts(),
+      insights: this.backgroundManager.getInsights()
+    };
+  }
+
+  /**
+   * Execute Single Background Monitoring Cycle
+   */
+  async executeBackgroundCycle() {
+    if (!this.backgroundManager) {
+      throw new Error('Background Intelligence not initialized');
+    }
+    
+    console.log('🔄 Executing single background monitoring cycle...');
+    return await this.backgroundManager.executeMonitoringCycle();
+  }
+
+  // === BACKGROUND EVENT HANDLERS ===
+
+  /**
+   * Handle Background Alert
+   */
+  handleBackgroundAlert(alert) {
+    console.log(`🚨 Background Alert [${alert.severity.toUpperCase()}]: ${alert.title}`);
+    console.log(`   Message: ${alert.message}`);
+    
+    // Here you could integrate with notification systems, UI updates, etc.
+    // For now, we'll just log the alert
+    
+    // Store alert for retrieval
+    if (!this.recentAlerts) {
+      this.recentAlerts = [];
+    }
+    this.recentAlerts.push({
+      ...alert,
+      receivedAt: Date.now()
+    });
+    
+    // Keep only last 50 alerts
+    if (this.recentAlerts.length > 50) {
+      this.recentAlerts = this.recentAlerts.slice(-50);
+    }
+  }
+
+  /**
+   * Handle Background Insight
+   */
+  handleBackgroundInsight(insight) {
+    console.log(`💡 Background Insight [${insight.type}]: ${insight.message}`);
+    
+    // Store insight for retrieval
+    if (!this.recentInsights) {
+      this.recentInsights = [];
+    }
+    this.recentInsights.push({
+      ...insight,
+      receivedAt: Date.now()
+    });
+    
+    // Keep only last 100 insights
+    if (this.recentInsights.length > 100) {
+      this.recentInsights = this.recentInsights.slice(-100);
+    }
+  }
+
+  /**
+   * Handle Background Cycle Complete
+   */
+  handleBackgroundCycleComplete(data) {
+    console.log(`📊 Background Cycle Complete: ${data.duration}ms`);
+    
+    // Update performance metrics
+    if (!this.performanceMetrics) {
+      this.performanceMetrics = {
+        cycleCount: 0,
+        totalDuration: 0,
+        averageDuration: 0,
+        lastCycleTime: 0
+      };
+    }
+    
+    this.performanceMetrics.cycleCount++;
+    this.performanceMetrics.totalDuration += data.duration;
+    this.performanceMetrics.averageDuration = this.performanceMetrics.totalDuration / this.performanceMetrics.cycleCount;
+    this.performanceMetrics.lastCycleTime = data.duration;
+  }
+
+  /**
+   * Handle Background Error
+   */
+  handleBackgroundError(error) {
+    console.error('❌ Background Intelligence Error:', error);
+    
+    // Store error for monitoring
+    if (!this.recentErrors) {
+      this.recentErrors = [];
+    }
+    this.recentErrors.push({
+      error: error.message || error,
+      timestamp: Date.now()
+    });
+    
+    // Keep only last 20 errors
+    if (this.recentErrors.length > 20) {
+      this.recentErrors = this.recentErrors.slice(-20);
+    }
   }
 }
 
