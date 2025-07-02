@@ -8,6 +8,7 @@ const { createLangGraphWorkflow } = require('./langgraph-foundation');
 const { createFinancialIntelligenceWorkflow } = require('./financial-intelligence');
 const { createBackgroundIntelligenceWorkflow, BackgroundIntelligenceManager } = require('./background-intelligence');
 const { createScenarioAnalysisWorkflow } = require('./scenario-analysis');
+const { createSmartScenarioWorkflows } = require('./smart-scenario-workflows');
 const config = require('../config');
 
 /**
@@ -26,6 +27,7 @@ class WorkflowOrchestrator {
     this.financialIntelligenceWorkflow = null;
     this.backgroundIntelligenceWorkflow = null;
     this.scenarioAnalysisWorkflow = null;
+    this.smartScenarioWorkflow = null;
     this.backgroundManager = null;
     
     // Initialize LangGraph workflow on startup
@@ -39,6 +41,9 @@ class WorkflowOrchestrator {
     
     // Initialize Scenario Analysis system for Phase 3.6.1
     this.initializeScenarioAnalysis();
+    
+    // Initialize Smart Scenario Workflows for Phase 3.6.2
+    this.initializeSmartScenarioWorkflows();
   }
 
   /**
@@ -110,6 +115,20 @@ class WorkflowOrchestrator {
       console.log('✅ Scenario Analysis system initialized');
     } catch (error) {
       console.error('❌ Failed to initialize Scenario Analysis system:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize Smart Scenario Workflows - Phase 3.6.2
+   */
+  initializeSmartScenarioWorkflows() {
+    try {
+      console.log('🚀 Initializing Smart Scenario Workflows...');
+      this.smartScenarioWorkflow = createSmartScenarioWorkflows();
+      console.log('✅ Smart Scenario Workflows initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize Smart Scenario Workflows:', error);
       throw error;
     }
   }
@@ -1083,6 +1102,65 @@ class WorkflowOrchestrator {
     }
 
     return errors;
+  }
+
+  /**
+   * Execute Smart Scenario Workflows - Phase 3.6.2
+   */
+  async executeSmartScenarioWorkflow(baseScenario, financialContext, constraints = {}, options = {}) {
+    const workflowId = this.generateWorkflowId();
+    const startTime = Date.now();
+    
+    console.log(`🚀 [Orchestrator] Starting Smart Scenario Workflow: ${workflowId}`);
+
+    try {
+      // Ensure Smart Scenario Workflow is initialized
+      if (!this.smartScenarioWorkflow) {
+        this.initializeSmartScenarioWorkflows();
+        if (!this.smartScenarioWorkflow) {
+          throw new Error('Smart Scenario Workflow initialization failed');
+        }
+      }
+
+      // Execute Smart Scenario workflow
+      const inputData = {
+        baseScenario,
+        financialContext,
+        constraints,
+        analysisType: constraints.analysisType || 'optimization'
+      };
+
+      const result = await this.smartScenarioWorkflow.invoke(inputData);
+
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [Orchestrator] Smart Scenario Workflow completed in ${totalTime}ms: ${workflowId}`);
+
+      return {
+        success: true,
+        workflowId,
+        data: result,
+        metadata: {
+          totalExecutionTime: totalTime,
+          workflowId,
+          framework: 'LangGraph',
+          version: '3.6.2',
+          phase: 'SmartScenarioWorkflows',
+          variationsGenerated: result.executionMetadata?.variationsGenerated || 0,
+          optionsRanked: result.executionMetadata?.optionsRanked || 0,
+          recommendationCount: result.executionMetadata?.recommendationCount || 0
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Smart Scenario Workflow failed: ${workflowId}`, error);
+
+      return {
+        success: false,
+        workflowId,
+        error: error.message,
+        code: error.code || 'SMART_SCENARIO_WORKFLOW_ERROR'
+      };
+    }
   }
 }
 
