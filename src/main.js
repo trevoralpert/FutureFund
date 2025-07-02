@@ -12,7 +12,7 @@ const DataMigrationService = require('./database/data-migration');
 // V2 Database imports
 const { AccountDAO } = require('./database/account-dao');
 const { UserProfileDAO } = require('./database/user-profile-dao');
-const MigrationManager = require('./database/migration-v2');
+const { MigrationManager } = require('./database/migration-v2');
 
 let mainWindow;
 
@@ -64,9 +64,13 @@ app.whenReady().then(async () => {
       
       // Run V2 Migration to upgrade database schema
       console.log('🔄 Running V2 database migration...');
-      const migrationManager = new MigrationManager(dbManager.db);
-      await migrationManager.runMigration();
-      console.log('✅ Database migration completed successfully');
+      const migrationManager = new MigrationManager();
+      const migrationResult = await migrationManager.migrateToV2();
+      if (migrationResult.success) {
+        console.log('✅ Database migration completed successfully');
+      } else {
+        console.log('⚠️ Database migration skipped or failed:', migrationResult.message);
+      }
       
       // Import mock data if database is empty
       const stats = await dbManager.getStats();
@@ -995,26 +999,85 @@ ipcMain.handle('optimize-database', async () => {
 });
 
 ipcMain.handle('export-data', async (event, format, options = {}) => {
+  console.log('📊 === IPC HANDLER START ===');
+  let finalResult;
+  
   try {
-    console.log('Exporting data in format:', format);
+    console.log('📊 IPC Handler called - format:', format);
+    console.log('📊 IPC Handler options:', JSON.stringify(options, null, 2));
     
     if (format === 'json') {
       // Use the export transactions function
       const filePath = options.filePath || path.join(__dirname, '../data/exports', `export_${Date.now()}.json`);
       const result = await DataMigrationService.exportTransactions(filePath, options);
-      return { success: true, ...result };
+      finalResult = { success: true, ...result };
+      console.log('📊 === JSON EXPORT RETURNING ===', JSON.stringify(finalResult));
+      return finalResult;
+    } else if (format === 'analytics') {
+      console.log('📊 Processing analytics export...');
+      console.log('📊 Options received:', JSON.stringify(options, null, 2));
+      
+      // Export analytics report data
+      const fs = require('fs').promises;
+      const filePath = options.filename ? 
+        path.join(__dirname, '../data/exports', options.filename) :
+        path.join(__dirname, '../data/exports', `analytics_${Date.now()}.json`);
+      
+      console.log('📊 Target file path:', filePath);
+      
+      if (!options.data) {
+        console.error('❌ No analytics data provided');
+        throw new Error('Analytics data required for export');
+      }
+      
+      console.log('📊 Writing analytics data to file...');
+      await fs.writeFile(filePath, JSON.stringify(options.data, null, 2));
+      console.log('✅ Analytics export successful:', filePath);
+      
+      const result = { 
+        success: true, 
+        exported: 1,
+        message: 'Analytics report exported successfully'
+      };
+      
+      console.log('📊 Returning result to renderer:', JSON.stringify(result));
+      
+      // Extra safety check - ensure result is properly structured
+      if (!result || typeof result !== 'object') {
+        console.error('❌ Result object is malformed!');
+        throw new Error('Result object validation failed');
+      }
+      
+      console.log('📊 Final return about to execute...');
+      finalResult = result;
+      console.log('📊 === ANALYTICS EXPORT RETURNING ===', JSON.stringify(finalResult));
+      return finalResult;
     } else if (format === 'backup') {
       // Create full backup
       const backupPath = options.backupPath || path.join(__dirname, '../data/backups', `backup_${Date.now()}.json`);
       const result = await DataMigrationService.createBackup(backupPath);
-      return { success: true, ...result };
+      finalResult = { success: true, ...result };
+      console.log('📊 === BACKUP EXPORT RETURNING ===', JSON.stringify(finalResult));
+      return finalResult;
     } else {
       throw new Error(`Unsupported export format: ${format}`);
     }
   } catch (error) {
-    console.error('Error exporting data:', error);
-    return { success: false, error: error.message };
+    console.error('📊 IPC Handler error:', error);
+    finalResult = { success: false, error: error.message };
+    console.log('📊 === ERROR RETURNING ===', JSON.stringify(finalResult));
+    return finalResult;
+  } finally {
+    console.log('📊 === IPC HANDLER END - FINAL RESULT ===', finalResult ? JSON.stringify(finalResult) : 'UNDEFINED');
   }
+});
+
+// Test IPC communication
+ipcMain.handle('test-ipc', async (event, testData) => {
+  console.log('🔍 TEST IPC received:', testData);
+  const result = { success: true, message: 'IPC working', received: testData };
+  console.log('🔍 TEST IPC returning:', result);
+  return result;
 });
 
 // Notifications

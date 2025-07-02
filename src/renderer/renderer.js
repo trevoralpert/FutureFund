@@ -158,8 +158,13 @@ class FutureFundApp {
             }, 1000)
         );
 
-        document.getElementById('exportAnalyticsBtn')?.addEventListener('click', () => {
-            this.exportAnalyticsReport();
+        document.getElementById('exportAnalyticsBtn')?.addEventListener('click', async () => {
+            try {
+                await this.exportAnalyticsReport();
+            } catch (error) {
+                console.error('❌ Export button handler error:', error);
+                window.notificationManager.error('Export failed');
+            }
         });
     }
 
@@ -2727,6 +2732,13 @@ ${health.status === 'healthy' ?
         if (!this.analyticsService || !this.financialData) return;
 
         try {
+            console.log('🔍 === RENDERER EXPORT START ===');
+            
+            // First test basic IPC communication
+            console.log('🔍 Testing basic IPC communication...');
+            const testResult = await electronAPI.testIPC('export-test');
+            console.log('🔍 Test IPC result:', testResult);
+            
             const analysis = this.analyticsService.runCompleteAnalysis(this.financialData);
             const report = {
                 generatedAt: new Date().toISOString(),
@@ -2744,21 +2756,51 @@ ${health.status === 'healthy' ?
                 }
             };
 
-            // Use existing export functionality
-            const result = await electronAPI.exportData({
+            console.log('🔍 About to call electronAPI.exportData with:');
+            console.log('🔍 Format: "analytics"');
+            console.log('🔍 Options:', {
                 data: report,
                 filename: `financial-analytics-${new Date().toISOString().split('T')[0]}.json`,
                 type: 'analytics'
             });
 
-            if (result.success) {
-                this.showNotification('Analytics report exported successfully', 'success');
+            // Add explicit debugging around the IPC call
+            console.log('🔍 Calling electronAPI.exportData...');
+            const startTime = performance.now();
+            
+            // Use existing export functionality
+            const result = await electronAPI.exportData('analytics', {
+                data: report,
+                filename: `financial-analytics-${new Date().toISOString().split('T')[0]}.json`,
+                type: 'analytics'
+            });
+
+            const endTime = performance.now();
+            console.log(`🔍 IPC call completed in ${endTime - startTime}ms`);
+            console.log('🔍 Raw result from electronAPI:', result);
+            console.log('🔍 Result type:', typeof result);
+            console.log('🔍 Result is null:', result === null);
+            console.log('🔍 Result is undefined:', result === undefined);
+            
+            if (result) {
+                console.log('🔍 Result.success:', result.success);
+                console.log('🔍 Result.error:', result.error);
+                console.log('🔍 Result keys:', Object.keys(result));
+            }
+
+            console.log('🔍 === CHECKING RESULT ===');
+            if (result && result.success) {
+                console.log('🔍 ✅ SUCCESS PATH');
+                window.notificationManager.success('Analytics report exported successfully');
             } else {
-                this.showNotification('Failed to export analytics report', 'error');
+                console.log('🔍 ❌ ERROR PATH');
+                const errorMsg = result && result.error ? result.error : 'Unknown export error';
+                console.error('Export failed with result:', result);
+                window.notificationManager.error(`Failed to export analytics report: ${errorMsg}`);
             }
         } catch (error) {
-            console.error('Export failed:', error);
-            this.showNotification('Failed to export analytics report', 'error');
+            console.error('🔍 ❌ EXCEPTION in exportAnalyticsReport:', error);
+            window.notificationManager.error('Failed to export analytics report');
         }
     }
 

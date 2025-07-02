@@ -1,0 +1,60 @@
+{
+  "generatedAt": "2025-07-02T17:12:36.741Z",
+  "healthScore": {
+    "overall": 76,
+    "grade": "B",
+    "components": {
+      "savingsRate": {
+        "score": 100,
+        "weight": 25
+      },
+      "budgetControl": {
+        "score": 25,
+        "weight": 25
+      },
+      "emergencyFund": {
+        "score": 100,
+        "weight": 20
+      },
+      "consistency": {
+        "score": 66.30235005914389,
+        "weight": 15
+      },
+      "diversification": {
+        "score": 100,
+        "weight": 15
+      }
+    },
+    "insights": [
+      "Good financial foundation with room for improvement.",
+      "Primary area for improvement: Budget Control"
+    ],
+    "recommendations": [
+      "Track expenses more consistently to improve budget control"
+    ],
+    "lastUpdated": "2025-07-02T17:12:22.125Z"
+  },
+  "summary": {
+    "totalTransactions": 1030,
+    "overallScore": 76,
+    "grade": "B",
+    "topAnomalies": [],
+    "goalProgress": [
+      {
+        "name": "Emergency Fund",
+        "progress": 0,
+        "status": "critical"
+      },
+      {
+        "name": "Reduce Food Spending",
+        "progress": 0,
+        "status": "critical"
+      },
+      {
+        "name": "Investment Growth",
+        "progress": 100,
+        "status": "achieved"
+      }
+    ]
+  }
+}
