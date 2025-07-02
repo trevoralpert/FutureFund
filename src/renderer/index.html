@@ -84,6 +84,13 @@
                                 <option value="5y">Next 5 Years</option>
                             </select>
                         </div>
+                        <div class="account-filter">
+                            <label>Account:</label>
+                            <select id="accountFilter" class="filter-select">
+                                <option value="all">All Accounts</option>
+                                <!-- Account options will be dynamically loaded -->
+                            </select>
+                        </div>
                         <div class="view-mode">
                             <button class="btn btn-secondary" id="toggleView">
                                 <span class="btn-icon">📈</span>
@@ -100,6 +107,7 @@
                                 <th>Date</th>
                                 <th>Description</th>
                                 <th>Category</th>
+                                <th>Account</th>
                                 <th>Amount</th>
                                 <th>Balance</th>
                                 <th>Type</th>

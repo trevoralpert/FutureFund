@@ -89,6 +89,13 @@ class FutureFundApp {
             }, 200)
         );
 
+        // Account filter listener
+        document.getElementById('accountFilter')?.addEventListener('change', 
+            window.performanceManager.debounce('accountFilter', () => {
+                this.refreshLedger();
+            }, 200)
+        );
+
         document.getElementById('toggleView').addEventListener('click', () => {
             this.toggleLedgerView();
         });
@@ -408,11 +415,12 @@ class FutureFundApp {
 
     updateLedgerTable() {
         const dateRange = document.getElementById('dateRange').value;
+        const accountFilter = document.getElementById('accountFilter')?.value || 'all';
         const tbody = document.getElementById('ledgerTableBody');
         
         // Measure table rendering performance
         window.performanceManager.measurePerformance('Ledger Table Rendering', () => {
-            const filteredData = this.getFilteredData(dateRange);
+            const filteredData = this.getFilteredData(dateRange, accountFilter);
             
             tbody.innerHTML = '';
             
@@ -423,12 +431,20 @@ class FutureFundApp {
                 const row = document.createElement('tr');
                 row.className = transaction.isProjected ? 'projected-row' : '';
                 
+                // Get account name for display
+                const accountName = this.getAccountNameForTransaction(transaction);
+                
                 row.innerHTML = `
                     <td>${this.formatDate(transaction.date)}</td>
                     <td>${transaction.description}</td>
                     <td>
                         <span class="category-badge">
                             ${transaction.category}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="account-badge">
+                            ${accountName}
                         </span>
                     </td>
                     <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
@@ -458,7 +474,7 @@ class FutureFundApp {
         });
     }
 
-    getFilteredData(dateRange) {
+    getFilteredData(dateRange, accountFilter = 'all') {
         const today = new Date();
         let endDate = new Date();
         
@@ -482,8 +498,64 @@ class FutureFundApp {
         
         return this.financialData.filter(d => {
             const transactionDate = new Date(d.date);
-            return transactionDate >= startDate && transactionDate <= endDate;
+            const dateInRange = transactionDate >= startDate && transactionDate <= endDate;
+            
+            // Apply account filter
+            if (accountFilter === 'all') {
+                return dateInRange;
+            } else {
+                // For mock data, we'll assign transactions to accounts based on their ID
+                const assignedAccountId = this.getTransactionAccountId(d);
+                return dateInRange && assignedAccountId === accountFilter;
+            }
         }).slice(0, 500);
+    }
+
+    /**
+     * Get account ID for a transaction (temporary logic for mock data)
+     */
+    getTransactionAccountId(transaction) {
+        if (!this.accounts || this.accounts.length === 0) {
+            return null;
+        }
+
+        // Simple assignment logic based on transaction type and category
+        // In a real app, transactions would have an accountId field
+        const accounts = this.accounts.filter(acc => acc.is_active);
+        
+        if (accounts.length === 0) return null;
+        
+        // Income usually goes to primary checking account
+        if (transaction.amount > 0) {
+            const primaryAccount = accounts.find(acc => acc.is_primary) || accounts[0];
+            return primaryAccount.id;
+        }
+        
+        // Expenses distributed across accounts based on category
+        const categoryAccountMap = {
+            'Housing': accounts.find(acc => acc.account_type === 'checking')?.id,
+            'Transportation': accounts.find(acc => acc.account_type === 'credit_card')?.id,
+            'Food': accounts.find(acc => acc.account_type === 'credit_card')?.id,
+            'Entertainment': accounts.find(acc => acc.account_type === 'credit_card')?.id,
+            'Debt': accounts.find(acc => acc.account_type === 'credit_card')?.id,
+            'Default': accounts[0]?.id
+        };
+        
+        return categoryAccountMap[transaction.category] || categoryAccountMap['Default'];
+    }
+
+    /**
+     * Get account name for display in transaction table
+     */
+    getAccountNameForTransaction(transaction) {
+        const accountId = this.getTransactionAccountId(transaction);
+        
+        if (!accountId || !this.accounts) {
+            return 'Unknown Account';
+        }
+        
+        const account = this.accounts.find(acc => acc.id === accountId);
+        return account ? account.name : 'Unknown Account';
     }
 
     async sendChatMessage() {
@@ -2856,6 +2928,7 @@ ${health.status === 'healthy' ?
                 // Render accounts
                 this.renderAccounts();
                 this.updateAccountCategoryTabs();
+                this.populateAccountFilter();
                 
                 // Show empty state if no accounts
                 if (this.accounts.length === 0) {
@@ -3263,6 +3336,32 @@ ${health.status === 'healthy' ?
         
         this.currentAccountCategory = category;
         this.renderAccounts();
+    }
+
+    /**
+     * Populate account filter dropdown in ledger
+     */
+    populateAccountFilter() {
+        const accountFilter = document.getElementById('accountFilter');
+        if (!accountFilter || !this.accounts || this.accounts.length === 0) {
+            return;
+        }
+
+        // Clear existing options except 'All Accounts'
+        accountFilter.innerHTML = '<option value="all">All Accounts</option>';
+
+        // Add account options
+        this.accounts
+            .filter(account => account.is_active) // Only show active accounts
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = `${account.name} (${account.institution})`;
+                accountFilter.appendChild(option);
+            });
+
+        console.log('🏦 Populated account filter with', this.accounts.filter(a => a.is_active).length, 'active accounts');
     }
 
     /**

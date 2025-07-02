@@ -629,6 +629,35 @@ body {
     100% { transform: rotate(360deg); }
 }
 
+/* Account filter styling */
+.ledger-controls .account-filter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ledger-controls .account-filter label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* Account badge in transaction table */
+.account-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    background-color: var(--primary-light);
+    color: var(--primary);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .main-content {
@@ -657,6 +686,19 @@ body {
     .ledger-controls {
         flex-direction: column;
         align-items: stretch;
+        gap: var(--spacing-sm);
+    }
+    
+    .ledger-controls .account-filter {
+        order: 2;
+    }
+    
+    .ledger-controls .date-range {
+        order: 1;
+    }
+    
+    .ledger-controls .view-mode {
+        order: 3;
     }
     
     .scenarios-grid {
