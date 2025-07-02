@@ -81,20 +81,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Data import/export
   importCSV: (filePath) => ipcRenderer.invoke('import-csv', filePath),
-  exportData: async (format, options) => {
-    console.log('🔍 PRELOAD: exportData called with:', { format, options });
-    try {
-      const result = await ipcRenderer.invoke('export-data', format, options);
-      console.log('🔍 PRELOAD: IPC result received:', result);
-      console.log('🔍 PRELOAD: Result type:', typeof result);
-      console.log('🔍 PRELOAD: Result is null:', result === null);
-      console.log('🔍 PRELOAD: Result is undefined:', result === undefined);
-      return result;
-    } catch (error) {
-      console.error('🔍 PRELOAD: IPC error:', error);
-      throw error;
-    }
-  },
+  exportData: (format, options) => ipcRenderer.invoke('export-data', format, options),
+  exportAnalyticsPDF: (options) => ipcRenderer.invoke('export-analytics-pdf', options),
+  openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
   importTransactions: (source, options) => ipcRenderer.invoke('import-transactions', source, options),
   exportTransactions: (filePath, options) => ipcRenderer.invoke('export-transactions', filePath, options),
   importAccounts: (source, options) => ipcRenderer.invoke('import-accounts', source, options),

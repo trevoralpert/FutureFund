@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2025-07-02T17:12:36.741Z",
+  "generatedAt": "2025-07-02T17:28:41.050Z",
   "healthScore": {
-    "overall": 76,
+    "overall": 77,
     "grade": "B",
     "components": {
       "savingsRate": {
@@ -17,7 +17,7 @@
         "weight": 20
       },
       "consistency": {
-        "score": 66.30235005914389,
+        "score": 70.05058440961342,
         "weight": 15
       },
       "diversification": {
@@ -32,11 +32,11 @@
     "recommendations": [
       "Track expenses more consistently to improve budget control"
     ],
-    "lastUpdated": "2025-07-02T17:12:22.125Z"
+    "lastUpdated": "2025-07-02T17:26:55.709Z"
   },
   "summary": {
-    "totalTransactions": 1030,
-    "overallScore": 76,
+    "totalTransactions": 1041,
+    "overallScore": 77,
     "grade": "B",
     "topAnomalies": [],
     "goalProgress": [

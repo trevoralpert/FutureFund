@@ -999,78 +999,312 @@ ipcMain.handle('optimize-database', async () => {
 });
 
 ipcMain.handle('export-data', async (event, format, options = {}) => {
-  console.log('📊 === IPC HANDLER START ===');
-  let finalResult;
+  console.log('📊 Export:', { format, filename: options?.filename });
   
   try {
-    console.log('📊 IPC Handler called - format:', format);
-    console.log('📊 IPC Handler options:', JSON.stringify(options, null, 2));
-    
-    if (format === 'json') {
-      // Use the export transactions function
-      const filePath = options.filePath || path.join(__dirname, '../data/exports', `export_${Date.now()}.json`);
-      const result = await DataMigrationService.exportTransactions(filePath, options);
-      finalResult = { success: true, ...result };
-      console.log('📊 === JSON EXPORT RETURNING ===', JSON.stringify(finalResult));
-      return finalResult;
-    } else if (format === 'analytics') {
-      console.log('📊 Processing analytics export...');
-      console.log('📊 Options received:', JSON.stringify(options, null, 2));
-      
-      // Export analytics report data
+    if (format === 'analytics') {
       const fs = require('fs').promises;
       const filePath = options.filename ? 
         path.join(__dirname, '../data/exports', options.filename) :
         path.join(__dirname, '../data/exports', `analytics_${Date.now()}.json`);
       
-      console.log('📊 Target file path:', filePath);
-      
       if (!options.data) {
-        console.error('❌ No analytics data provided');
         throw new Error('Analytics data required for export');
       }
       
-      console.log('📊 Writing analytics data to file...');
       await fs.writeFile(filePath, JSON.stringify(options.data, null, 2));
-      console.log('✅ Analytics export successful:', filePath);
+      console.log('✅ Export successful:', filePath);
       
-      const result = { 
-        success: true, 
-        exported: 1,
-        message: 'Analytics report exported successfully'
-      };
-      
-      console.log('📊 Returning result to renderer:', JSON.stringify(result));
-      
-      // Extra safety check - ensure result is properly structured
-      if (!result || typeof result !== 'object') {
-        console.error('❌ Result object is malformed!');
-        throw new Error('Result object validation failed');
-      }
-      
-      console.log('📊 Final return about to execute...');
-      finalResult = result;
-      console.log('📊 === ANALYTICS EXPORT RETURNING ===', JSON.stringify(finalResult));
-      return finalResult;
-    } else if (format === 'backup') {
-      // Create full backup
+      return { success: true, exported: 1, message: 'Export successful' };
+    } 
+    
+    if (format === 'json') {
+      const filePath = options.filePath || path.join(__dirname, '../data/exports', `export_${Date.now()}.json`);
+      const result = await DataMigrationService.exportTransactions(filePath, options);
+      return { success: true, ...result };
+    } 
+    
+    if (format === 'backup') {
       const backupPath = options.backupPath || path.join(__dirname, '../data/backups', `backup_${Date.now()}.json`);
       const result = await DataMigrationService.createBackup(backupPath);
-      finalResult = { success: true, ...result };
-      console.log('📊 === BACKUP EXPORT RETURNING ===', JSON.stringify(finalResult));
-      return finalResult;
-    } else {
-      throw new Error(`Unsupported export format: ${format}`);
+      return { success: true, ...result };
     }
+    
+    throw new Error(`Unsupported export format: ${format}`);
   } catch (error) {
-    console.error('📊 IPC Handler error:', error);
-    finalResult = { success: false, error: error.message };
-    console.log('📊 === ERROR RETURNING ===', JSON.stringify(finalResult));
-    return finalResult;
-  } finally {
-    console.log('📊 === IPC HANDLER END - FINAL RESULT ===', finalResult ? JSON.stringify(finalResult) : 'UNDEFINED');
+    console.error('❌ Export error:', error);
+    return { success: false, error: error.message };
   }
 });
+
+// PDF Analytics Export
+ipcMain.handle('export-analytics-pdf', async (event, options) => {
+  console.log('📄 Generating PDF report...');
+  
+  try {
+    const { BrowserWindow, app } = require('electron');
+    const fs = require('fs').promises;
+    const os = require('os');
+    
+    // Get Downloads folder path
+    const downloadsPath = path.join(os.homedir(), 'Downloads');
+    const filePath = path.join(downloadsPath, options.filename);
+    
+    // Create HTML content for the PDF
+    const htmlContent = generateReportHTML(options.data);
+    
+    // Create invisible window for PDF generation
+    const pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    // Load HTML content
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
+    
+    // Generate PDF
+    const pdfBuffer = await pdfWindow.webContents.printToPDF({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: 1,
+        bottom: 1,
+        left: 1,
+        right: 1
+      }
+    });
+    
+    // Save PDF to Downloads
+    await fs.writeFile(filePath, pdfBuffer);
+    
+    // Close the window
+    pdfWindow.close();
+    
+    console.log('✅ PDF saved to:', filePath);
+    return { success: true, filePath, message: 'PDF exported successfully' };
+    
+  } catch (error) {
+    console.error('❌ PDF export error:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Open file handler
+ipcMain.handle('open-file', async (event, filePath) => {
+  try {
+    const { shell } = require('electron');
+    await shell.openPath(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error opening file:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// HTML template generator for PDF report
+function generateReportHTML(data) {
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount);
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 80) return '#10b981'; // green
+    if (score >= 60) return '#f59e0b'; // yellow
+    return '#ef4444'; // red
+  };
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>FutureFund Analytics Report</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          line-height: 1.6;
+          color: #374151;
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 40px 20px;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 40px;
+          border-bottom: 3px solid #2563eb;
+          padding-bottom: 20px;
+        }
+        .logo {
+          font-size: 28px;
+          font-weight: bold;
+          color: #2563eb;
+          margin-bottom: 10px;
+        }
+        .date {
+          color: #6b7280;
+          font-size: 14px;
+        }
+        .section {
+          margin-bottom: 30px;
+        }
+        .section h2 {
+          color: #1f2937;
+          border-left: 4px solid #2563eb;
+          padding-left: 15px;
+          margin-bottom: 20px;
+        }
+        .score-card {
+          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+          border-radius: 12px;
+          padding: 30px;
+          text-align: center;
+          margin-bottom: 20px;
+        }
+        .score-number {
+          font-size: 48px;
+          font-weight: bold;
+          color: ${getScoreColor(data.healthScore.overall)};
+        }
+        .score-grade {
+          font-size: 24px;
+          font-weight: bold;
+          margin-top: 10px;
+        }
+        .metrics-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px;
+          margin-bottom: 20px;
+        }
+        .metric-card {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 20px;
+        }
+        .metric-label {
+          font-size: 14px;
+          color: #6b7280;
+          margin-bottom: 5px;
+        }
+        .metric-value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #1f2937;
+        }
+        .goals-list {
+          list-style: none;
+          padding: 0;
+        }
+        .goal-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 15px;
+          margin-bottom: 10px;
+          background: #f9fafb;
+          border-radius: 8px;
+          border-left: 4px solid #2563eb;
+        }
+        .goal-status {
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: bold;
+        }
+        .status-achieved { background: #d1fae5; color: #065f46; }
+        .status-critical { background: #fee2e2; color: #991b1b; }
+        .insights-list {
+          background: #eff6ff;
+          border-radius: 8px;
+          padding: 20px;
+        }
+        .insights-list li {
+          margin-bottom: 10px;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 1px solid #e5e7eb;
+          color: #6b7280;
+          font-size: 12px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div class="logo">🏦 FutureFund</div>
+        <h1>Financial Analytics Report</h1>
+        <div class="date">Generated on ${data.generatedDate}</div>
+      </div>
+
+      <div class="section">
+        <h2>💯 Overall Financial Health</h2>
+        <div class="score-card">
+          <div class="score-number">${data.healthScore.overall}</div>
+          <div class="score-grade">Grade ${data.healthScore.grade}</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>📊 Key Metrics</h2>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-label">Total Transactions</div>
+            <div class="metric-value">${data.totalTransactions.toLocaleString()}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Current Balance</div>
+            <div class="metric-value">${formatCurrency(data.currentBalance)}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Savings Rate Score</div>
+            <div class="metric-value" style="color: ${getScoreColor(data.healthScore.components.savingsRate.score)}">${data.healthScore.components.savingsRate.score}</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Budget Control Score</div>
+            <div class="metric-value" style="color: ${getScoreColor(data.healthScore.components.budgetControl.score)}">${data.healthScore.components.budgetControl.score}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>🎯 Goal Progress</h2>
+        <ul class="goals-list">
+          ${data.goalProgress.map(goal => `
+            <li class="goal-item">
+              <span>${goal.name} (${goal.progress}%)</span>
+              <span class="goal-status status-${goal.status}">${goal.status.toUpperCase()}</span>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>💡 Insights & Recommendations</h2>
+        <div class="insights-list">
+          <ul>
+            ${data.healthScore.insights.map(insight => `<li>${insight}</li>`).join('')}
+            ${data.healthScore.recommendations.map(rec => `<li><strong>Recommendation:</strong> ${rec}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>This report was generated by FutureFund AI-Powered Financial Planning</p>
+        <p>Report ID: ${data.generatedAt}</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
 
 // Test IPC communication
 ipcMain.handle('test-ipc', async (event, testData) => {
