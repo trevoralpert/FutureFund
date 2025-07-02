@@ -9,6 +9,7 @@ const { createFinancialIntelligenceWorkflow } = require('./financial-intelligenc
 const { createBackgroundIntelligenceWorkflow, BackgroundIntelligenceManager } = require('./background-intelligence');
 const { createScenarioAnalysisWorkflow } = require('./scenario-analysis');
 const { createSmartScenarioWorkflows } = require('./smart-scenario-workflows');
+const { createAdvancedScenarioModelingWorkflow } = require('./advanced-scenario-modeling');
 const config = require('../config');
 
 /**
@@ -28,6 +29,7 @@ class WorkflowOrchestrator {
     this.backgroundIntelligenceWorkflow = null;
     this.scenarioAnalysisWorkflow = null;
     this.smartScenarioWorkflow = null;
+    this.advancedScenarioModelingWorkflow = null;
     this.backgroundManager = null;
     
     // Initialize LangGraph workflow on startup
@@ -44,6 +46,9 @@ class WorkflowOrchestrator {
     
     // Initialize Smart Scenario Workflows for Phase 3.6.2
     this.initializeSmartScenarioWorkflows();
+    
+    // Initialize Advanced Scenario Modeling for Phase 3.6.3  
+    this.initializeAdvancedScenarioModeling();
   }
 
   /**
@@ -129,6 +134,20 @@ class WorkflowOrchestrator {
       console.log('✅ Smart Scenario Workflows initialized');
     } catch (error) {
       console.error('❌ Failed to initialize Smart Scenario Workflows:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize Advanced Scenario Modeling - Phase 3.6.3
+   */
+  initializeAdvancedScenarioModeling() {
+    try {
+      console.log('🏗️ Initializing Advanced Scenario Modeling...');
+      this.advancedScenarioModelingWorkflow = createAdvancedScenarioModelingWorkflow();
+      console.log('✅ Advanced Scenario Modeling initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize Advanced Scenario Modeling:', error);
       throw error;
     }
   }
@@ -1159,6 +1178,71 @@ class WorkflowOrchestrator {
         workflowId,
         error: error.message,
         code: error.code || 'SMART_SCENARIO_WORKFLOW_ERROR'
+      };
+    }
+  }
+
+  /**
+   * Execute Advanced Scenario Modeling - Phase 3.6.3
+   */
+  async executeAdvancedScenarioModeling(scenarioSet, financialContext, modelingParameters = {}, options = {}) {
+    const workflowId = this.generateWorkflowId();
+    const startTime = Date.now();
+    
+    console.log(`🏗️ [Orchestrator] Starting Advanced Scenario Modeling: ${workflowId}`);
+
+    try {
+      // Ensure Advanced Scenario Modeling is initialized
+      if (!this.advancedScenarioModelingWorkflow) {
+        this.initializeAdvancedScenarioModeling();
+        if (!this.advancedScenarioModelingWorkflow) {
+          throw new Error('Advanced Scenario Modeling workflow initialization failed');
+        }
+      }
+
+      // Execute Advanced Scenario Modeling workflow
+      const inputData = {
+        scenarioSet,
+        financialContext,
+        modelingParameters: {
+          simulationRuns: 100,
+          confidenceIntervals: [0.05, 0.25, 0.5, 0.75, 0.95],
+          compoundingMethod: 'parallel',
+          ...modelingParameters
+        }
+      };
+
+      const result = await this.advancedScenarioModelingWorkflow.invoke(inputData);
+
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [Orchestrator] Advanced Scenario Modeling completed in ${totalTime}ms: ${workflowId}`);
+
+      return {
+        success: true,
+        workflowId,
+        data: result,
+        metadata: {
+          totalExecutionTime: totalTime,
+          workflowId,
+          framework: 'LangGraph',
+          version: '3.6.3',
+          phase: 'AdvancedScenarioModeling',
+          primaryScenarioCount: result.executionMetadata?.primaryScenarioCount || 0,
+          simulationCount: result.executionMetadata?.simulationCount || 0,
+          synergyCount: result.executionMetadata?.synergyCount || 0,
+          conflictCount: result.executionMetadata?.conflictCount || 0,
+          expectedValue: result.executionMetadata?.expectedValue || 0
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Advanced Scenario Modeling failed: ${workflowId}`, error);
+
+      return {
+        success: false,
+        workflowId,
+        error: error.message,
+        code: error.code || 'ADVANCED_SCENARIO_MODELING_ERROR'
       };
     }
   }
