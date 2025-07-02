@@ -11,6 +11,7 @@ const { createScenarioAnalysisWorkflow } = require('./scenario-analysis');
 const { createSmartScenarioWorkflows } = require('./smart-scenario-workflows');
 const { createAdvancedScenarioModelingWorkflow } = require('./advanced-scenario-modeling');
 const { createMultiAccountIntelligenceWorkflow } = require('./multi-account-intelligence');
+const { createPredictiveAnalyticsPipeline } = require('./predictive-analytics-pipeline');
 const config = require('../config');
 
 /**
@@ -33,6 +34,9 @@ class WorkflowOrchestrator {
     this.advancedScenarioModelingWorkflow = null;
     this.backgroundManager = null;
     this.multiAccountIntelligenceWorkflow = null;
+    this.predictiveAnalyticsPipeline = null;
+    this.resultCache = new Map();
+    this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
     this.isInitialized = false;
     
     // Initialize LangGraph workflow on startup
@@ -55,6 +59,9 @@ class WorkflowOrchestrator {
 
     // Initialize Multi-Account Intelligence workflow for Phase 3.7.1
     this.initializeMultiAccountIntelligence();
+
+    // Initialize Predictive Analytics Pipeline
+    this.initializePredictiveAnalyticsPipeline();
   }
 
   /**
@@ -169,6 +176,21 @@ class WorkflowOrchestrator {
     } catch (error) {
       console.error('❌ [Orchestrator] Failed to initialize Multi-Account Intelligence:', error);
       this.multiAccountIntelligenceWorkflow = null;
+    }
+  }
+
+  /**
+   * Initialize Predictive Analytics Pipeline
+   */
+  async initializePredictiveAnalyticsPipeline() {
+    console.log('🤖 [Orchestrator] Initializing Predictive Analytics Pipeline...');
+    
+    try {
+      this.predictiveAnalyticsPipeline = createPredictiveAnalyticsPipeline();
+      console.log('✅ [Orchestrator] Predictive Analytics Pipeline initialized');
+    } catch (error) {
+      console.error('❌ [Orchestrator] Predictive Analytics Pipeline initialization failed:', error);
+      throw error;
     }
   }
 
@@ -1343,6 +1365,371 @@ class WorkflowOrchestrator {
         }
       };
     }
+  }
+
+  /**
+   * Execute Predictive Analytics Pipeline with comprehensive orchestration
+   */
+  async runPredictiveAnalyticsPipeline(inputData, options = {}) {
+    console.log('🚀 [Orchestrator] Executing Predictive Analytics Pipeline...');
+    
+    try {
+      const cacheKey = `predictive-analytics-${JSON.stringify(inputData).slice(0, 100)}`;
+      
+      // Check cache if enabled
+      if (options.useCache !== false) {
+        const cachedResult = this.resultCache.get(cacheKey);
+        if (cachedResult && (Date.now() - cachedResult.timestamp) < this.cacheTimeout) {
+          console.log('📋 [Orchestrator] Returning cached predictive analytics result');
+          return cachedResult.data;
+        }
+      }
+      
+      const startTime = Date.now();
+      
+      // Validate pipeline initialization
+      if (!this.predictiveAnalyticsPipeline) {
+        throw new Error('Predictive Analytics Pipeline not initialized');
+      }
+      
+      // Prepare input data streams
+      const inputDataStreams = this.preparePredictiveAnalyticsData(inputData, options);
+      
+      // Execute the pipeline
+      const result = await this.predictiveAnalyticsPipeline.invoke({
+        inputDataStreams: inputDataStreams
+      });
+      
+      const executionTime = Date.now() - startTime;
+      
+      // Process and enhance results
+      const enhancedResult = this.enhancePredictiveAnalyticsResult(result, {
+        executionTime,
+        inputOptions: options,
+        timestamp: Date.now()
+      });
+      
+      // Cache result if enabled
+      if (options.useCache !== false) {
+        this.resultCache.set(cacheKey, {
+          data: enhancedResult,
+          timestamp: Date.now()
+        });
+      }
+      
+      console.log(`✅ [Orchestrator] Predictive Analytics Pipeline completed in ${executionTime}ms`);
+      return enhancedResult;
+      
+    } catch (error) {
+      console.error('❌ [Orchestrator] Predictive Analytics Pipeline execution failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Predictive Analytics Pipeline with progress tracking
+   */
+  async executePredictiveAnalyticsWithProgress(inputData, workflowId, options = {}) {
+    const progressCallback = this.progressCallbacks.get(workflowId);
+    
+    // Predictive Analytics Pipeline phases
+    const phases = [
+      'integrateDataStreams',
+      'orchestrateExistingAnalytics',
+      'generateMLPredictions',
+      'processRealTimeAnalytics',
+      'generateCrossDomainIntelligence',
+      'detectPredictiveEvents',
+      'performAdaptiveLearning',
+      'integrateComprehensivePredictions'
+    ];
+    
+    let currentPhaseIndex = 0;
+    
+    // Progress tracking with more detailed phases
+    const progressInterval = setInterval(() => {
+      if (progressCallback && currentPhaseIndex < phases.length) {
+        const progress = {
+          stage: phases[currentPhaseIndex],
+          progress: Math.min(95, ((currentPhaseIndex + 1) / phases.length) * 95),
+          message: this.getPredictiveAnalyticsProgressMessage(phases[currentPhaseIndex]),
+          framework: 'PredictiveAnalyticsPipeline',
+          phase: currentPhaseIndex + 1,
+          totalPhases: phases.length
+        };
+        
+        progressCallback(progress);
+        currentPhaseIndex++;
+      }
+    }, 2000); // Slower interval for complex pipeline
+
+    try {
+      console.log('🔮 [Orchestrator] Invoking Predictive Analytics Pipeline with progress tracking...');
+      const result = await this.runPredictiveAnalyticsPipeline(inputData, options);
+      
+      // Final progress update
+      if (progressCallback) {
+        progressCallback({
+          stage: 'complete',
+          progress: 100,
+          message: 'Predictive Analytics Pipeline complete',
+          framework: 'PredictiveAnalyticsPipeline',
+          results: {
+            overallConfidence: result.integratedPredictions?.confidenceMetrics?.overallConfidence || 0,
+            totalInsights: result.integratedPredictions?.actionableInsights?.length || 0,
+            totalRecommendations: result.integratedPredictions?.strategicRecommendations?.length || 0,
+            riskScore: result.integratedPredictions?.riskAssessment?.overallRiskScore || 0,
+            executionTime: result.executionMetadata?.processingTime || 0
+          }
+        });
+      }
+      
+      clearInterval(progressInterval);
+      return result;
+      
+    } catch (error) {
+      clearInterval(progressInterval);
+      console.error('❌ [Orchestrator] Predictive Analytics Pipeline execution error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Prepare input data for Predictive Analytics Pipeline
+   */
+  preparePredictiveAnalyticsData(inputData, options) {
+    console.log('📊 [Orchestrator] Preparing data for Predictive Analytics Pipeline...');
+    
+    return {
+      transactionData: {
+        transactions: inputData.transactions || [],
+        metadata: {
+          source: inputData.source || 'orchestrator',
+          timestamp: Date.now(),
+          preprocessed: true
+        }
+      },
+      accountData: {
+        accounts: inputData.accounts || [],
+        metadata: {
+          source: 'database',
+          timestamp: Date.now(),
+          userId: inputData.userId
+        }
+      },
+      userContext: {
+        userId: inputData.userId || 'default-user',
+        age: inputData.userProfile?.age || 30,
+        income: inputData.userProfile?.income || 50000,
+        riskTolerance: inputData.userProfile?.riskTolerance || 'moderate',
+        goals: inputData.userProfile?.goals || ['retirement'],
+        dependents: inputData.userProfile?.dependents || 0,
+        timeHorizon: options.timeHorizon || 120 // months
+      },
+      externalFactors: {
+        marketConditions: options.marketConditions || 'stable',
+        economicIndicators: options.economicIndicators || {
+          inflation: 0.03,
+          gdp: 0.025,
+          unemployment: 0.04
+        },
+        seasonality: this.getCurrentSeasonality(),
+        timestamp: Date.now()
+      },
+      realTimeEvents: inputData.realTimeEvents || []
+    };
+  }
+
+  /**
+   * Enhance Predictive Analytics Pipeline results
+   */
+  enhancePredictiveAnalyticsResult(result, metadata) {
+    console.log('✨ [Orchestrator] Enhancing Predictive Analytics Pipeline results...');
+    
+    return {
+      ...result,
+      orchestratorMetadata: {
+        enhancedAt: Date.now(),
+        executionTime: metadata.executionTime,
+        version: '3.7.2',
+        framework: 'PredictiveAnalyticsPipeline',
+        qualityScore: this.calculatePredictiveAnalyticsQuality(result),
+        readinessLevel: this.assessPredictiveAnalyticsReadiness(result),
+        actionPriorities: this.rankActionPriorities(result),
+        summary: this.generatePredictiveAnalyticsSummary(result)
+      }
+    };
+  }
+
+  /**
+   * Get progress message for Predictive Analytics Pipeline phases
+   */
+  getPredictiveAnalyticsProgressMessage(phase) {
+    const messages = {
+      'integrateDataStreams': 'Integrating multiple data sources and preparing unified data model...',
+      'orchestrateExistingAnalytics': 'Coordinating financial forecasting, intelligence, and multi-account analytics...',
+      'generateMLPredictions': 'Applying advanced machine learning algorithms for predictions...',
+      'processRealTimeAnalytics': 'Processing real-time data streams and generating instant insights...',
+      'generateCrossDomainIntelligence': 'Identifying correlations and patterns across analytical domains...',
+      'detectPredictiveEvents': 'Detecting upcoming financial events and opportunities...',
+      'performAdaptiveLearning': 'Learning from prediction accuracy and adapting models...',
+      'integrateComprehensivePredictions': 'Synthesizing all analytics into comprehensive predictions...'
+    };
+    
+    return messages[phase] || `Processing ${phase}...`;
+  }
+
+  /**
+   * Calculate quality score for Predictive Analytics Pipeline results
+   */
+  calculatePredictiveAnalyticsQuality(result) {
+    let qualityScore = 0;
+    let factors = 0;
+    
+    // Data quality contribution
+    if (result.inputDataStreams?.dataQuality?.overallScore) {
+      qualityScore += result.inputDataStreams.dataQuality.overallScore * 0.2;
+      factors += 0.2;
+    }
+    
+    // Analytics integration contribution
+    if (result.analyticsResults?.successfulWorkflows) {
+      const integrationScore = result.analyticsResults.successfulWorkflows / 
+                              (result.analyticsResults.totalWorkflows || 1);
+      qualityScore += integrationScore * 0.25;
+      factors += 0.25;
+    }
+    
+    // ML predictions contribution
+    if (result.machineLearningPredictions?.modelPerformance?.overallPerformance) {
+      qualityScore += result.machineLearningPredictions.modelPerformance.overallPerformance * 0.25;
+      factors += 0.25;
+    }
+    
+    // Integrated predictions contribution
+    if (result.integratedPredictions?.confidenceMetrics?.overallConfidence) {
+      qualityScore += (result.integratedPredictions.confidenceMetrics.overallConfidence / 100) * 0.3;
+      factors += 0.3;
+    }
+    
+    return factors > 0 ? qualityScore / factors : 0.5;
+  }
+
+  /**
+   * Assess readiness level of Predictive Analytics Pipeline results
+   */
+  assessPredictiveAnalyticsReadiness(result) {
+    const quality = this.calculatePredictiveAnalyticsQuality(result);
+    const errorCount = result.errors?.length || 0;
+    const hasIntegratedPredictions = !!result.integratedPredictions;
+    
+    if (quality >= 0.8 && errorCount === 0 && hasIntegratedPredictions) {
+      return 'production_ready';
+    } else if (quality >= 0.6 && errorCount <= 2) {
+      return 'review_recommended';
+    } else {
+      return 'development_required';
+    }
+  }
+
+  /**
+   * Rank action priorities from Predictive Analytics Pipeline results
+   */
+  rankActionPriorities(result) {
+    const priorities = [];
+    
+    // Add insights as high priority actions
+    if (result.integratedPredictions?.actionableInsights) {
+      result.integratedPredictions.actionableInsights.forEach(insight => {
+        priorities.push({
+          type: 'insight',
+          priority: 'high',
+          action: insight.insight || insight.description,
+          confidence: insight.confidence || 0.7
+        });
+      });
+    }
+    
+    // Add recommendations as medium priority actions
+    if (result.integratedPredictions?.strategicRecommendations) {
+      result.integratedPredictions.strategicRecommendations.forEach(rec => {
+        priorities.push({
+          type: 'recommendation',
+          priority: rec.priority || 'medium',
+          action: rec.title || rec.description,
+          confidence: rec.confidence || 0.6
+        });
+      });
+    }
+    
+    // Add risk events as high priority actions
+    if (result.predictiveEvents?.riskEvents) {
+      result.predictiveEvents.riskEvents.forEach(event => {
+        priorities.push({
+          type: 'risk_mitigation',
+          priority: 'high',
+          action: `Mitigate risk: ${event.description || event.type}`,
+          confidence: event.confidence || 0.8
+        });
+      });
+    }
+    
+    // Sort by priority and confidence
+    return priorities.sort((a, b) => {
+      const priorityWeight = { high: 3, medium: 2, low: 1 };
+      const aPriority = priorityWeight[a.priority] || 1;
+      const bPriority = priorityWeight[b.priority] || 1;
+      
+      if (aPriority !== bPriority) {
+        return bPriority - aPriority;
+      }
+      return b.confidence - a.confidence;
+    });
+  }
+
+  /**
+   * Generate executive summary for Predictive Analytics Pipeline results
+   */
+  generatePredictiveAnalyticsSummary(result) {
+    const overallConfidence = result.integratedPredictions?.confidenceMetrics?.overallConfidence || 0;
+    const totalInsights = result.integratedPredictions?.actionableInsights?.length || 0;
+    const totalRecommendations = result.integratedPredictions?.strategicRecommendations?.length || 0;
+    const riskScore = result.integratedPredictions?.riskAssessment?.overallRiskScore || 0;
+    const processingTime = result.executionMetadata?.processingTime || 0;
+    
+    return {
+      overallConfidence: overallConfidence,
+      totalInsights: totalInsights,
+      totalRecommendations: totalRecommendations,
+      riskLevel: riskScore < 0.3 ? 'low' : riskScore < 0.7 ? 'moderate' : 'high',
+      processingTime: processingTime,
+      keyHighlights: [
+        `Generated ${totalInsights} actionable insights`,
+        `Provided ${totalRecommendations} strategic recommendations`,
+        `Overall confidence: ${overallConfidence}%`,
+        `Risk level: ${riskScore < 0.3 ? 'low' : riskScore < 0.7 ? 'moderate' : 'high'}`
+      ]
+    };
+  }
+
+  /**
+   * Get current seasonality information
+   */
+  getCurrentSeasonality() {
+    const month = new Date().getMonth();
+    const quarters = {
+      'Q1': [0, 1, 2],    // Jan, Feb, Mar
+      'Q2': [3, 4, 5],    // Apr, May, Jun
+      'Q3': [6, 7, 8],    // Jul, Aug, Sep
+      'Q4': [9, 10, 11]   // Oct, Nov, Dec
+    };
+    
+    for (const [quarter, months] of Object.entries(quarters)) {
+      if (months.includes(month)) {
+        return quarter;
+      }
+    }
+    return 'Q1';
   }
 }
 
