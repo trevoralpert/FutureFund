@@ -25,8 +25,11 @@ class DatabaseManager {
    */
   async initialize() {
     try {
-      // Determine database path (user data directory)
-      const userDataPath = app ? app.getPath('userData') : path.join(__dirname, '../../data');
+      // Determine database path 
+      // In development, use local data directory; in production, use userData
+      const userDataPath = (app && process.env.NODE_ENV === 'production') 
+        ? app.getPath('userData') 
+        : path.join(__dirname, '../../data');
       
       // Ensure data directory exists
       if (!fs.existsSync(userDataPath)) {
