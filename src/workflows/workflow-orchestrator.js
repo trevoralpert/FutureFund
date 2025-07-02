@@ -7,6 +7,7 @@
 const { createLangGraphWorkflow } = require('./langgraph-foundation');
 const { createFinancialIntelligenceWorkflow } = require('./financial-intelligence');
 const { createBackgroundIntelligenceWorkflow, BackgroundIntelligenceManager } = require('./background-intelligence');
+const { createScenarioAnalysisWorkflow } = require('./scenario-analysis');
 const config = require('../config');
 
 /**
@@ -24,6 +25,7 @@ class WorkflowOrchestrator {
     this.langGraphWorkflow = null;
     this.financialIntelligenceWorkflow = null;
     this.backgroundIntelligenceWorkflow = null;
+    this.scenarioAnalysisWorkflow = null;
     this.backgroundManager = null;
     
     // Initialize LangGraph workflow on startup
@@ -34,6 +36,9 @@ class WorkflowOrchestrator {
     
     // Initialize Background Intelligence system for Phase 3.5.3
     this.initializeBackgroundIntelligence();
+    
+    // Initialize Scenario Analysis system for Phase 3.6.1
+    this.initializeScenarioAnalysis();
   }
 
   /**
@@ -91,6 +96,20 @@ class WorkflowOrchestrator {
       console.log('✅ [Orchestrator] Background Intelligence system initialized');
     } catch (error) {
       console.error('❌ [Orchestrator] Failed to initialize Background Intelligence system:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize Scenario Analysis System - Phase 3.6.1
+   */
+  initializeScenarioAnalysis() {
+    try {
+      console.log('🎯 Initializing Scenario Analysis system...');
+      this.scenarioAnalysisWorkflow = createScenarioAnalysisWorkflow();
+      console.log('✅ Scenario Analysis system initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize Scenario Analysis system:', error);
       throw error;
     }
   }
@@ -836,6 +855,234 @@ class WorkflowOrchestrator {
     if (this.recentErrors.length > 20) {
       this.recentErrors = this.recentErrors.slice(-20);
     }
+  }
+
+  /**
+   * Execute Scenario Analysis workflow - Phase 3.6.1
+   */
+  async executeScenarioAnalysisWorkflow(scenarioData, financialContext, options = {}) {
+    const workflowId = this.generateWorkflowId();
+    const startTime = Date.now();
+    
+    console.log(`🎯 [Orchestrator] Starting Scenario Analysis workflow: ${workflowId}`);
+
+    try {
+      // Ensure Scenario Analysis is initialized
+      if (!this.scenarioAnalysisWorkflow) {
+        this.initializeScenarioAnalysis();
+        if (!this.scenarioAnalysisWorkflow) {
+          throw new Error('Scenario Analysis workflow initialization failed');
+        }
+      }
+
+      // Check cache first
+      const cacheKey = this.generateCacheKey({ scenarioData, financialContext }, 'scenario_analysis');
+      if (options.useCache !== false && this.cache.has(cacheKey)) {
+        console.log('📦 [Orchestrator] Returning cached Scenario Analysis result');
+        const cachedResult = this.cache.get(cacheKey);
+        return {
+          ...cachedResult,
+          metadata: {
+            ...cachedResult.metadata,
+            cached: true,
+            retrievalTime: Date.now() - startTime
+          }
+        };
+      }
+
+      // Validate input data
+      const validationErrors = this.validateScenarioData(scenarioData, financialContext);
+      if (validationErrors.length > 0) {
+        return {
+          success: false,
+          workflowId,
+          error: 'Invalid scenario data',
+          details: validationErrors
+        };
+      }
+
+      // Track active workflow
+      this.activeWorkflows.set(workflowId, {
+        startTime,
+        timeout: options.timeout || this.defaultTimeout,
+        status: 'running',
+        type: 'scenario_analysis'
+      });
+
+      // Set up progress tracking
+      if (options.onProgress) {
+        this.progressCallbacks.set(workflowId, options.onProgress);
+      }
+
+      // Execute Scenario Analysis workflow with timeout
+      const result = await Promise.race([
+        this.executeScenarioAnalysisWithProgress({ scenarioData, financialContext }, workflowId),
+        this.createTimeoutPromise(options.timeout || this.defaultTimeout)
+      ]);
+
+      // Cache successful results
+      if (result && result.feasibilityAssessment) {
+        this.cacheResult(cacheKey, result);
+      }
+
+      // Cleanup
+      this.activeWorkflows.delete(workflowId);
+      this.progressCallbacks.delete(workflowId);
+
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [Orchestrator] Scenario Analysis workflow completed in ${totalTime}ms: ${workflowId}`);
+
+      return {
+        success: true,
+        workflowId,
+        data: result,
+        metadata: {
+          totalExecutionTime: totalTime,
+          workflowId,
+          framework: 'ScenarioAnalysis',
+          version: '3.6.1',
+          phases: result.executionMetadata?.phases?.length || 0,
+          feasibilityScore: result.feasibilityAssessment?.feasibilityScore || 0,
+          validationErrors: result.validationResults?.errors?.length || 0,
+          conflicts: result.conflictAnalysis?.conflicts?.length || 0
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Scenario Analysis workflow failed: ${workflowId}`, error);
+      
+      // Cleanup on error
+      this.activeWorkflows.delete(workflowId);
+      this.progressCallbacks.delete(workflowId);
+
+      return {
+        success: false,
+        workflowId,
+        error: error.message,
+        code: error.code || 'SCENARIO_ANALYSIS_ERROR'
+      };
+    }
+  }
+
+  /**
+   * Execute Scenario Analysis workflow with progress tracking
+   */
+  async executeScenarioAnalysisWithProgress(inputData, workflowId) {
+    const progressCallback = this.progressCallbacks.get(workflowId);
+    
+    // Scenario Analysis workflow phases
+    const phases = [
+      'validateScenario',
+      'calculateEffects',
+      'analyzeConflicts',
+      'assessFeasibility',
+      'generateRecommendations'
+    ];
+    
+    let currentPhaseIndex = 0;
+    
+    // Progress tracking
+    const progressInterval = setInterval(() => {
+      if (progressCallback && currentPhaseIndex < phases.length) {
+        const progress = {
+          stage: phases[currentPhaseIndex],
+          progress: Math.min(95, ((currentPhaseIndex + 1) / phases.length) * 95),
+          message: this.getScenarioAnalysisProgressMessage(phases[currentPhaseIndex]),
+          framework: 'ScenarioAnalysis'
+        };
+        
+        progressCallback(progress);
+        currentPhaseIndex++;
+      }
+    }, 1000); // Fast execution for scenario analysis
+
+    try {
+      // Execute the Scenario Analysis workflow
+      console.log('🎯 [Orchestrator] Invoking Scenario Analysis workflow...');
+      const result = await this.scenarioAnalysisWorkflow.invoke(inputData);
+      
+      // Final progress update
+      if (progressCallback) {
+        progressCallback({
+          stage: 'complete',
+          progress: 100,
+          message: 'Scenario analysis complete',
+          framework: 'ScenarioAnalysis',
+          results: {
+            feasibilityScore: result.feasibilityAssessment?.feasibilityScore || 0,
+            validationErrors: result.validationResults?.errors?.length || 0,
+            conflicts: result.conflictAnalysis?.conflicts?.length || 0,
+            recommendations: result.analysisReport?.recommendations?.length || 0
+          }
+        });
+      }
+      
+      clearInterval(progressInterval);
+      return result;
+      
+    } catch (error) {
+      clearInterval(progressInterval);
+      console.error('❌ [Orchestrator] Scenario Analysis execution error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get progress message for Scenario Analysis workflow
+   */
+  getScenarioAnalysisProgressMessage(stage) {
+    const messages = {
+      validateScenario: 'Scenario Analysis: Validating scenario parameters...',
+      calculateEffects: 'Scenario Analysis: Calculating financial effects...',
+      analyzeConflicts: 'Scenario Analysis: Analyzing conflicts with existing scenarios...',
+      assessFeasibility: 'Scenario Analysis: Assessing scenario feasibility...',
+      generateRecommendations: 'Scenario Analysis: Generating AI-powered recommendations...'
+    };
+    
+    return messages[stage] || 'Scenario Analysis: Processing scenario analysis...';
+  }
+
+  /**
+   * Validate scenario data for Scenario Analysis workflow
+   */
+  validateScenarioData(scenarioData, financialContext) {
+    const errors = [];
+
+    if (!scenarioData) {
+      errors.push('Scenario data is required');
+      return errors;
+    }
+
+    if (!scenarioData.name || typeof scenarioData.name !== 'string') {
+      errors.push('Scenario name is required and must be a string');
+    }
+
+    if (!scenarioData.type || typeof scenarioData.type !== 'string') {
+      errors.push('Scenario type is required and must be a string');
+    }
+
+    if (!scenarioData.parameters || typeof scenarioData.parameters !== 'object') {
+      errors.push('Scenario parameters are required and must be an object');
+    }
+
+    if (!financialContext) {
+      errors.push('Financial context is required');
+      return errors;
+    }
+
+    if (typeof financialContext.currentBalance !== 'number' || financialContext.currentBalance < 0) {
+      errors.push('Current balance must be a non-negative number');
+    }
+
+    if (typeof financialContext.monthlyIncome !== 'number' || financialContext.monthlyIncome < 0) {
+      errors.push('Monthly income must be a non-negative number');
+    }
+
+    if (typeof financialContext.monthlyExpenses !== 'number' || financialContext.monthlyExpenses < 0) {
+      errors.push('Monthly expenses must be a non-negative number');
+    }
+
+    return errors;
   }
 }
 
