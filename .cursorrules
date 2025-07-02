@@ -179,6 +179,13 @@ FutureFund/
 
 ## Development Workflow & Git Strategy
 
+### **IMPORTANT: Git Commit Handling**
+- **NEVER** attempt to run git commands as the AI assistant
+- **ALWAYS** let the user handle their own git commits
+- If a logical step/phase is complete, inform the user it's time to commit
+- Suggest commit message format but don't execute the command
+- This prevents git command failures and gives user full control over their repository
+
 ### Step-by-Step Development with Smoke Tests
 Follow this proven workflow for rapid, traceable development:
 
