@@ -55,11 +55,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testAPIConnectivity: () => ipcRenderer.invoke('test-api-connectivity'),
   getConfigStatus: () => ipcRenderer.invoke('get-config-status'),
   
+  // Account management
+  getAccounts: (userId, options) => ipcRenderer.invoke('get-accounts', userId, options),
+  createAccount: (account) => ipcRenderer.invoke('create-account', account),
+  updateAccount: (id, updates) => ipcRenderer.invoke('update-account', id, updates),
+  deleteAccount: (id) => ipcRenderer.invoke('delete-account', id),
+  getAccount: (id) => ipcRenderer.invoke('get-account', id),
+  getAccountTypes: () => ipcRenderer.invoke('get-account-types'),
+  getAccountStatistics: (userId) => ipcRenderer.invoke('get-account-statistics', userId),
+  getAccountsByCategory: (userId, category) => ipcRenderer.invoke('get-accounts-by-category', userId, category),
+  setAccountPrimary: (accountId, userId) => ipcRenderer.invoke('set-account-primary', accountId, userId),
+  getPaymentSequence: (userId, amount) => ipcRenderer.invoke('get-payment-sequence', userId, amount),
+  
+  // User Profile management
+  getUserProfile: (userId) => ipcRenderer.invoke('get-user-profile', userId),
+  createUserProfile: (profile) => ipcRenderer.invoke('create-user-profile', profile),
+  updateUserProfile: (userId, updates) => ipcRenderer.invoke('update-user-profile', userId, updates),
+  updateRiskAssessment: (userId, riskScores) => ipcRenderer.invoke('update-risk-assessment', userId, riskScores),
+  updateGoalPriorities: (userId, goals) => ipcRenderer.invoke('update-goal-priorities', userId, goals),
+  completeOnboarding: (userId, data) => ipcRenderer.invoke('complete-onboarding', userId, data),
+  getFinancialProfile: (userId) => ipcRenderer.invoke('get-financial-profile', userId),
+  
   // Data import/export
   importCSV: (filePath) => ipcRenderer.invoke('import-csv', filePath),
   exportData: (format, options) => ipcRenderer.invoke('export-data', format, options),
   importTransactions: (source, options) => ipcRenderer.invoke('import-transactions', source, options),
   exportTransactions: (filePath, options) => ipcRenderer.invoke('export-transactions', filePath, options),
+  importAccounts: (source, options) => ipcRenderer.invoke('import-accounts', source, options),
+  exportAccounts: (filePath, options) => ipcRenderer.invoke('export-accounts', filePath, options),
   
   // Database management
   createBackup: (backupPath) => ipcRenderer.invoke('create-backup', backupPath),

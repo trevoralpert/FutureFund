@@ -67,6 +67,8 @@ class FutureFundApp {
             this.refreshScenarios();
         } else if (tabName === 'analytics') {
             this.initializeAnalytics();
+        } else if (tabName === 'accounts') {
+            this.initializeAccounts();
         }
     }
 
@@ -2685,6 +2687,640 @@ ${health.status === 'healthy' ?
         } catch (error) {
             console.error('Export failed:', error);
             this.showNotification('Failed to export analytics report', 'error');
+        }
+    }
+
+    // =================== ACCOUNT MANAGEMENT ===================
+    
+    /**
+     * Initialize account management functionality
+     */
+    async initializeAccounts() {
+        console.log('🏦 Initializing Account Management...');
+        
+        try {
+            // Initialize account management components
+            this.initializeAccountEventListeners();
+            
+            // Load user profile and accounts
+            await this.loadCurrentUser();
+            await this.loadAccounts();
+            
+            console.log('✅ Account Management initialized');
+        } catch (error) {
+            console.error('❌ Error initializing accounts:', error);
+            this.showAccountsError('Failed to initialize account management');
+        }
+    }
+
+    /**
+     * Initialize account-related event listeners
+     */
+    initializeAccountEventListeners() {
+        // Add Account button
+        document.getElementById('addAccountBtn')?.addEventListener('click', () => {
+            this.openAccountModal();
+        });
+
+        // Import/Export buttons
+        document.getElementById('importAccountsBtn')?.addEventListener('click', () => {
+            this.importAccounts();
+        });
+
+        document.getElementById('exportAccountsBtn')?.addEventListener('click', () => {
+            this.exportAccounts();
+        });
+
+        // Category tabs
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const category = e.currentTarget.dataset.category;
+                this.filterAccountsByCategory(category);
+            });
+        });
+
+        // Account filters
+        document.getElementById('accountSearch')?.addEventListener('input', 
+            window.performanceManager.debounce('accountSearch', (e) => {
+                this.filterAccounts();
+            }, 300)
+        );
+
+        document.getElementById('accountSort')?.addEventListener('change', () => {
+            this.sortAccounts();
+        });
+
+        document.getElementById('accountStatusFilter')?.addEventListener('change', () => {
+            this.filterAccounts();
+        });
+
+        // Account modal event listeners
+        this.initializeAccountModalListeners();
+
+        // Account context menu
+        this.initializeAccountContextMenu();
+    }
+
+    /**
+     * Load current user profile
+     */
+    async loadCurrentUser() {
+        try {
+            // For now, we'll use the default user created during migration
+            // In a full app, this would be based on login/authentication
+            this.currentUserId = await this.getDefaultUserId();
+            
+            if (!this.currentUserId) {
+                console.log('⚠️ No user found, creating default user...');
+                await this.createDefaultUser();
+            }
+
+            console.log('📱 Current user ID:', this.currentUserId);
+        } catch (error) {
+            console.error('❌ Error loading current user:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get default user ID from database
+     */
+    async getDefaultUserId() {
+        try {
+            // Get accounts to find a user ID
+            const response = await electronAPI.getAccounts('any-user', { limit: 1 });
+            
+            if (response.success && response.accounts.length > 0) {
+                return response.accounts[0].userId;
+            }
+            
+            // If no accounts exist, try to get first user profile
+            // For now we'll return null and create a default user
+            return null;
+        } catch (error) {
+            console.error('Error getting default user:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Create default user if none exists
+     */
+    async createDefaultUser() {
+        try {
+            const defaultUser = {
+                first_name: 'Demo',
+                last_name: 'User',
+                employment_status: 'employed',
+                annual_income: 75000,
+                risk_category: 'moderate',
+                primary_currency: 'USD'
+            };
+
+            const response = await electronAPI.createUserProfile(defaultUser);
+            
+            if (response.success) {
+                this.currentUserId = response.profile.id;
+                console.log('✅ Created default user:', this.currentUserId);
+            } else {
+                throw new Error(response.error);
+            }
+        } catch (error) {
+            console.error('Error creating default user:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Load all accounts for current user
+     */
+    async loadAccounts() {
+        if (!this.currentUserId) {
+            console.error('❌ No current user ID available');
+            return;
+        }
+
+        try {
+            this.showAccountsLoading();
+            
+            // Load accounts
+            const response = await electronAPI.getAccounts(this.currentUserId);
+            
+            if (response.success) {
+                this.accounts = response.accounts || [];
+                console.log('📊 Loaded', this.accounts.length, 'accounts');
+                
+                // Load account statistics
+                await this.loadAccountStatistics();
+                
+                // Render accounts
+                this.renderAccounts();
+                this.updateAccountCategoryTabs();
+                
+                // Show empty state if no accounts
+                if (this.accounts.length === 0) {
+                    this.showAccountsEmptyState();
+                } else {
+                    this.hideAccountsEmptyState();
+                }
+            } else {
+                throw new Error(response.error);
+            }
+        } catch (error) {
+            console.error('❌ Error loading accounts:', error);
+            this.showAccountsError('Failed to load accounts');
+        } finally {
+            this.hideAccountsLoading();
+        }
+    }
+
+    /**
+     * Load account statistics
+     */
+    async loadAccountStatistics() {
+        try {
+            const response = await electronAPI.getAccountStatistics(this.currentUserId);
+            
+            if (response.success) {
+                this.accountStats = response.stats;
+                this.updatePortfolioSummary();
+            } else {
+                console.error('Error loading account statistics:', response.error);
+            }
+        } catch (error) {
+            console.error('Error loading account statistics:', error);
+        }
+    }
+
+    /**
+     * Update portfolio summary cards
+     */
+    updatePortfolioSummary() {
+        if (!this.accountStats) return;
+
+        const { totals } = this.accountStats;
+        
+        // Net Worth
+        document.getElementById('portfolioNetWorth').textContent = this.formatCurrency(totals.net_worth || 0);
+        
+        // Assets
+        document.getElementById('portfolioAssets').textContent = this.formatCurrency(totals.total_assets || 0);
+        const assetAccounts = this.accounts.filter(a => this.isAssetAccount(a.type)).length;
+        document.getElementById('assetAccountCount').textContent = `${assetAccounts} accounts`;
+        
+        // Liabilities
+        document.getElementById('portfolioLiabilities').textContent = this.formatCurrency(totals.total_liabilities || 0);
+        const liabilityAccounts = this.accounts.filter(a => this.isLiabilityAccount(a.type)).length;
+        document.getElementById('liabilityAccountCount').textContent = `${liabilityAccounts} accounts`;
+        
+        // Active Accounts
+        document.getElementById('activeAccountCount').textContent = (totals.active_accounts || 0).toString();
+        document.getElementById('totalAccountCount').textContent = `of ${totals.total_accounts || 0} total`;
+        
+        // Net Worth Change (placeholder for now)
+        document.getElementById('netWorthChange').textContent = '—';
+    }
+
+    /**
+     * Check if account type is an asset
+     */
+    isAssetAccount(accountType) {
+        const assetTypes = ['checking', 'savings', 'investment', 'retirement_401k', 'retirement_ira', 'brokerage'];
+        return assetTypes.includes(accountType);
+    }
+
+    /**
+     * Check if account type is a liability
+     */
+    isLiabilityAccount(accountType) {
+        const liabilityTypes = ['credit_card', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
+        return liabilityTypes.includes(accountType);
+    }
+
+    /**
+     * Open account creation/edit modal
+     */
+    openAccountModal(accountId = null) {
+        const modal = document.getElementById('accountModal');
+        const title = document.getElementById('accountModalTitle');
+        
+        this.editingAccountId = accountId;
+        
+        if (accountId) {
+            title.textContent = 'Edit Account';
+            this.loadAccountForEditing(accountId);
+        } else {
+            title.textContent = 'Add New Account';
+            this.resetAccountForm();
+        }
+        
+        modal.classList.remove('hidden');
+        this.loadAccountTypes();
+    }
+
+    /**
+     * Initialize account modal event listeners
+     */
+    initializeAccountModalListeners() {
+        // Modal close events
+        document.getElementById('accountModalClose')?.addEventListener('click', () => {
+            this.closeAccountModal();
+        });
+
+        document.getElementById('accountModalOverlay')?.addEventListener('click', () => {
+            this.closeAccountModal();
+        });
+
+        document.getElementById('cancelAccountBtn')?.addEventListener('click', () => {
+            this.closeAccountModal();
+        });
+
+        // Form submission
+        document.getElementById('accountForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this.saveAccount();
+        });
+    }
+
+    /**
+     * Initialize account context menu
+     */
+    initializeAccountContextMenu() {
+        // Context menu will be implemented as needed
+        console.log('Account context menu initialized');
+    }
+
+    /**
+     * Close account modal
+     */
+    closeAccountModal() {
+        document.getElementById('accountModal').classList.add('hidden');
+        this.editingAccountId = null;
+    }
+
+    /**
+     * Load account types for selection
+     */
+    async loadAccountTypes() {
+        try {
+            const response = await electronAPI.getAccountTypes();
+            
+            if (response.success) {
+                this.renderAccountTypeSelector(response.accountTypes);
+            }
+        } catch (error) {
+            console.error('Error loading account types:', error);
+        }
+    }
+
+    /**
+     * Render account type selector
+     */
+    renderAccountTypeSelector(accountTypes) {
+        const selector = document.getElementById('accountTypeSelector');
+        if (!selector) return;
+
+        let html = '';
+        
+        for (const [typeKey, typeInfo] of Object.entries(accountTypes)) {
+            html += `
+                <div class="account-type-card" data-type="${typeKey}" onclick="app.selectAccountType('${typeKey}')">
+                    <div class="type-icon">${typeInfo.icon || '💰'}</div>
+                    <div class="type-name">${typeInfo.displayName}</div>
+                    <div class="type-description">${typeInfo.description}</div>
+                </div>
+            `;
+        }
+        
+        selector.innerHTML = html;
+    }
+
+    /**
+     * Select account type
+     */
+    selectAccountType(accountType) {
+        // Remove previous selection
+        document.querySelectorAll('.account-type-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Add selection to clicked card
+        document.querySelector(`[data-type="${accountType}"]`).classList.add('selected');
+        
+        // Set hidden input value
+        document.getElementById('accountType').value = accountType;
+        
+        // Show type-specific fields
+        this.renderTypeSpecificFields(accountType);
+    }
+
+    /**
+     * Render type-specific fields based on account type
+     */
+    renderTypeSpecificFields(accountType) {
+        const container = document.getElementById('typeSpecificFields');
+        if (!container) return;
+
+        let html = '';
+        
+        // Add fields based on account type
+        if (accountType === 'credit_card' || accountType === 'line_of_credit') {
+            html += `
+                <h3>Credit Information</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="creditLimit">Credit Limit *</label>
+                        <input type="number" id="creditLimit" name="credit_limit" 
+                               step="0.01" placeholder="0.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="availableBalance">Available Credit</label>
+                        <input type="number" id="availableBalance" name="available_balance" 
+                               step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+            `;
+        } else if (accountType === 'savings' || accountType === 'checking') {
+            html += `
+                <h3>Account Details</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="availableBalance">Available Balance</label>
+                        <input type="number" id="availableBalance" name="available_balance" 
+                               step="0.01" placeholder="0.00">
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+
+    /**
+     * Reset account form
+     */
+    resetAccountForm() {
+        document.getElementById('accountForm').reset();
+        document.getElementById('typeSpecificFields').innerHTML = '';
+        document.querySelectorAll('.account-type-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+    }
+
+    /**
+     * Save account (create or update)
+     */
+    async saveAccount() {
+        try {
+            const formData = new FormData(document.getElementById('accountForm'));
+            const accountData = {};
+            
+            for (const [key, value] of formData.entries()) {
+                if (value !== '') {
+                    accountData[key] = value;
+                }
+            }
+            
+            // Add user profile ID
+            accountData.user_profile_id = this.currentUserId;
+            
+            // Convert numeric fields
+            ['current_balance', 'available_balance', 'credit_limit', 'interest_rate', 'scenario_priority'].forEach(field => {
+                if (accountData[field]) {
+                    accountData[field] = parseFloat(accountData[field]);
+                }
+            });
+            
+            // Convert boolean fields
+            ['is_active', 'is_primary', 'include_in_forecasting', 'tax_advantaged'].forEach(field => {
+                accountData[field] = formData.has(field);
+            });
+
+            let response;
+            if (this.editingAccountId) {
+                response = await electronAPI.updateAccount(this.editingAccountId, accountData);
+            } else {
+                response = await electronAPI.createAccount(accountData);
+            }
+            
+            if (response.success) {
+                window.notificationManager.success(
+                    this.editingAccountId ? 'Account updated successfully' : 'Account created successfully'
+                );
+                this.closeAccountModal();
+                await this.loadAccounts(); // Refresh accounts list
+            } else {
+                window.notificationManager.error(response.error);
+            }
+        } catch (error) {
+            console.error('Error saving account:', error);
+            window.notificationManager.error('Failed to save account');
+        }
+    }
+
+    /**
+     * Show accounts loading state
+     */
+    showAccountsLoading() {
+        document.getElementById('accountsLoadingState')?.classList.remove('hidden');
+        document.getElementById('accountsList').style.display = 'none';
+    }
+
+    /**
+     * Hide accounts loading state
+     */
+    hideAccountsLoading() {
+        document.getElementById('accountsLoadingState')?.classList.add('hidden');
+        document.getElementById('accountsList').style.display = 'block';
+    }
+
+    /**
+     * Show accounts empty state
+     */
+    showAccountsEmptyState() {
+        document.getElementById('accountsEmptyState')?.classList.remove('hidden');
+        document.getElementById('accountsList').style.display = 'none';
+    }
+
+    /**
+     * Hide accounts empty state
+     */
+    hideAccountsEmptyState() {
+        document.getElementById('accountsEmptyState')?.classList.add('hidden');
+        document.getElementById('accountsList').style.display = 'block';
+    }
+
+    /**
+     * Show accounts error
+     */
+    showAccountsError(message) {
+        window.notificationManager.error(message);
+    }
+
+    /**
+     * Render accounts (simplified version for now)
+     */
+    renderAccounts() {
+        const accountsList = document.getElementById('accountsList');
+        if (!accountsList) return;
+        
+        if (!this.accounts || this.accounts.length === 0) {
+            accountsList.innerHTML = '<div class="no-accounts">No accounts found</div>';
+            return;
+        }
+        
+        let html = '';
+        this.accounts.forEach(account => {
+            const balanceClass = account.currentBalance >= 0 ? 'positive' : 'negative';
+            html += `
+                <div class="account-card">
+                    <div class="account-info">
+                        <h4>${account.name}</h4>
+                        <p>${account.institution}</p>
+                        <span class="account-type">${account.type}</span>
+                    </div>
+                    <div class="account-balance ${balanceClass}">
+                        ${this.formatCurrency(account.currentBalance)}
+                    </div>
+                </div>
+            `;
+        });
+        
+        accountsList.innerHTML = html;
+    }
+
+    /**
+     * Update account category tabs
+     */
+    updateAccountCategoryTabs() {
+        // Update category tab badges with account counts
+        const categoryCounters = {
+            all: this.accounts.length,
+            liquid: this.accounts.filter(a => ['checking', 'savings'].includes(a.type)).length,
+            investment: this.accounts.filter(a => ['investment', 'brokerage'].includes(a.type)).length,
+            retirement: this.accounts.filter(a => a.type.includes('retirement')).length,
+            credit: this.accounts.filter(a => ['credit_card', 'line_of_credit'].includes(a.type)).length,
+            real_estate: this.accounts.filter(a => ['mortgage', 'home_equity'].includes(a.type)).length
+        };
+        
+        for (const [category, count] of Object.entries(categoryCounters)) {
+            const badge = document.getElementById(`${category}AccountBadge`);
+            if (badge) {
+                badge.textContent = count.toString();
+            }
+        }
+    }
+
+    /**
+     * Filter accounts by category
+     */
+    filterAccountsByCategory(category) {
+        // Update active tab
+        document.querySelectorAll('.category-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelector(`[data-category="${category}"]`).classList.add('active');
+        
+        this.currentAccountCategory = category;
+        this.renderAccounts();
+    }
+
+    /**
+     * Export accounts
+     */
+    async exportAccounts() {
+        try {
+            const result = await electronAPI.selectFile({
+                defaultPath: `accounts-export-${new Date().toISOString().split('T')[0]}.json`,
+                filters: [
+                    { name: 'JSON Files', extensions: ['json'] }
+                ]
+            });
+            
+            if (!result.cancelled && result.filePaths.length > 0) {
+                const response = await electronAPI.exportAccounts(result.filePaths[0], {
+                    userId: this.currentUserId
+                });
+                
+                if (response.success) {
+                    window.notificationManager.success(`Exported ${response.exported} accounts successfully`);
+                } else {
+                    window.notificationManager.error('Failed to export accounts');
+                }
+            }
+        } catch (error) {
+            console.error('Error exporting accounts:', error);
+            window.notificationManager.error('Failed to export accounts');
+        }
+    }
+
+    /**
+     * Import accounts
+     */
+    async importAccounts() {
+        try {
+            const result = await electronAPI.selectFile({
+                filters: [
+                    { name: 'JSON Files', extensions: ['json'] },
+                    { name: 'CSV Files', extensions: ['csv'] }
+                ]
+            });
+            
+            if (!result.cancelled && result.filePaths.length > 0) {
+                const response = await electronAPI.importAccounts(result.filePaths[0], {
+                    userId: this.currentUserId
+                });
+                
+                if (response.success) {
+                    window.notificationManager.success(`Imported ${response.imported} accounts successfully`);
+                    await this.loadAccounts(); // Refresh accounts list
+                } else {
+                    window.notificationManager.error('Failed to import accounts');
+                }
+            }
+        } catch (error) {
+            console.error('Error importing accounts:', error);
+            window.notificationManager.error('Failed to import accounts');
         }
     }
 }

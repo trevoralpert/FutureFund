@@ -9,6 +9,11 @@ const TransactionDAO = require('./database/transaction-dao');
 const ScenarioDAO = require('./database/scenario-dao');
 const DataMigrationService = require('./database/data-migration');
 
+// V2 Database imports
+const { AccountDAO } = require('./database/account-dao');
+const { UserProfileDAO } = require('./database/user-profile-dao');
+const MigrationManager = require('./database/migration-v2');
+
 let mainWindow;
 
 function createWindow() {
@@ -56,6 +61,12 @@ app.whenReady().then(async () => {
     try {
       console.log('🚀 Initializing FutureFund database...');
       await dbManager.initialize();
+      
+      // Run V2 Migration to upgrade database schema
+      console.log('🔄 Running V2 database migration...');
+      const migrationManager = new MigrationManager(dbManager.db);
+      await migrationManager.runMigration();
+      console.log('✅ Database migration completed successfully');
       
       // Import mock data if database is empty
       const stats = await dbManager.getStats();
@@ -346,6 +357,209 @@ ipcMain.handle('calculate-running-balances', async () => {
     return { success: true, ...result };
   } catch (error) {
     console.error('Error calculating running balances:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Account management (imports moved to top of file)
+
+ipcMain.handle('get-accounts', async (event, userId, options = {}) => {
+  try {
+    console.log('Loading accounts for user:', userId);
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const accounts = await AccountDAO.getByUserId(userId, options);
+    return { success: true, accounts };
+  } catch (error) {
+    console.error('Error loading accounts:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('create-account', async (event, account) => {
+  try {
+    console.log('Creating account:', account.account_name);
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const result = await AccountDAO.create(account);
+    return { success: true, account: result };
+  } catch (error) {
+    console.error('Error creating account:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-account', async (event, id, updates) => {
+  try {
+    console.log('Updating account:', id);
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const result = await AccountDAO.update(id, updates);
+    return { success: true, account: result };
+  } catch (error) {
+    console.error('Error updating account:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-account', async (event, id) => {
+  try {
+    console.log('Deleting account:', id);
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const result = await AccountDAO.delete(id);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-account', async (event, id) => {
+  try {
+    const account = await AccountDAO.getById(id);
+    return { success: true, account };
+  } catch (error) {
+    console.error('Error getting account:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-account-types', async () => {
+  try {
+    const accountTypes = AccountDAO.getAccountTypes();
+    return { success: true, accountTypes };
+  } catch (error) {
+    console.error('Error getting account types:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-account-statistics', async (event, userId) => {
+  try {
+    const stats = await AccountDAO.getAccountStatistics(userId);
+    return { success: true, stats };
+  } catch (error) {
+    console.error('Error getting account statistics:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-accounts-by-category', async (event, userId, category) => {
+  try {
+    const accounts = await AccountDAO.getByCategory(userId, category);
+    return { success: true, accounts };
+  } catch (error) {
+    console.error('Error getting accounts by category:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('set-account-primary', async (event, accountId, userId) => {
+  try {
+    const account = await AccountDAO.setPrimary(accountId, userId);
+    return { success: true, account };
+  } catch (error) {
+    console.error('Error setting account primary:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-payment-sequence', async (event, userId, amount) => {
+  try {
+    const sequence = await AccountDAO.getPaymentSequence(userId, amount);
+    return { success: true, sequence };
+  } catch (error) {
+    console.error('Error getting payment sequence:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// User Profile management
+ipcMain.handle('get-user-profile', async (event, userId) => {
+  try {
+    const profile = await UserProfileDAO.getById(userId);
+    return { success: true, profile };
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('create-user-profile', async (event, profile) => {
+  try {
+    console.log('Creating user profile:', profile.first_name, profile.last_name);
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    const result = await UserProfileDAO.create(profile);
+    return { success: true, profile: result };
+  } catch (error) {
+    console.error('Error creating user profile:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-user-profile', async (event, userId, updates) => {
+  try {
+    const result = await UserProfileDAO.update(userId, updates);
+    return { success: true, profile: result };
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-risk-assessment', async (event, userId, riskScores) => {
+  try {
+    const result = await UserProfileDAO.updateRiskAssessment(userId, riskScores);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error updating risk assessment:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('update-goal-priorities', async (event, userId, goals) => {
+  try {
+    const result = await UserProfileDAO.updateGoalPriorities(userId, goals);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error updating goal priorities:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('complete-onboarding', async (event, userId, data) => {
+  try {
+    const result = await UserProfileDAO.completeOnboarding(userId, data);
+    return { success: true, ...result };
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-financial-profile', async (event, userId) => {
+  try {
+    const profile = await UserProfileDAO.getFinancialProfile(userId);
+    return { success: true, profile };
+  } catch (error) {
+    console.error('Error getting financial profile:', error);
     return { success: false, error: error.message };
   }
 });
@@ -666,6 +880,56 @@ ipcMain.handle('export-transactions', async (event, filePath, options = {}) => {
     return { success: true, ...result };
   } catch (error) {
     console.error('Error exporting transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Account import/export handlers
+ipcMain.handle('import-accounts', async (event, source, options = {}) => {
+  try {
+    console.log('Importing accounts from:', source);
+    // TODO: Implement account import functionality
+    return { success: true, imported: 0 };
+  } catch (error) {
+    console.error('Error importing accounts:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('export-accounts', async (event, filePath, options = {}) => {
+  try {
+    console.log('Exporting accounts to:', filePath);
+    
+    if (!dbManager.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+    
+    // Get user ID from options or use default
+    const userId = options.userId;
+    if (!userId) {
+      throw new Error('User ID required for account export');
+    }
+    
+    const accounts = await AccountDAO.getByUserId(userId);
+    
+    // Export as JSON
+    const fs = require('fs').promises;
+    const exportData = {
+      exportDate: new Date().toISOString(),
+      userId: userId,
+      accountCount: accounts.length,
+      accounts: accounts
+    };
+    
+    await fs.writeFile(filePath, JSON.stringify(exportData, null, 2));
+    
+    return { 
+      success: true, 
+      exported: accounts.length,
+      filePath 
+    };
+  } catch (error) {
+    console.error('Error exporting accounts:', error);
     return { success: false, error: error.message };
   }
 });

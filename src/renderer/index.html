@@ -36,6 +36,10 @@
             <span class="tab-icon">📊</span>
             Interactive Ledger
         </button>
+        <button class="tab-btn" data-tab="accounts">
+            <span class="tab-icon">🏦</span>
+            Account Management
+        </button>
         <button class="tab-btn" data-tab="chat">
             <span class="tab-icon">💬</span>
             AI Assistant
@@ -166,6 +170,142 @@
                                 <canvas id="trendsChart"></canvas>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Accounts Tab -->
+        <div id="accountsTab" class="tab-content">
+            <div class="accounts-container">
+                <!-- Account Summary Header -->
+                <div class="accounts-header">
+                    <div class="accounts-summary">
+                        <div class="portfolio-overview">
+                            <h2>Account Portfolio</h2>
+                            <div class="portfolio-stats">
+                                <div class="stat-card">
+                                    <h3>Net Worth</h3>
+                                    <div class="amount" id="portfolioNetWorth">$0.00</div>
+                                    <div class="stat-change" id="netWorthChange">—</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Total Assets</h3>
+                                    <div class="amount assets" id="portfolioAssets">$0.00</div>
+                                    <div class="account-count" id="assetAccountCount">0 accounts</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Total Liabilities</h3>
+                                    <div class="amount liabilities" id="portfolioLiabilities">$0.00</div>
+                                    <div class="account-count" id="liabilityAccountCount">0 accounts</div>
+                                </div>
+                                <div class="stat-card">
+                                    <h3>Active Accounts</h3>
+                                    <div class="amount" id="activeAccountCount">0</div>
+                                    <div class="account-count" id="totalAccountCount">of 0 total</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accounts-actions">
+                            <button id="addAccountBtn" class="btn btn-primary">
+                                <span class="btn-icon">➕</span>
+                                Add Account
+                            </button>
+                            <button id="importAccountsBtn" class="btn btn-secondary">
+                                <span class="btn-icon">📥</span>
+                                Import
+                            </button>
+                            <button id="exportAccountsBtn" class="btn btn-secondary">
+                                <span class="btn-icon">📤</span>
+                                Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Categories -->
+                <div class="account-categories">
+                    <div class="category-tabs">
+                        <button class="category-tab active" data-category="all">
+                            <span class="category-icon">📊</span>
+                            All Accounts
+                            <span class="account-badge" id="allAccountBadge">0</span>
+                        </button>
+                        <button class="category-tab" data-category="liquid">
+                            <span class="category-icon">💧</span>
+                            Liquid Assets
+                            <span class="account-badge" id="liquidAccountBadge">0</span>
+                        </button>
+                        <button class="category-tab" data-category="investment">
+                            <span class="category-icon">📈</span>
+                            Investments
+                            <span class="account-badge" id="investmentAccountBadge">0</span>
+                        </button>
+                        <button class="category-tab" data-category="retirement">
+                            <span class="category-icon">🏖️</span>
+                            Retirement
+                            <span class="account-badge" id="retirementAccountBadge">0</span>
+                        </button>
+                        <button class="category-tab" data-category="credit">
+                            <span class="category-icon">💳</span>
+                            Credit & Loans
+                            <span class="account-badge" id="creditAccountBadge">0</span>
+                        </button>
+                        <button class="category-tab" data-category="real_estate">
+                            <span class="category-icon">🏠</span>
+                            Real Estate
+                            <span class="account-badge" id="realEstateAccountBadge">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Account Filters -->
+                    <div class="account-filters">
+                        <div class="filter-group">
+                            <label>Search:</label>
+                            <input type="text" id="accountSearch" placeholder="Search accounts..." class="search-input">
+                        </div>
+                        <div class="filter-group">
+                            <label>Sort by:</label>
+                            <select id="accountSort" class="sort-select">
+                                <option value="name">Account Name</option>
+                                <option value="balance">Balance</option>
+                                <option value="type">Account Type</option>
+                                <option value="institution">Institution</option>
+                                <option value="updated">Last Updated</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Status:</label>
+                            <select id="accountStatusFilter" class="filter-select">
+                                <option value="all">All Accounts</option>
+                                <option value="active">Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account List -->
+                <div class="accounts-list" id="accountsList">
+                    <!-- Dynamic account cards will be inserted here -->
+                </div>
+
+                <!-- Empty State -->
+                <div class="empty-state hidden" id="accountsEmptyState">
+                    <div class="empty-icon">🏦</div>
+                    <h3>No Accounts Found</h3>
+                    <p>Start building your financial portfolio by adding your first account.</p>
+                    <button class="btn btn-primary" onclick="app.openAccountModal()">
+                        <span class="btn-icon">➕</span>
+                        Add Your First Account
+                    </button>
+                </div>
+
+                <!-- Loading State -->
+                <div class="loading-state hidden" id="accountsLoadingState">
+                    <div class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading accounts...</p>
                     </div>
                 </div>
             </div>
@@ -493,6 +633,163 @@
         <div class="context-menu-item dangerous" data-action="delete">
             <span class="context-icon">🗑️</span>
             Delete Scenario
+        </div>
+    </div>
+
+    <!-- Account Creation/Edit Modal -->
+    <div id="accountModal" class="modal hidden">
+        <div class="modal-overlay" id="accountModalOverlay"></div>
+        <div class="modal-content account-modal">
+            <div class="modal-header">
+                <h2 id="accountModalTitle">Add New Account</h2>
+                <button class="modal-close" id="accountModalClose">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <form id="accountForm" class="account-form">
+                    <!-- Account Type Selection -->
+                    <div class="form-section">
+                        <h3>Account Type</h3>
+                        <div class="account-type-selector" id="accountTypeSelector">
+                            <!-- Dynamic account type cards will be inserted here -->
+                        </div>
+                        <input type="hidden" id="accountType" name="account_type" required>
+                    </div>
+
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h3>Basic Information</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="accountName">Account Name *</label>
+                                <input type="text" id="accountName" name="account_name" 
+                                       placeholder="e.g., Chase Checking, Wells Fargo Savings" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="institutionName">Institution *</label>
+                                <input type="text" id="institutionName" name="institution_name" 
+                                       placeholder="e.g., Chase Bank, Wells Fargo" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="accountNumberLast4">Last 4 Digits (Optional)</label>
+                                <input type="text" id="accountNumberLast4" name="account_number_last4" 
+                                       placeholder="1234" maxlength="4" pattern="[0-9]{4}">
+                            </div>
+                            <div class="form-group">
+                                <label for="currentBalance">Current Balance *</label>
+                                <input type="number" id="currentBalance" name="current_balance" 
+                                       step="0.01" placeholder="0.00" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Type Specific Fields -->
+                    <div class="form-section" id="typeSpecificFields">
+                        <!-- Dynamic fields based on account type -->
+                    </div>
+
+                    <!-- Advanced Settings -->
+                    <div class="form-section collapsible">
+                        <h3 class="collapsible-header">
+                            <span>Advanced Settings</span>
+                            <span class="collapse-icon">▼</span>
+                        </h3>
+                        <div class="collapsible-content">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="interestRate">Interest Rate (%)</label>
+                                    <input type="number" id="interestRate" name="interest_rate" 
+                                           step="0.01" min="0" max="100" placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label for="scenarioPriority">Scenario Priority</label>
+                                    <select id="scenarioPriority" name="scenario_priority">
+                                        <option value="1">High (Use first)</option>
+                                        <option value="2" selected>Medium</option>
+                                        <option value="3">Low (Use last)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="isActive" name="is_active" checked>
+                                        <span class="checkmark"></span>
+                                        Account is active
+                                    </label>
+                                </div>
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="isPrimary" name="is_primary">
+                                        <span class="checkmark"></span>
+                                        Set as primary account for this type
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="includeInForecasting" name="include_in_forecasting" checked>
+                                        <span class="checkmark"></span>
+                                        Include in scenario forecasting
+                                    </label>
+                                </div>
+                                <div class="form-group checkbox-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="taxAdvantaged" name="tax_advantaged">
+                                        <span class="checkmark"></span>
+                                        Tax-advantaged account
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="account-type-info" id="accountTypeInfo">
+                    <!-- Dynamic account type information -->
+                </div>
+                <div class="modal-actions">
+                    <button type="button" id="cancelAccountBtn" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="saveAccountBtn" class="btn btn-primary" form="accountForm">
+                        <span class="btn-icon">💾</span>
+                        <span id="saveAccountText">Save Account</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Actions Context Menu -->
+    <div id="accountContextMenu" class="context-menu hidden">
+        <div class="context-menu-item" data-action="edit">
+            <span class="context-icon">✏️</span>
+            Edit Account
+        </div>
+        <div class="context-menu-item" data-action="setPrimary">
+            <span class="context-icon">⭐</span>
+            Set as Primary
+        </div>
+        <div class="context-menu-item" data-action="viewTransactions">
+            <span class="context-icon">📋</span>
+            View Transactions
+        </div>
+        <div class="context-menu-item" data-action="toggle">
+            <span class="context-icon">🔄</span>
+            Toggle Active
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" data-action="export">
+            <span class="context-icon">📤</span>
+            Export Data
+        </div>
+        <div class="context-menu-item dangerous" data-action="delete">
+            <span class="context-icon">🗑️</span>
+            Delete Account
         </div>
     </div>
 
