@@ -1463,11 +1463,15 @@ body {
     position: relative;
     height: 300px;
     width: 100%;
+    min-height: 300px;
 }
 
 .chart-wrapper canvas {
-    max-width: 100%;
-    max-height: 100%;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 300px !important;
+    min-height: 250px !important;
+    display: block !important;
 }
 
 /* Chart loading state */
@@ -3710,5 +3714,527 @@ select:focus {
     .account-header-row td {
         padding: 0.5rem !important;
         font-size: 0.9rem !important;
+    }
+}
+
+/* =================== ENHANCED SCENARIO MANAGEMENT STYLES (Phase 3.1) =================== */
+
+/* Active Scenarios Section */
+.active-scenarios-section {
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-lg);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+}
+
+.active-scenarios-section .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.active-scenario-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.active-scenarios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+.empty-active-scenarios {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: var(--spacing-xl);
+    color: var(--text-secondary);
+}
+
+.empty-active-scenarios .empty-icon {
+    font-size: 3rem;
+    margin-bottom: var(--spacing-md);
+}
+
+.active-scenario-card {
+    background-color: var(--bg-secondary);
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    transition: all 0.2s ease;
+}
+
+.active-scenario-card:hover {
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+    transform: translateY(-2px);
+}
+
+.active-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-sm);
+}
+
+.active-card-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex: 1;
+}
+
+.active-card-icon {
+    font-size: 1.5rem;
+    padding: var(--spacing-xs);
+    background-color: rgba(37, 99, 235, 0.1);
+    border-radius: var(--radius-sm);
+}
+
+.active-card-details h4 {
+    margin: 0 0 var(--spacing-xs) 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.active-card-details p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.active-card-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.active-card-action {
+    background: none;
+    border: none;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.active-card-action:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--primary-color);
+}
+
+.active-card-impact {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--border-color);
+}
+
+.scenario-impact-preview {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+}
+
+.impact-item {
+    flex: 1;
+    text-align: center;
+}
+
+.impact-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.impact-value {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.impact-value.positive {
+    color: var(--success-color);
+}
+
+.impact-value.negative {
+    color: var(--danger-color);
+}
+
+/* Impact Summary Card */
+.impact-summary-card {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+}
+
+.impact-summary-card h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    color: var(--text-primary);
+}
+
+.impact-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.impact-metric {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    padding: var(--spacing-sm);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-sm);
+}
+
+.impact-metric .impact-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.impact-metric .impact-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.impact-metric .impact-value.risk-low {
+    color: var(--success-color);
+}
+
+.impact-metric .impact-value.risk-medium {
+    color: #f59e0b;
+}
+
+.impact-metric .impact-value.risk-high {
+    color: var(--danger-color);
+}
+
+.impact-summary-error {
+    text-align: center;
+    padding: var(--spacing-lg);
+    color: var(--danger-color);
+}
+
+/* All Scenarios Section */
+.all-scenarios-section {
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    border: 1px solid var(--border-color);
+}
+
+.scenario-header-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.scenarios-filter {
+    display: flex;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+    align-items: center;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.filter-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.filter-select,
+.sort-select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+/* Scenario Controls in Ledger */
+.scenario-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-left: var(--spacing-md);
+}
+
+.scenario-controls label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.btn-sm {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.8rem;
+    border-radius: var(--radius-sm);
+}
+
+#scenarioModeToggle {
+    transition: all 0.2s ease;
+}
+
+#scenarioModeToggle[data-mode="base"] {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+#scenarioModeToggle[data-mode="active"] {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+#scenarioModeToggle[data-mode="preview"] {
+    background-color: #f59e0b;
+    color: white;
+    border-color: #f59e0b;
+}
+
+/* Impact Preview Modal */
+.impact-modal {
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--spacing-md);
+}
+
+.metric-card {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    text-align: center;
+    border: 1px solid var(--border-color);
+}
+
+.metric-card h4 {
+    margin: 0 0 var(--spacing-md) 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.metric-card .metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-xs);
+}
+
+.metric-card .metric-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.timeline-chart-container {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin: var(--spacing-md) 0;
+    border: 1px solid var(--border-color);
+}
+
+.transaction-changes-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.change-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-sm);
+}
+
+.change-icon {
+    font-size: 1.2rem;
+    width: 24px;
+    text-align: center;
+}
+
+.change-label {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.change-count {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.transaction-preview-note {
+    background-color: rgba(37, 99, 235, 0.1);
+    border-left: 4px solid var(--primary-color);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.no-conflicts {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background-color: rgba(16, 185, 129, 0.1);
+    border-radius: var(--radius-sm);
+    color: var(--success-color);
+}
+
+.success-icon {
+    font-size: 1.2rem;
+}
+
+.conflict-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.conflict-item.severity-low {
+    background-color: rgba(251, 191, 36, 0.1);
+    border-left: 4px solid #f59e0b;
+}
+
+.conflict-item.severity-medium {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-left: 4px solid var(--danger-color);
+}
+
+.conflict-item.severity-high {
+    background-color: rgba(147, 51, 234, 0.1);
+    border-left: 4px solid #9333ea;
+}
+
+.conflict-icon {
+    font-size: 1.2rem;
+    margin-top: 2px;
+}
+
+.conflict-content {
+    flex: 1;
+}
+
+.conflict-type {
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    margin-bottom: var(--spacing-xs);
+}
+
+.conflict-message {
+    font-size: 0.875rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+/* Responsive Design for Scenario Management */
+@media (max-width: 768px) {
+    .active-scenarios-section .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+
+    .active-scenario-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .active-scenarios-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .scenario-header-controls {
+        flex-direction: column;
+        width: 100%;
+        gap: var(--spacing-sm);
+    }
+
+    .scenarios-filter {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+
+    .filter-group {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .filter-select,
+    .sort-select {
+        flex: 1;
+        min-width: 120px;
+    }
+
+    .scenario-controls {
+        flex-wrap: wrap;
+        margin-left: 0;
+        margin-top: var(--spacing-sm);
+    }
+
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .impact-modal {
+        width: 95%;
+        max-height: 95vh;
+    }
+}
+
+@media (max-width: 480px) {
+    .metrics-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .active-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+
+    .active-card-actions {
+        align-self: flex-end;
+    }
+
+    .scenario-impact-preview {
+        flex-direction: column;
     }
 } 

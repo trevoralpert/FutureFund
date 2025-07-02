@@ -42,6 +42,39 @@ class ChartService {
         }
     }
     
+    // Ensure canvas has proper dimensions
+    ensureCanvasDimensions(canvas) {
+        if (!canvas) return false;
+        
+        const container = canvas.parentElement;
+        if (!container) return false;
+        
+        // Force container to be visible for dimension calculation
+        const originalDisplay = container.style.display;
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+        }
+        
+        // Get container dimensions
+        const containerWidth = container.clientWidth || 600;
+        const containerHeight = container.clientHeight || 300;
+        
+        console.log(`📏 Setting canvas dimensions: ${containerWidth}x${containerHeight}`);
+        
+        // Set explicit canvas dimensions
+        canvas.style.width = containerWidth + 'px';
+        canvas.style.height = containerHeight + 'px';
+        canvas.width = containerWidth;
+        canvas.height = containerHeight;
+        
+        // Restore original display if changed
+        if (originalDisplay) {
+            container.style.display = originalDisplay;
+        }
+        
+        return true;
+    }
+
     // Balance Over Time Chart
     createBalanceOverTimeChart(canvasId, financialData, options = {}) {
         console.log('=== Creating Balance Over Time Chart ===');
@@ -54,6 +87,12 @@ class ChartService {
         
         if (!canvas) {
             console.error(`❌ Canvas with id ${canvasId} not found`);
+            return null;
+        }
+        
+        // Ensure proper canvas dimensions
+        if (!this.ensureCanvasDimensions(canvas)) {
+            console.error('❌ Failed to set canvas dimensions');
             return null;
         }
         
@@ -166,6 +205,12 @@ class ChartService {
             return null;
         }
         
+        // Ensure proper canvas dimensions
+        if (!this.ensureCanvasDimensions(canvas)) {
+            console.error('❌ Failed to set canvas dimensions');
+            return null;
+        }
+        
         const ctx = canvas.getContext('2d');
         
         // Destroy existing chart if it exists
@@ -221,6 +266,12 @@ class ChartService {
         const canvas = document.getElementById(canvasId);
         if (!canvas) {
             console.error(`Canvas with id ${canvasId} not found`);
+            return null;
+        }
+        
+        // Ensure proper canvas dimensions
+        if (!this.ensureCanvasDimensions(canvas)) {
+            console.error('❌ Failed to set canvas dimensions');
             return null;
         }
         

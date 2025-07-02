@@ -585,6 +585,9 @@ class FutureFundTestSuite {
 // AUTO-RUN TESTS WHEN LOADED
 // =============================================================================
 
+// Auto-run tests DISABLED for better UX during development
+// Uncomment the section below to enable automatic test execution
+/*
 // Wait for app to be fully loaded, then run tests
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
@@ -600,6 +603,7 @@ if (document.readyState === 'loading') {
         window.testSuite.runAllTests();
     }, 2000);
 }
+*/
 
 // Export for manual testing
 window.FutureFundTestSuite = FutureFundTestSuite; 

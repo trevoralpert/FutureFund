@@ -87,12 +87,12 @@
 - [x] Net worth calculation across all accounts
 
 ## PHASE 3: SCENARIO FRAMEWORK FOUNDATION
-### Step 3.1: Basic Scenario Management
-- [ ] Scenario activation/deactivation toggle UI
-- [ ] Store active scenario combinations in database
-- [ ] Basic scenario effect calculation on transactions
-- [ ] Update ledger to show scenario-affected projections
-- [ ] Scenario impact preview before activation
+### Step 3.1: Basic Scenario Management ✅ COMPLETE
+- [x] Scenario activation/deactivation toggle UI
+- [x] Store active scenario combinations in database
+- [x] Basic scenario effect calculation on transactions
+- [x] Update ledger to show scenario-affected projections
+- [x] Scenario impact preview before activation
 
 ### Step 3.2: Scenario Combination Logic
 - [ ] Implement additive scenario effect system

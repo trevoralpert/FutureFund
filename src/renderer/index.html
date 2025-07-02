@@ -110,6 +110,17 @@
                                 Add Transaction
                             </button>
                         </div>
+                        <div class="scenario-controls">
+                            <label>Scenarios:</label>
+                            <button class="btn btn-secondary btn-sm" id="scenarioModeToggle" data-mode="base">
+                                <span class="btn-icon">🎯</span>
+                                <span id="scenarioModeText">Base Only</span>
+                            </button>
+                            <button class="btn btn-secondary btn-sm" id="manageActiveBtn">
+                                <span class="btn-icon">⚙️</span>
+                                Manage
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <!-- Table View -->
@@ -390,15 +401,65 @@
         <!-- Scenarios Tab -->
         <div id="scenariosTab" class="tab-content">
             <div class="scenarios-container">
-                <div class="scenarios-header">
-                    <h2>Financial Scenarios</h2>
-                    <button id="newScenarioBtn" class="btn btn-primary">
-                        <span class="btn-icon">➕</span>
-                        New Scenario
-                    </button>
+                <!-- Active Scenarios Management -->
+                <div class="active-scenarios-section">
+                    <div class="section-header">
+                        <h2>🎯 Active Scenarios</h2>
+                        <div class="active-scenario-controls">
+                            <button id="previewImpactBtn" class="btn btn-secondary">
+                                <span class="btn-icon">👁️</span>
+                                Preview Impact
+                            </button>
+                            <button id="clearAllScenariosBtn" class="btn btn-secondary">
+                                <span class="btn-icon">🔄</span>
+                                Clear All
+                            </button>
+                        </div>
+                    </div>
+                    <div class="active-scenarios-grid" id="activeScenariosGrid">
+                        <!-- Active scenario cards will be inserted here -->
+                    </div>
+                    <div class="scenarios-impact-summary" id="scenariosImpactSummary">
+                        <!-- Impact summary will be shown here -->
+                    </div>
                 </div>
-                <div class="scenarios-grid" id="scenariosGrid">
-                    <!-- Dynamic scenario cards will be inserted here -->
+
+                <!-- All Scenarios Management -->
+                <div class="all-scenarios-section">
+                    <div class="scenarios-header">
+                        <h2>📋 All Scenarios</h2>
+                        <div class="scenario-header-controls">
+                            <button id="newScenarioBtn" class="btn btn-primary">
+                                <span class="btn-icon">➕</span>
+                                New Scenario
+                            </button>
+                            <button id="scenarioTemplatesBtn" class="btn btn-secondary">
+                                <span class="btn-icon">📚</span>
+                                Templates
+                            </button>
+                        </div>
+                    </div>
+                    <div class="scenarios-filter">
+                        <div class="filter-group">
+                            <label>Filter:</label>
+                            <select id="scenarioTypeFilter" class="filter-select">
+                                <option value="all">All Scenarios</option>
+                                <option value="active">Active Only</option>
+                                <option value="inactive">Inactive Only</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Sort by:</label>
+                            <select id="scenarioSort" class="sort-select">
+                                <option value="created">Date Created</option>
+                                <option value="name">Name</option>
+                                <option value="type">Type</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="scenarios-grid" id="scenariosGrid">
+                        <!-- Dynamic scenario cards will be inserted here -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -811,6 +872,57 @@
         <div class="context-menu-item dangerous" data-action="delete">
             <span class="context-icon">🗑️</span>
             Delete Account
+        </div>
+    </div>
+
+    <!-- Scenario Impact Preview Modal -->
+    <div id="scenarioImpactModal" class="modal hidden">
+        <div class="modal-overlay" id="scenarioImpactModalOverlay"></div>
+        <div class="modal-content impact-modal">
+            <div class="modal-header">
+                <h2>💡 Scenario Impact Preview</h2>
+                <button class="modal-close" id="scenarioImpactModalClose">×</button>
+            </div>
+            
+            <div class="modal-body">
+                <div class="impact-overview">
+                    <h3>📊 Overall Financial Impact</h3>
+                    <div class="impact-metrics" id="impactMetrics">
+                        <!-- Dynamic impact metrics will be inserted here -->
+                    </div>
+                </div>
+
+                <div class="impact-timeline">
+                    <h3>📅 Timeline Impact</h3>
+                    <div class="timeline-chart-container">
+                        <canvas id="impactTimelineChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="affected-transactions">
+                    <h3>💳 Affected Transactions</h3>
+                    <div class="transaction-changes" id="transactionChanges">
+                        <!-- Transaction changes will be shown here -->
+                    </div>
+                </div>
+
+                <div class="scenario-conflicts" id="scenarioConflicts">
+                    <h3>⚠️ Potential Conflicts</h3>
+                    <div class="conflicts-list" id="conflictsList">
+                        <!-- Scenario conflicts will be shown here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="modal-actions">
+                    <button type="button" id="cancelImpactBtn" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="applyChangesBtn" class="btn btn-primary">
+                        <span class="btn-icon">✅</span>
+                        Apply Changes
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

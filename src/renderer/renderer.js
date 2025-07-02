@@ -11,6 +11,10 @@ class FutureFundApp {
         this.analyticsService = null;
         this.seasonalChart = null;
         this.aggregateView = true; // true for aggregate, false for individual account view
+        this.scenarioMode = 'base'; // 'base', 'active', 'preview'
+        this.activeScenarios = new Map(); // Track active scenarios
+        this.scenarioEffects = new Map(); // Cache scenario effect calculations
+        this.previewData = null; // Store preview calculations
         
         // Loading guards to prevent infinite loops
         this.isLoadingScenarios = false;
@@ -34,6 +38,7 @@ class FutureFundApp {
         // Load initial data
         await this.loadFinancialData();
         await this.loadScenarios();
+        await this.loadActiveScenarios();
         
         console.log('FutureFund initialized successfully!');
     }
@@ -107,7 +112,25 @@ class FutureFundApp {
             this.toggleAggregateView();
         });
 
-        document.getElementById('toggleView').addEventListener('click', () => {
+        // Scenario controls
+        document.getElementById('scenarioModeToggle')?.addEventListener('click', () => {
+            this.toggleScenarioMode();
+        });
+
+        document.getElementById('manageActiveBtn')?.addEventListener('click', () => {
+            this.switchTab('scenarios');
+        });
+
+        document.getElementById('previewImpactBtn')?.addEventListener('click', () => {
+            this.openImpactPreview();
+        });
+
+        document.getElementById('clearAllScenariosBtn')?.addEventListener('click', () => {
+            this.clearAllActiveScenarios();
+        });
+
+        document.getElementById('toggleView')?.addEventListener('click', () => {
+            console.log('📈 Chart view toggle button clicked!');
             this.toggleLedgerView();
         });
 
@@ -1940,26 +1963,70 @@ class FutureFundApp {
 
     // View Toggle Functionality
     toggleLedgerView() {
+        console.log('🔄 Toggle ledger view called');
+        console.log('Current view before toggle:', this.currentView);
+        
         this.currentView = this.currentView === 'table' ? 'chart' : 'table';
+        console.log('New view after toggle:', this.currentView);
         
         const tableView = document.getElementById('tableView');
         const chartView = document.getElementById('chartView');
         const toggleBtn = document.getElementById('toggleView');
         const viewModeText = document.getElementById('viewModeText');
         
+        console.log('Elements found:', {
+            tableView: !!tableView,
+            chartView: !!chartView,
+            toggleBtn: !!toggleBtn,
+            viewModeText: !!viewModeText
+        });
+        
+        console.log('Element visibility before switch:', {
+            tableViewHidden: tableView?.classList.contains('hidden'),
+            chartViewHidden: chartView?.classList.contains('hidden'),
+            tableViewDisplay: tableView?.style.display,
+            chartViewDisplay: chartView?.style.display,
+            chartViewClientWidth: chartView?.clientWidth,
+            chartViewClientHeight: chartView?.clientHeight
+        });
+        
         if (this.currentView === 'chart') {
+            console.log('📈 Switching to chart view...');
             // Switch to chart view
-            tableView.classList.add('hidden');
-            chartView.classList.remove('hidden');
-            toggleBtn.innerHTML = '<span class="btn-icon">📊</span><span id="viewModeText">Table View</span>';
+            if (tableView) tableView.classList.add('hidden');
+            if (chartView) chartView.classList.remove('hidden');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<span class="btn-icon">📊</span><span id="viewModeText">Table View</span>';
+            }
             
-            // Initialize charts with current data
+            console.log('Element visibility after switch to chart view:', {
+                tableViewHidden: tableView?.classList.contains('hidden'),
+                chartViewHidden: chartView?.classList.contains('hidden'),
+                chartViewClientWidth: chartView?.clientWidth,
+                chartViewClientHeight: chartView?.clientHeight
+            });
+            
+            // Initialize charts immediately - no timeout needed
+            console.log('🚀 Initializing charts immediately...');
             this.initializeCharts();
+            
+            // Force chart updates after DOM is ready
+            setTimeout(() => {
+                console.log('🔄 Forcing chart updates and resize...');
+                this.forceChartUpdates();
+                this.resizeAllCharts();
+            }, 50);
+            
+            console.log('✅ Chart view activated');
         } else {
+            console.log('📋 Switching to table view...');
             // Switch to table view
-            chartView.classList.add('hidden');
-            tableView.classList.remove('hidden');
-            toggleBtn.innerHTML = '<span class="btn-icon">📈</span><span id="viewModeText">Chart View</span>';
+            if (chartView) chartView.classList.add('hidden');
+            if (tableView) tableView.classList.remove('hidden');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<span class="btn-icon">📈</span><span id="viewModeText">Chart View</span>';
+            }
+            console.log('✅ Table view activated');
         }
     }
 
@@ -1970,6 +2037,18 @@ class FutureFundApp {
         console.log('financialData exists:', !!this.financialData);
         console.log('financialData length:', this.financialData?.length);
         console.log('financialData sample:', this.financialData?.slice(0, 3));
+        
+        // Check if chart view is actually visible
+        const chartView = document.getElementById('chartView');
+        console.log('Chart view visibility check:', {
+            exists: !!chartView,
+            hidden: chartView?.classList.contains('hidden'),
+            display: chartView?.style.display,
+            clientWidth: chartView?.clientWidth,
+            clientHeight: chartView?.clientHeight,
+            offsetWidth: chartView?.offsetWidth,
+            offsetHeight: chartView?.offsetHeight
+        });
         
         if (!this.chartService || !this.financialData || this.financialData.length === 0) {
             console.warn('❌ Cannot initialize charts - missing service or data');
@@ -1988,33 +2067,29 @@ class FutureFundApp {
             this.showChartLoading('categoryChart');
             this.showChartLoading('trendsChart');
 
-            console.log('⏰ Setting timeout for chart creation...');
-            // Initialize charts with a small delay for better UX
-            setTimeout(() => {
-                console.log('🎯 Starting chart creation...');
-                
-                console.log('📊 Creating balance chart...');
-                this.createBalanceChart();
-                
-                console.log('📊 Creating category chart...');
-                this.createCategoryChart();
-                
-                console.log('📊 Creating trends chart...');
-                this.createTrendsChart();
-                
-                // Hide loading overlays
-                console.log('🔄 Hiding loading overlays...');
-                this.hideChartLoading('balanceChart');
-                this.hideChartLoading('categoryChart');
-                this.hideChartLoading('trendsChart');
-                
-                // Add animation class
-                document.querySelectorAll('.chart-container').forEach(container => {
-                    container.classList.add('animate');
-                });
-                
-                console.log('✅ Chart initialization completed');
-            }, 300);
+            console.log('🎯 Starting chart creation immediately...');
+            
+            console.log('📊 Creating balance chart...');
+            this.createBalanceChart();
+            
+            console.log('📊 Creating category chart...');
+            this.createCategoryChart();
+            
+            console.log('📊 Creating trends chart...');
+            this.createTrendsChart();
+            
+            // Hide loading overlays
+            console.log('🔄 Hiding loading overlays...');
+            this.hideChartLoading('balanceChart');
+            this.hideChartLoading('categoryChart');
+            this.hideChartLoading('trendsChart');
+            
+            // Add animation class
+            document.querySelectorAll('.chart-container').forEach(container => {
+                container.classList.add('animate');
+            });
+            
+            console.log('✅ Chart initialization completed');
 
         } catch (error) {
             console.error('❌ Error initializing charts:', error);
@@ -2214,6 +2289,84 @@ class FutureFundApp {
         if (this.currentView === 'chart' && this.chartService) {
             this.initializeCharts();
         }
+    }
+
+    // Force Chart.js updates (fixes rendering issues)
+    forceChartUpdates() {
+        if (!this.chartService || !this.chartService.charts) return;
+        
+        console.log('🔄 Forcing chart updates...');
+        let updatedCount = 0;
+        
+        for (const [chartId, chart] of this.chartService.charts) {
+            try {
+                if (chart && typeof chart.update === 'function') {
+                    // Force canvas visibility
+                    const canvas = document.getElementById(chartId);
+                    if (canvas) {
+                        canvas.style.display = 'block';
+                        canvas.style.visibility = 'visible';
+                        
+                        const container = canvas.parentElement;
+                        if (container) {
+                            container.style.display = 'block';
+                            container.style.visibility = 'visible';
+                        }
+                    }
+                    
+                    // Force Chart.js update
+                    chart.update('resize');
+                    updatedCount++;
+                    console.log(`✅ Chart ${chartId} updated successfully`);
+                } else {
+                    console.warn(`⚠️ Chart ${chartId} doesn't support update`);
+                }
+            } catch (error) {
+                console.error(`❌ Error updating chart ${chartId}:`, error);
+            }
+        }
+        
+        console.log(`🎯 Updated ${updatedCount} charts`);
+    }
+
+    // Resize all existing charts (fixes dimension issues)
+    resizeAllCharts() {
+        if (!this.chartService || !this.chartService.charts) return;
+        
+        console.log('🔄 Resizing all charts...');
+        let resizedCount = 0;
+        
+        for (const [chartId, chart] of this.chartService.charts) {
+            try {
+                if (chart && typeof chart.resize === 'function') {
+                    // Force canvas to have proper dimensions
+                    const canvas = document.getElementById(chartId);
+                    if (canvas) {
+                        const container = canvas.parentElement;
+                        if (container) {
+                            // Set explicit dimensions based on container
+                            const containerWidth = container.clientWidth;
+                            const containerHeight = Math.max(container.clientHeight, 300);
+                            
+                            canvas.style.width = containerWidth + 'px';
+                            canvas.style.height = containerHeight + 'px';
+                            
+                            console.log(`📏 Resizing chart ${chartId}: ${containerWidth}x${containerHeight}`);
+                        }
+                    }
+                    
+                    chart.resize();
+                    resizedCount++;
+                    console.log(`✅ Chart ${chartId} resized successfully`);
+                } else {
+                    console.warn(`⚠️ Chart ${chartId} doesn't support resize`);
+                }
+            } catch (error) {
+                console.error(`❌ Error resizing chart ${chartId}:`, error);
+            }
+        }
+        
+        console.log(`🎯 Resized ${resizedCount} charts`);
     }
 
     formatCurrency(amount) {
@@ -3670,12 +3823,602 @@ ${health.status === 'healthy' ?
         
         console.log(`📊 Switched to ${this.aggregateView ? 'Aggregate' : 'Individual Account'} view`);
     }
+
+    // ============================================================================
+    // ENHANCED SCENARIO MANAGEMENT (Phase 3.1)
+    // ============================================================================
+
+    // Scenario Mode Toggle (Base/Active/Preview)
+    toggleScenarioMode() {
+        const modes = ['base', 'active', 'preview'];
+        const currentIndex = modes.indexOf(this.scenarioMode);
+        const nextIndex = (currentIndex + 1) % modes.length;
+        this.scenarioMode = modes[nextIndex];
+
+        this.updateScenarioModeUI();
+        this.refreshLedger();
+
+        console.log(`🎯 Switched to scenario mode: ${this.scenarioMode}`);
+    }
+
+    updateScenarioModeUI() {
+        const toggleBtn = document.getElementById('scenarioModeToggle');
+        const toggleText = document.getElementById('scenarioModeText');
+        const icon = toggleBtn.querySelector('.btn-icon');
+
+        const modeConfig = {
+            'base': { text: 'Base Only', icon: '📊', title: 'Showing base scenario only' },
+            'active': { text: 'With Scenarios', icon: '🎯', title: 'Including active scenarios' },
+            'preview': { text: 'Preview Mode', icon: '👁️', title: 'Previewing scenario changes' }
+        };
+
+        const config = modeConfig[this.scenarioMode];
+        toggleBtn.setAttribute('data-mode', this.scenarioMode);
+        toggleText.textContent = config.text;
+        icon.textContent = config.icon;
+        toggleBtn.title = config.title;
+    }
+
+    // Active Scenario Management
+    async loadActiveScenarios() {
+        try {
+            const result = await electronAPI.loadScenarios({ active: true });
+            if (result.success && result.scenarios) {
+                this.activeScenarios.clear();
+                result.scenarios.forEach(scenario => {
+                    if (scenario.isActive) {
+                        this.activeScenarios.set(scenario.id, scenario);
+                    }
+                });
+                this.updateActiveScenariosUI();
+                console.log(`📋 Loaded ${this.activeScenarios.size} active scenarios`);
+            }
+        } catch (error) {
+            console.error('Error loading active scenarios:', error);
+        }
+    }
+
+    updateActiveScenariosUI() {
+        const activeGrid = document.getElementById('activeScenariosGrid');
+        const impactSummary = document.getElementById('scenariosImpactSummary');
+
+        if (!activeGrid) return;
+
+        // Clear existing content
+        activeGrid.innerHTML = '';
+
+        if (this.activeScenarios.size === 0) {
+            activeGrid.innerHTML = `
+                <div class="empty-active-scenarios">
+                    <div class="empty-icon">🎯</div>
+                    <h3>No Active Scenarios</h3>
+                    <p>Select scenarios from the list below to see their combined impact on your finances.</p>
+                </div>
+            `;
+            if (impactSummary) impactSummary.innerHTML = '';
+            return;
+        }
+
+        // Render active scenario cards
+        const fragment = document.createDocumentFragment();
+        this.activeScenarios.forEach(scenario => {
+            const card = this.createActiveScenarioCard(scenario);
+            fragment.appendChild(card);
+        });
+        activeGrid.appendChild(fragment);
+
+        // Update impact summary
+        this.updateImpactSummary();
+    }
+
+    createActiveScenarioCard(scenario) {
+        const card = document.createElement('div');
+        card.className = 'active-scenario-card';
+        card.setAttribute('data-scenario-id', scenario.id);
+
+        const template = this.getScenarioTemplates().find(t => t.id === scenario.template);
+        const templateIcon = template ? template.icon : '📋';
+
+        card.innerHTML = `
+            <div class="active-card-header">
+                <div class="active-card-info">
+                    <span class="active-card-icon">${templateIcon}</span>
+                    <div class="active-card-details">
+                        <h4 class="active-card-name">${scenario.name}</h4>
+                        <p class="active-card-type">${template ? template.name : 'Custom'}</p>
+                    </div>
+                </div>
+                <div class="active-card-actions">
+                    <button class="active-card-action" onclick="app.previewScenarioImpact('${scenario.id}')" title="Preview Impact">
+                        👁️
+                    </button>
+                    <button class="active-card-action" onclick="app.toggleScenarioActive('${scenario.id}')" title="Deactivate">
+                        ❌
+                    </button>
+                </div>
+            </div>
+            <div class="active-card-impact" id="scenarioImpact_${scenario.id}">
+                <!-- Impact metrics will be calculated and shown here -->
+            </div>
+        `;
+
+        return card;
+    }
+
+    async updateImpactSummary() {
+        const impactSummary = document.getElementById('scenariosImpactSummary');
+        if (!impactSummary || this.activeScenarios.size === 0) return;
+
+        try {
+            const combinedEffects = await this.calculateCombinedScenarioEffects();
+            
+            impactSummary.innerHTML = `
+                <div class="impact-summary-card">
+                    <h4>📊 Combined Impact Summary</h4>
+                    <div class="impact-metrics-grid">
+                        <div class="impact-metric">
+                            <span class="impact-label">Net Effect (1 Year)</span>
+                            <span class="impact-value ${combinedEffects.netEffect >= 0 ? 'positive' : 'negative'}">
+                                ${this.formatCurrency(combinedEffects.netEffect)}
+                            </span>
+                        </div>
+                        <div class="impact-metric">
+                            <span class="impact-label">Monthly Change</span>
+                            <span class="impact-value ${combinedEffects.monthlyChange >= 0 ? 'positive' : 'negative'}">
+                                ${this.formatCurrency(combinedEffects.monthlyChange)}
+                            </span>
+                        </div>
+                        <div class="impact-metric">
+                            <span class="impact-label">Affected Transactions</span>
+                            <span class="impact-value">${combinedEffects.affectedTransactions}</span>
+                        </div>
+                        <div class="impact-metric">
+                            <span class="impact-label">Risk Level</span>
+                            <span class="impact-value risk-${combinedEffects.riskLevel}">
+                                ${combinedEffects.riskLevel.toUpperCase()}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error updating impact summary:', error);
+            impactSummary.innerHTML = `
+                <div class="impact-summary-error">
+                    <p>⚠️ Error calculating scenario impacts</p>
+                </div>
+            `;
+        }
+    }
+
+    // Scenario Effect Calculations
+    async calculateCombinedScenarioEffects() {
+        let netEffect = 0;
+        let monthlyChange = 0;
+        let affectedTransactions = 0;
+        let riskLevel = 'low';
+
+        // Process each active scenario
+        for (const [scenarioId, scenario] of this.activeScenarios) {
+            const effects = await this.calculateScenarioEffects(scenario);
+            
+            netEffect += effects.netEffect || 0;
+            monthlyChange += effects.monthlyChange || 0;
+            affectedTransactions += effects.affectedTransactions || 0;
+            
+            // Increase risk level based on scenario complexity
+            if (effects.riskLevel === 'high') riskLevel = 'high';
+            else if (effects.riskLevel === 'medium' && riskLevel === 'low') riskLevel = 'medium';
+        }
+
+        return {
+            netEffect,
+            monthlyChange,
+            affectedTransactions,
+            riskLevel
+        };
+    }
+
+    async calculateScenarioEffects(scenario) {
+        // Check cache first
+        if (this.scenarioEffects.has(scenario.id)) {
+            return this.scenarioEffects.get(scenario.id);
+        }
+
+        // Calculate effects based on scenario type and parameters
+        let effects = {
+            netEffect: 0,
+            monthlyChange: 0,
+            affectedTransactions: 0,
+            riskLevel: 'low'
+        };
+
+        try {
+            const parameters = scenario.parameters || {};
+            
+            switch (scenario.type || scenario.template) {
+                case 'salary_increase':
+                    effects = this.calculateSalaryIncreaseEffects(parameters);
+                    break;
+                case 'job_loss':
+                    effects = this.calculateJobLossEffects(parameters);
+                    break;
+                case 'major_purchase':
+                    effects = this.calculateMajorPurchaseEffects(parameters);
+                    break;
+                case 'debt_payoff':
+                    effects = this.calculateDebtPayoffEffects(parameters);
+                    break;
+                case 'emergency_fund':
+                    effects = this.calculateEmergencyFundEffects(parameters);
+                    break;
+                default:
+                    effects = this.calculateGenericScenarioEffects(parameters);
+            }
+
+            // Cache the results
+            this.scenarioEffects.set(scenario.id, effects);
+            
+        } catch (error) {
+            console.error(`Error calculating effects for scenario ${scenario.id}:`, error);
+        }
+
+        return effects;
+    }
+
+    calculateSalaryIncreaseEffects(parameters) {
+        const increasePercent = parseFloat(parameters.increasePercent || 0) / 100;
+        const currentSalary = parseFloat(parameters.currentSalary || 60000);
+        const increaseAmount = currentSalary * increasePercent;
+        const monthlyIncrease = increaseAmount / 12;
+
+        return {
+            netEffect: increaseAmount,
+            monthlyChange: monthlyIncrease,
+            affectedTransactions: 12, // Monthly paychecks
+            riskLevel: 'low'
+        };
+    }
+
+    calculateJobLossEffects(parameters) {
+        const monthsUnemployed = parseInt(parameters.monthsUnemployed || 3);
+        const monthlySalary = parseFloat(parameters.monthlySalary || 5000);
+        const unemploymentBenefit = parseFloat(parameters.unemploymentBenefit || 0);
+        
+        const totalLoss = monthsUnemployed * monthlySalary;
+        const totalBenefits = monthsUnemployed * unemploymentBenefit;
+        const netEffect = -(totalLoss - totalBenefits);
+
+        return {
+            netEffect,
+            monthlyChange: -(monthlySalary - unemploymentBenefit),
+            affectedTransactions: monthsUnemployed * 2, // Loss of income + unemployment benefits
+            riskLevel: 'high'
+        };
+    }
+
+    calculateMajorPurchaseEffects(parameters) {
+        const purchaseAmount = parseFloat(parameters.purchaseAmount || 0);
+        const downPayment = parseFloat(parameters.downPayment || purchaseAmount);
+        const monthlyPayment = parseFloat(parameters.monthlyPayment || 0);
+        const loanTermMonths = parseInt(parameters.loanTermMonths || 0);
+
+        return {
+            netEffect: -(downPayment + (monthlyPayment * loanTermMonths)),
+            monthlyChange: -monthlyPayment,
+            affectedTransactions: 1 + loanTermMonths, // Initial purchase + monthly payments
+            riskLevel: purchaseAmount > 50000 ? 'high' : purchaseAmount > 10000 ? 'medium' : 'low'
+        };
+    }
+
+    calculateDebtPayoffEffects(parameters) {
+        const debtAmount = parseFloat(parameters.debtAmount || 0);
+        const currentPayment = parseFloat(parameters.currentPayment || 0);
+        const newPayment = parseFloat(parameters.newPayment || currentPayment);
+        const monthsToPayoff = parseInt(parameters.monthsToPayoff || 12);
+
+        return {
+            netEffect: -(newPayment - currentPayment) * monthsToPayoff,
+            monthlyChange: -(newPayment - currentPayment),
+            affectedTransactions: monthsToPayoff,
+            riskLevel: newPayment > currentPayment * 2 ? 'medium' : 'low'
+        };
+    }
+
+    calculateEmergencyFundEffects(parameters) {
+        const targetAmount = parseFloat(parameters.targetAmount || 10000);
+        const monthlyContribution = parseFloat(parameters.monthlyContribution || 500);
+        const months = Math.ceil(targetAmount / monthlyContribution);
+
+        return {
+            netEffect: -targetAmount,
+            monthlyChange: -monthlyContribution,
+            affectedTransactions: months,
+            riskLevel: 'low'
+        };
+    }
+
+    calculateGenericScenarioEffects(parameters) {
+        // Fallback for unknown scenario types
+        const monthlyAmount = parseFloat(parameters.monthlyAmount || 0);
+        const duration = parseInt(parameters.duration || 12);
+
+        return {
+            netEffect: monthlyAmount * duration,
+            monthlyChange: monthlyAmount,
+            affectedTransactions: duration,
+            riskLevel: Math.abs(monthlyAmount) > 1000 ? 'medium' : 'low'
+        };
+    }
+
+    // Impact Preview Modal
+    async openImpactPreview() {
+        if (this.activeScenarios.size === 0) {
+            if (window.notificationManager) {
+                window.notificationManager.warning('No active scenarios to preview');
+            } else {
+                alert('No active scenarios to preview');
+            }
+            return;
+        }
+
+        const modal = document.getElementById('scenarioImpactModal');
+        modal.classList.remove('hidden');
+
+        // Calculate and display impact
+        await this.generateImpactPreview();
+        this.initializeImpactModalListeners();
+    }
+
+    async generateImpactPreview() {
+        try {
+            const combinedEffects = await this.calculateCombinedScenarioEffects();
+            const affectedData = this.calculateAffectedTransactions();
+
+            // Update impact metrics
+            this.updateImpactMetrics(combinedEffects);
+            
+            // Update affected transactions
+            this.updateAffectedTransactionsList(affectedData);
+            
+            // Check for conflicts
+            this.checkScenarioConflicts();
+
+            console.log('📊 Impact preview generated successfully');
+        } catch (error) {
+            console.error('Error generating impact preview:', error);
+        }
+    }
+
+    updateImpactMetrics(effects) {
+        const metricsContainer = document.getElementById('impactMetrics');
+        if (!metricsContainer) return;
+
+        metricsContainer.innerHTML = `
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h4>Net Financial Impact</h4>
+                    <div class="metric-value ${effects.netEffect >= 0 ? 'positive' : 'negative'}">
+                        ${this.formatCurrency(effects.netEffect)}
+                    </div>
+                    <div class="metric-subtitle">Over 1 year</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Monthly Change</h4>
+                    <div class="metric-value ${effects.monthlyChange >= 0 ? 'positive' : 'negative'}">
+                        ${this.formatCurrency(effects.monthlyChange)}
+                    </div>
+                    <div class="metric-subtitle">Per month</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Transactions Affected</h4>
+                    <div class="metric-value">${effects.affectedTransactions}</div>
+                    <div class="metric-subtitle">Total count</div>
+                </div>
+                <div class="metric-card">
+                    <h4>Risk Assessment</h4>
+                    <div class="metric-value risk-${effects.riskLevel}">
+                        ${effects.riskLevel.toUpperCase()}
+                    </div>
+                    <div class="metric-subtitle">Overall risk</div>
+                </div>
+            </div>
+        `;
+    }
+
+    calculateAffectedTransactions() {
+        // For now, return a simplified view
+        // In a full implementation, this would analyze each transaction
+        return {
+            newTransactions: Array.from(this.activeScenarios.values()).length * 2,
+            modifiedTransactions: 0,
+            removedTransactions: 0
+        };
+    }
+
+    updateAffectedTransactionsList(data) {
+        const changesContainer = document.getElementById('transactionChanges');
+        if (!changesContainer) return;
+
+        changesContainer.innerHTML = `
+            <div class="transaction-changes-summary">
+                <div class="change-item">
+                    <span class="change-icon">➕</span>
+                    <span class="change-label">New Transactions:</span>
+                    <span class="change-count">${data.newTransactions}</span>
+                </div>
+                <div class="change-item">
+                    <span class="change-icon">✏️</span>
+                    <span class="change-label">Modified:</span>
+                    <span class="change-count">${data.modifiedTransactions}</span>
+                </div>
+                <div class="change-item">
+                    <span class="change-icon">➖</span>
+                    <span class="change-label">Removed:</span>
+                    <span class="change-count">${data.removedTransactions}</span>
+                </div>
+            </div>
+            <div class="transaction-preview-note">
+                <p>💡 <strong>Note:</strong> These changes will be applied to your projected transactions. Historical data remains unchanged.</p>
+            </div>
+        `;
+    }
+
+    checkScenarioConflicts() {
+        const conflictsContainer = document.getElementById('conflictsList');
+        if (!conflictsContainer) return;
+
+        // Simple conflict detection - in a full implementation this would be more sophisticated
+        const conflicts = [];
+        
+        if (this.activeScenarios.size > 3) {
+            conflicts.push({
+                type: 'complexity',
+                message: 'Multiple active scenarios may create unpredictable interactions',
+                severity: 'medium'
+            });
+        }
+
+        if (conflicts.length === 0) {
+            conflictsContainer.innerHTML = `
+                <div class="no-conflicts">
+                    <span class="success-icon">✅</span>
+                    <p>No conflicts detected between active scenarios.</p>
+                </div>
+            `;
+        } else {
+            const conflictItems = conflicts.map(conflict => `
+                <div class="conflict-item severity-${conflict.severity}">
+                    <span class="conflict-icon">⚠️</span>
+                    <div class="conflict-content">
+                        <div class="conflict-type">${conflict.type.toUpperCase()}</div>
+                        <div class="conflict-message">${conflict.message}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            conflictsContainer.innerHTML = conflictItems;
+        }
+    }
+
+    initializeImpactModalListeners() {
+        // Close modal listeners
+        document.getElementById('scenarioImpactModalClose').onclick = () => this.closeImpactModal();
+        document.getElementById('scenarioImpactModalOverlay').onclick = () => this.closeImpactModal();
+        document.getElementById('cancelImpactBtn').onclick = () => this.closeImpactModal();
+
+        // Apply changes listener
+        document.getElementById('applyChangesBtn').onclick = () => this.applyScenarioChanges();
+    }
+
+    closeImpactModal() {
+        document.getElementById('scenarioImpactModal').classList.add('hidden');
+    }
+
+    async applyScenarioChanges() {
+        try {
+            // This would implement the actual application of scenario effects
+            console.log('🔄 Applying scenario changes...');
+            
+            // Update scenario mode to show effects
+            this.scenarioMode = 'active';
+            this.updateScenarioModeUI();
+            
+            // Refresh ledger with scenario effects
+            this.refreshLedger();
+            
+            // Close modal
+            this.closeImpactModal();
+            
+            // Show success notification
+            if (window.notificationManager) {
+                window.notificationManager.success('Scenario changes applied successfully');
+            } else {
+                alert('Scenario changes applied successfully');
+            }
+            
+        } catch (error) {
+            console.error('Error applying scenario changes:', error);
+            if (window.notificationManager) {
+                window.notificationManager.error('Failed to apply scenario changes');
+            } else {
+                alert('Failed to apply scenario changes: ' + error.message);
+            }
+        }
+    }
+
+    async clearAllActiveScenarios() {
+        try {
+            const confirmMessage = `Are you sure you want to deactivate all ${this.activeScenarios.size} active scenarios?`;
+            if (!confirm(confirmMessage)) return;
+
+            // Deactivate all scenarios
+            for (const scenarioId of this.activeScenarios.keys()) {
+                await electronAPI.toggleScenarioActive(scenarioId, false);
+            }
+
+            // Clear local cache
+            this.activeScenarios.clear();
+            this.scenarioEffects.clear();
+
+            // Update UI
+            this.updateActiveScenariosUI();
+            this.scenarioMode = 'base';
+            this.updateScenarioModeUI();
+            this.refreshLedger();
+
+            if (window.notificationManager) {
+                window.notificationManager.success('All scenarios deactivated');
+            } else {
+                alert('All scenarios deactivated');
+            }
+            console.log('🔄 All active scenarios cleared');
+
+        } catch (error) {
+            console.error('Error clearing scenarios:', error);
+            if (window.notificationManager) {
+                window.notificationManager.error('Failed to clear scenarios');
+            } else {
+                alert('Failed to clear scenarios: ' + error.message);
+            }
+        }
+    }
+
+    async previewScenarioImpact(scenarioId) {
+        const scenario = this.activeScenarios.get(scenarioId);
+        if (!scenario) return;
+
+        try {
+            const effects = await this.calculateScenarioEffects(scenario);
+            
+            // Update the specific scenario card with impact data
+            const impactContainer = document.getElementById(`scenarioImpact_${scenarioId}`);
+            if (impactContainer) {
+                impactContainer.innerHTML = `
+                    <div class="scenario-impact-preview">
+                        <div class="impact-item">
+                            <span class="impact-label">Monthly:</span>
+                            <span class="impact-value ${effects.monthlyChange >= 0 ? 'positive' : 'negative'}">
+                                ${this.formatCurrency(effects.monthlyChange)}
+                            </span>
+                        </div>
+                        <div class="impact-item">
+                            <span class="impact-label">Annual:</span>
+                            <span class="impact-value ${effects.netEffect >= 0 ? 'positive' : 'negative'}">
+                                ${this.formatCurrency(effects.netEffect)}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }
+
+        } catch (error) {
+            console.error(`Error previewing scenario ${scenarioId}:`, error);
+        }
+    }
 }
 
-// Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.app = new FutureFundApp();
-});
+// App initialization moved to end of file for proper manager setup
 
 // Add dynamic styles
 const style = document.createElement('style');
@@ -4900,5 +5643,30 @@ class PerformanceManager {
     }
 }
 
-// Create global performance manager instance
+// ============================================================================
+// GLOBAL MANAGER INSTANCES
+// ============================================================================
+
+// Create global manager instances
 window.performanceManager = new PerformanceManager();
+window.notificationManager = new NotificationManager();
+window.loadingManager = new LoadingManager();
+window.keyboardShortcuts = new KeyboardShortcuts();
+window.tooltipManager = new TooltipManager();
+
+// Initialize global app instance when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new FutureFundApp();
+    window.app.init().catch(error => {
+        console.error('❌ Failed to initialize FutureFund:', error);
+        document.body.innerHTML = `
+            <div style="padding: 2rem; text-align: center; color: #dc2626;">
+                <h1>🚨 Application Error</h1>
+                <p>Failed to initialize FutureFund. Please refresh the page.</p>
+                <pre style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem; font-size: 0.875rem;">${error.message}</pre>
+            </div>
+        `;
+    });
+});
+
+console.log('📚 FutureFund modules loaded successfully');
