@@ -67,6 +67,10 @@ class ChartService {
         canvas.width = containerWidth;
         canvas.height = containerHeight;
         
+        // Force canvas attributes for Chart.js
+        canvas.setAttribute('width', containerWidth);
+        canvas.setAttribute('height', containerHeight);
+        
         // Restore original display if changed
         if (originalDisplay) {
             container.style.display = originalDisplay;

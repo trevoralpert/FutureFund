@@ -19,6 +19,7 @@ class FutureFundApp {
         // Loading guards to prevent infinite loops
         this.isLoadingScenarios = false;
         this.isLoadingFinancialData = false;
+        this.isCreatingCharts = false; // Flag to prevent rapid clicking during chart creation
         
         this.init();
     }
@@ -1963,6 +1964,12 @@ class FutureFundApp {
 
     // View Toggle Functionality
     toggleLedgerView() {
+        // Prevent rapid clicking during chart creation
+        if (this.isCreatingCharts) {
+            console.log('⚠️ Charts are being created, ignoring click');
+            return;
+        }
+        
         console.log('🔄 Toggle ledger view called');
         console.log('Current view before toggle:', this.currentView);
         
@@ -2006,16 +2013,38 @@ class FutureFundApp {
                 chartViewClientHeight: chartView?.clientHeight
             });
             
-            // Initialize charts immediately - no timeout needed
-            console.log('🚀 Initializing charts immediately...');
-            this.initializeCharts();
+            // Wait for DOM to be fully rendered before creating charts
+            console.log('🚀 Waiting for DOM render then initializing charts...');
+            this.isCreatingCharts = true; // Prevent rapid clicking
             
-            // Force chart updates after DOM is ready
-            setTimeout(() => {
-                console.log('🔄 Forcing chart updates and resize...');
-                this.forceChartUpdates();
-                this.resizeAllCharts();
-            }, 50);
+            // Use requestAnimationFrame to ensure DOM is fully rendered
+            requestAnimationFrame(() => {
+                // Double-check we're still in chart view before creating charts
+                if (this.currentView !== 'chart') {
+                    console.log('⚠️ View changed before chart creation, aborting...');
+                    this.isCreatingCharts = false; // Clear flag
+                    return;
+                }
+                
+                console.log('🎯 DOM rendered, creating charts now...');
+                this.initializeCharts();
+                
+                // Force chart updates after creation
+                setTimeout(() => {
+                    // Only update charts if we're still in chart view
+                    if (this.currentView === 'chart') {
+                        console.log('🔄 Forcing chart updates and resize...');
+                        this.forceChartUpdates();
+                        this.resizeAllCharts();
+                    } else {
+                        console.log('⚠️ View changed, skipping chart updates');
+                    }
+                    
+                    // Clear the chart creation flag
+                    this.isCreatingCharts = false;
+                    console.log('✅ Chart creation process completed');
+                }, 100);
+            });
             
             console.log('✅ Chart view activated');
         } else {
