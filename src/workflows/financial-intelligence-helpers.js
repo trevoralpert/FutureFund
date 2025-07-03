@@ -234,85 +234,169 @@ function generateFallbackSpendingInsights(transactions, patterns, metrics) {
   };
 }
 
-// === Anomaly Detection Algorithms ===
+// === Enhanced Anomaly Detection Algorithms ===
+
+/**
+ * Detect recurring transaction patterns
+ * Returns transactions that appear to be recurring (rent, utilities, subscriptions, etc.)
+ */
+function detectRecurringTransactions(transactions) {
+  console.log('🔍 Detecting recurring transaction patterns...');
+  
+  const recurringCandidates = {};
+  const recurringThreshold = 0.1; // 10% amount variation allowed
+  const minOccurrences = 2; // Need at least 2 occurrences
+  
+  // Group transactions by similar amount and description
+  transactions.forEach(transaction => {
+    const amount = Math.abs(transaction.amount);
+    const description = transaction.description.toLowerCase();
+    
+    // Create a key based on amount ranges and description patterns
+    const amountBucket = Math.floor(amount / 50) * 50; // Group into $50 buckets
+    const descriptionKey = description.replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
+    const key = `${amountBucket}-${descriptionKey}`;
+    
+    if (!recurringCandidates[key]) {
+      recurringCandidates[key] = [];
+    }
+    
+    recurringCandidates[key].push(transaction);
+  });
+  
+  const recurringTransactions = [];
+  
+  // Analyze each group for recurring patterns
+  Object.values(recurringCandidates).forEach(group => {
+    if (group.length >= minOccurrences) {
+      const amounts = group.map(t => Math.abs(t.amount));
+      const avgAmount = amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length;
+      
+      // Check if amounts are consistent (within threshold)
+      const amountVariation = Math.max(...amounts) - Math.min(...amounts);
+      const variationPercentage = amountVariation / avgAmount;
+      
+      if (variationPercentage <= recurringThreshold) {
+        // Check for time consistency (monthly, bi-weekly, etc.)
+        const dates = group.map(t => new Date(t.date)).sort((a, b) => a - b);
+        const intervals = [];
+        
+        for (let i = 1; i < dates.length; i++) {
+          const daysBetween = Math.floor((dates[i] - dates[i-1]) / (1000 * 60 * 60 * 24));
+          intervals.push(daysBetween);
+        }
+        
+        // Check if intervals are consistent (monthly ~30 days, bi-weekly ~14 days, etc.)
+        const avgInterval = intervals.reduce((sum, int) => sum + int, 0) / intervals.length;
+        const intervalVariation = Math.max(...intervals) - Math.min(...intervals);
+        
+        if (intervalVariation <= 7) { // Allow 7-day variation in recurring patterns
+          recurringTransactions.push(...group);
+        }
+      }
+    }
+  });
+  
+  console.log(`✅ Detected ${recurringTransactions.length} recurring transactions`);
+  return recurringTransactions;
+}
+
+/**
+ * Enhanced amount anomaly detection that excludes recurring expenses
+ */
 function detectAmountAnomalies(transactions, patterns) {
-  const amounts = transactions.map(t => Math.abs(t.amount));
+  console.log('🔍 Detecting amount anomalies (excluding recurring expenses)...');
+  
+  // First, identify recurring transactions
+  const recurringTransactions = detectRecurringTransactions(transactions);
+  const recurringIds = new Set(recurringTransactions.map(t => t.id));
+  
+  // Filter out recurring transactions for anomaly detection
+  const nonRecurringTransactions = transactions.filter(t => !recurringIds.has(t.id));
+  
+  if (nonRecurringTransactions.length === 0) {
+    return [];
+  }
+  
+  const amounts = nonRecurringTransactions.map(t => Math.abs(t.amount));
   const mean = amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length;
   const stdDev = calculateStandardDeviation(amounts);
-  const threshold = mean + (2 * stdDev); // 2 standard deviations
+  const threshold = mean + (2.5 * stdDev); // Slightly higher threshold
   
-  return transactions
+  const anomalies = nonRecurringTransactions
     .filter(t => Math.abs(t.amount) > threshold)
     .map(t => ({
       transaction: t,
       type: 'amount',
       severity: Math.abs(t.amount) > (mean + 3 * stdDev) ? 'high' : 'medium',
       description: `Unusually large transaction: $${Math.abs(t.amount).toFixed(2)} (${((Math.abs(t.amount) - mean) / mean * 100).toFixed(1)}% above average)`,
-      riskScore: Math.min(1, (Math.abs(t.amount) - mean) / (3 * stdDev))
+      riskScore: Math.min(1, (Math.abs(t.amount) - mean) / (3 * stdDev)),
+      category: t.category || 'Other'
     }));
+  
+  console.log(`✅ Found ${anomalies.length} amount anomalies (excluded ${recurringTransactions.length} recurring transactions)`);
+  return anomalies;
 }
 
-function detectFrequencyAnomalies(transactions, patterns) {
-  const dailyCounts = {};
-  
-  transactions.forEach(t => {
-    const date = t.date.toDateString();
-    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
-  });
-  
-  const counts = Object.values(dailyCounts);
-  const avgDailyCount = counts.reduce((sum, count) => sum + count, 0) / counts.length;
-  const stdDev = calculateStandardDeviation(counts);
-  const threshold = avgDailyCount + (2 * stdDev);
-  
-  return Object.entries(dailyCounts)
-    .filter(([, count]) => count > threshold)
-    .map(([date, count]) => ({
-      date,
-      type: 'frequency',
-      severity: count > (avgDailyCount + 3 * stdDev) ? 'high' : 'medium',
-      description: `Unusually high transaction frequency: ${count} transactions on ${date}`,
-      riskScore: Math.min(1, (count - avgDailyCount) / (3 * stdDev))
-    }));
-}
-
+// === Enhanced Anomaly Detection with Recurring Expense Intelligence ===
 function detectCategoryAnomalies(transactions, patterns) {
+  console.log('🔍 Detecting category anomalies (with recurring expense intelligence)...');
+  
+  const recurringTransactions = detectRecurringTransactions(transactions);
+  const recurringIds = new Set(recurringTransactions.map(t => t.id));
+  
+  // Separate recurring and non-recurring transactions
+  const nonRecurringTransactions = transactions.filter(t => !recurringIds.has(t.id));
+  
   const categoryExpected = {};
   const categoryActual = {};
   
-  // Calculate expected spending based on historical patterns
-  patterns.categorical.topCategories.forEach(cat => {
-    categoryExpected[cat.category] = cat.total / getDaySpan(transactions);
+  // Calculate expected spending based on non-recurring historical patterns
+  const categoryTotals = {};
+  nonRecurringTransactions.forEach(t => {
+    const category = t.category || 'Other';
+    categoryTotals[category] = (categoryTotals[category] || 0) + Math.abs(t.amount);
   });
   
-  // Calculate recent spending (last 7 days)
-  const recentDate = new Date(Math.max(...transactions.map(t => t.date)));
-  const sevenDaysAgo = new Date(recentDate.getTime() - (7 * 24 * 60 * 60 * 1000));
+  const totalDays = getDaySpan(transactions);
+  Object.keys(categoryTotals).forEach(category => {
+    categoryExpected[category] = categoryTotals[category] / totalDays;
+  });
   
-  transactions
-    .filter(t => t.date >= sevenDaysAgo)
+  // Calculate recent spending (last 14 days, excluding recurring)
+  const recentDate = new Date(Math.max(...transactions.map(t => new Date(t.date))));
+  const fourteenDaysAgo = new Date(recentDate.getTime() - (14 * 24 * 60 * 60 * 1000));
+  
+  nonRecurringTransactions
+    .filter(t => new Date(t.date) >= fourteenDaysAgo)
     .forEach(t => {
-      categoryActual[t.category] = (categoryActual[t.category] || 0) + Math.abs(t.amount);
+      const category = t.category || 'Other';
+      categoryActual[category] = (categoryActual[category] || 0) + Math.abs(t.amount);
     });
   
   const anomalies = [];
   
   Object.keys(categoryExpected).forEach(category => {
-    const expected = categoryExpected[category] * 7; // 7 days worth
+    const expected = categoryExpected[category] * 14; // 14 days worth
     const actual = categoryActual[category] || 0;
-    const deviation = Math.abs(actual - expected) / expected;
     
-    if (deviation > 0.5) { // 50% deviation threshold
-      anomalies.push({
-        category,
-        type: 'category',
-        severity: deviation > 1.0 ? 'high' : 'medium',
-        description: `Unusual spending in ${category}: $${actual.toFixed(2)} vs expected $${expected.toFixed(2)}`,
-        riskScore: Math.min(1, deviation)
-      });
+    if (expected > 0) {
+      const deviation = Math.abs(actual - expected) / expected;
+      
+      if (deviation > 0.75) { // 75% deviation threshold (higher than before)
+        anomalies.push({
+          category,
+          type: 'category',
+          severity: deviation > 1.5 ? 'high' : 'medium',
+          description: `Unusual spending in ${category}: $${actual.toFixed(2)} vs expected $${expected.toFixed(2)}`,
+          riskScore: Math.min(1, deviation / 2),
+          isIncrease: actual > expected
+        });
+      }
     }
   });
   
+  console.log(`✅ Found ${anomalies.length} category anomalies`);
   return anomalies;
 }
 
@@ -443,6 +527,42 @@ function calculateRiskManagement(transactions, anomalies) {
   };
 }
 
+// === Enhanced Frequency Anomaly Detection ===
+function detectFrequencyAnomalies(transactions, patterns) {
+  console.log('🔍 Detecting frequency anomalies (excluding recurring patterns)...');
+  
+  const recurringTransactions = detectRecurringTransactions(transactions);
+  const recurringIds = new Set(recurringTransactions.map(t => t.id));
+  const nonRecurringTransactions = transactions.filter(t => !recurringIds.has(t.id));
+  
+  const dailyCounts = {};
+  
+  nonRecurringTransactions.forEach(t => {
+    const date = new Date(t.date).toDateString();
+    dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+  });
+  
+  const counts = Object.values(dailyCounts);
+  if (counts.length === 0) return [];
+  
+  const avgDailyCount = counts.reduce((sum, count) => sum + count, 0) / counts.length;
+  const stdDev = calculateStandardDeviation(counts);
+  const threshold = avgDailyCount + (2 * stdDev);
+  
+  const anomalies = Object.entries(dailyCounts)
+    .filter(([, count]) => count > threshold && count >= 5) // At least 5 transactions
+    .map(([date, count]) => ({
+      date,
+      type: 'frequency',
+      severity: count > (avgDailyCount + 3 * stdDev) ? 'high' : 'medium',
+      description: `Unusually high transaction frequency: ${count} transactions on ${date}`,
+      riskScore: Math.min(1, (count - avgDailyCount) / (3 * stdDev))
+    }));
+  
+  console.log(`✅ Found ${anomalies.length} frequency anomalies`);
+  return anomalies;
+}
+
 // === Utility Functions ===
 function getSeason(month) {
   if ([11, 0, 1].includes(month)) return 'Winter';
@@ -510,7 +630,8 @@ module.exports = {
   generateAISpendingInsights,
   generateFallbackSpendingInsights,
   
-  // Anomaly Detection
+  // Enhanced Anomaly Detection
+  detectRecurringTransactions,
   detectAmountAnomalies,
   detectFrequencyAnomalies,
   detectCategoryAnomalies,

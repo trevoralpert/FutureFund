@@ -403,15 +403,15 @@ class EnhancedChatService {
     
     // Extract data from the workflow result structure
     const workflowData = result?.data || {};
-    const insights = workflowData?.insights?.keyFindings || [];
-    const recommendations = workflowData?.recommendations?.immediate || [];
     const healthScore = workflowData?.healthScore?.overall?.score || 0;
-    const executionSummary = workflowData?.executionMetadata?.summary || {};
+    const spendingPatterns = workflowData?.spendingPatterns || {};
+    const anomalies = workflowData?.anomalies || {};
+    const categorizedTransactions = workflowData?.categorizedTransactions || {};
     
-    console.log('🔍 Debug: Extracted insights:', insights);
-    console.log('🔍 Debug: Extracted recommendations:', recommendations);
     console.log('🔍 Debug: Health score:', healthScore);
+    console.log('🔍 Debug: Anomalies:', anomalies);
     
+    // Start building human-like response
     let response = `🧠 **Financial Intelligence Analysis**\n\n`;
     
     // Add health score if available
@@ -430,86 +430,287 @@ class EnhancedChatService {
       response += `**AI Financial Health Score: ${percentageScore}/100 (${grade})**\n\n`;
     }
     
-    // Add key insights
-    if (insights.length > 0) {
-      response += `**Key Insights:**\n`;
-      insights.slice(0, 3).forEach((insight, i) => {
-        response += `${i + 1}. ${insight.description || insight.message || insight}\n`;
+    // Provide sophisticated financial analysis
+    response += this.generateContextualFinancialAdvice(
+      workflowData, 
+      financialContext, 
+      originalQuery,
+      healthScore
+    );
+    
+    console.log(`✅ Debug: Final formatted response length: ${response.length}`);
+    return response;
+  }
+
+  /**
+   * Generate contextual, human-like financial advice
+   */
+  generateContextualFinancialAdvice(workflowData, financialContext, originalQuery, healthScore) {
+    const transactions = financialContext?.allTransactions || [];
+    const userProfile = financialContext?.userProfile || {};
+    const accounts = financialContext?.accounts || {};
+    const currentBalance = financialContext?.currentBalance || 0;
+    const monthlyNetIncome = financialContext?.monthlyNetIncome || 0;
+    
+    let advice = '';
+    
+    // 1. Analyze spending patterns and major expenses
+    const spendingAnalysis = this.analyzeSpendingPatterns(transactions, userProfile);
+    if (spendingAnalysis.insights.length > 0) {
+      advice += `**What I'm Seeing:**\n`;
+      spendingAnalysis.insights.forEach(insight => {
+        advice += `• ${insight}\n`;
       });
-      response += `\n`;
-    } else {
-      console.log('⚠️ Debug: No insights found in workflow result');
+      advice += `\n`;
     }
     
-    // Add recommendations
-    if (recommendations.length > 0) {
-      response += `**Recommendations:**\n`;
-      recommendations.slice(0, 3).forEach((rec, i) => {
-        const action = rec.action || rec.title || `Action ${i + 1}`;
-        const description = rec.description || rec.message || rec;
-        response += `• ${action}: ${description}\n`;
-      });
-      response += `\n`;
-    } else {
-      console.log('⚠️ Debug: No recommendations found in workflow result');
-    }
-    
-    // Add personalized context if available
-    if (financialContext?.userProfile?.name) {
-      response += `**Personalized for ${financialContext.userProfile.name}:**\n`;
-      response += `• Current Balance: $${financialContext.currentBalance?.toLocaleString() || 'N/A'}\n`;
-      response += `• Monthly Net Cash Flow: $${financialContext.monthlyNetIncome?.toLocaleString() || 'N/A'}\n`;
-      
-      if (financialContext.userProfile.creditCardDebt?.total) {
-        response += `• Credit Card Debt: $${financialContext.userProfile.creditCardDebt.total.toLocaleString()}\n`;
+    // 2. Debt-specific analysis (if asking about debt)
+    if (originalQuery.toLowerCase().includes('debt')) {
+      const debtAnalysis = this.analyzeDebtSituation(userProfile, monthlyNetIncome, transactions);
+      if (debtAnalysis.recommendations.length > 0) {
+        advice += `**Debt Reduction Strategy:**\n`;
+        debtAnalysis.recommendations.forEach(rec => {
+          advice += `• ${rec}\n`;
+        });
+        advice += `\n`;
       }
-      response += `\n`;
     }
     
-    // If no insights or recommendations, provide fallback content
-    if (insights.length === 0 && recommendations.length === 0) {
-      console.log('⚠️ Debug: Providing fallback content since workflow returned no insights');
-      response += `**Based on your debt question, here are some general recommendations:**\n\n`;
+    // 3. Cash flow and budget analysis
+    const cashFlowAnalysis = this.analyzeCashFlowSituation(transactions, currentBalance, monthlyNetIncome);
+    if (cashFlowAnalysis.observations.length > 0) {
+      advice += `**Cash Flow Observations:**\n`;
+      cashFlowAnalysis.observations.forEach(obs => {
+        advice += `• ${obs}\n`;
+      });
+      advice += `\n`;
+    }
+    
+    // 4. Actionable recommendations
+    const actionableSteps = this.generateActionableRecommendations(
+      spendingAnalysis, 
+      userProfile, 
+      monthlyNetIncome, 
+      healthScore
+    );
+    
+    if (actionableSteps.length > 0) {
+      advice += `**Actionable Steps:**\n`;
+      actionableSteps.forEach((step, index) => {
+        advice += `${index + 1}. ${step}\n`;
+      });
+      advice += `\n`;
+    }
+    
+    // 5. Encouraging conclusion
+    advice += `**Remember:** Financial improvement takes time. Focus on one or two changes at a time for the best results.`;
+    
+    return advice;
+  }
+
+  /**
+   * Analyze spending patterns with human-like insights
+   */
+  analyzeSpendingPatterns(transactions, userProfile) {
+    const insights = [];
+    
+    // Analyze by category
+    const categorySpending = {};
+    const monthlyAmounts = {};
+    
+    transactions.forEach(transaction => {
+      const category = transaction.category || 'Other';
+      const amount = Math.abs(transaction.amount);
+      const date = new Date(transaction.date);
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
       
-      if (financialContext?.userProfile?.creditCardDebt?.total) {
-        const totalDebt = financialContext.userProfile.creditCardDebt.total;
-        const monthlyIncome = financialContext.monthlyNetIncome || 0;
-        const debtToIncomeRatio = monthlyIncome > 0 ? (totalDebt / (monthlyIncome * 12)) * 100 : 0;
+      if (transaction.amount < 0) { // Expenses only
+        categorySpending[category] = (categorySpending[category] || 0) + amount;
         
-        response += `**Debt Analysis:**\n`;
-        response += `• Total Credit Card Debt: $${totalDebt.toLocaleString()}\n`;
-        response += `• Debt-to-Income Ratio: ${debtToIncomeRatio.toFixed(1)}%\n\n`;
+        if (!monthlyAmounts[monthKey]) monthlyAmounts[monthKey] = {};
+        monthlyAmounts[monthKey][category] = (monthlyAmounts[monthKey][category] || 0) + amount;
+      }
+    });
+    
+    // Find largest expense categories
+    const sortedCategories = Object.entries(categorySpending)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
+    
+    if (sortedCategories.length > 0) {
+      const [topCategory, topAmount] = sortedCategories[0];
+      const totalExpenses = Object.values(categorySpending).reduce((sum, amt) => sum + amt, 0);
+      const percentage = ((topAmount / totalExpenses) * 100).toFixed(1);
+      
+      // Identify if it's likely recurring (housing, utilities, subscriptions)
+      const recurringCategories = ['Housing', 'Utilities', 'Subscriptions', 'Insurance', 'Phone'];
+      const isRecurring = recurringCategories.includes(topCategory);
+      
+      if (isRecurring && percentage > 30) {
+        insights.push(`Your ${topCategory.toLowerCase()} expenses are $${topAmount.toLocaleString()} (${percentage}% of spending), which is your largest category. This suggests your fixed costs may be too high relative to your income.`);
         
-        response += `**Debt Payoff Strategies:**\n`;
-        response += `1. **Avalanche Method**: Pay minimums on all cards, extra on highest APR first\n`;
-        response += `2. **Snowball Method**: Pay minimums on all cards, extra on smallest balance first\n`;
-        response += `3. **Debt Consolidation**: Consider a lower-interest personal loan\n`;
-        response += `4. **Balance Transfer**: Move high-interest debt to a 0% APR card\n\n`;
+        if (topCategory === 'Housing') {
+          insights.push(`Housing costs above 30% of income can strain finances. Consider whether your rent/mortgage fits your budget long-term.`);
+        }
+      } else {
+        insights.push(`Your top spending category is ${topCategory} at $${topAmount.toLocaleString()} (${percentage}% of total expenses).`);
+      }
+    }
+    
+    // Analyze debt situation
+    if (userProfile.creditCardDebt?.total > 0) {
+      const totalDebt = userProfile.creditCardDebt.total;
+      insights.push(`You're carrying $${totalDebt.toLocaleString()} in credit card debt across ${userProfile.creditCardDebt.accountCount} accounts.`);
+    }
+    
+    return { insights, categorySpending };
+  }
+
+  /**
+   * Analyze debt situation with specific recommendations
+   */
+  analyzeDebtSituation(userProfile, monthlyNetIncome, transactions) {
+    const recommendations = [];
+    
+    if (userProfile.creditCardDebt?.total > 0) {
+      const totalDebt = userProfile.creditCardDebt.total;
+      const accounts = userProfile.creditCardDebt.accounts || [];
+      
+      // Calculate debt-to-income ratio
+      const annualIncome = monthlyNetIncome * 12;
+      const debtToIncomeRatio = annualIncome > 0 ? (totalDebt / annualIncome) * 100 : 0;
+      
+      if (debtToIncomeRatio > 40) {
+        recommendations.push(`Your debt-to-income ratio is ${debtToIncomeRatio.toFixed(1)}%, which is quite high. This limits your financial flexibility significantly.`);
+      }
+      
+      // Specific debt strategy recommendations
+      if (accounts.length > 1) {
+        const highestBalanceAccount = accounts.reduce((max, acc) => 
+          acc.balance > max.balance ? acc : max
+        );
         
-        if (monthlyIncome > 0) {
-          const recommended20Percent = monthlyIncome * 0.2;
-          response += `**Budget Recommendations:**\n`;
-          response += `• Aim to allocate 20% of monthly income ($${recommended20Percent.toFixed(0)}) to debt payments\n`;
-          response += `• Cut discretionary spending temporarily to accelerate payoff\n`;
-          response += `• Consider a side hustle to increase income\n\n`;
+        recommendations.push(`Consider the "debt avalanche" method: make minimum payments on all cards, then put extra money toward your highest APR debt first.`);
+        
+        if (highestBalanceAccount.balance > 5000) {
+          recommendations.push(`Your ${highestBalanceAccount.name} has a high balance ($${highestBalanceAccount.balance.toLocaleString()}). Consider a balance transfer to a 0% APR card if you qualify.`);
         }
       }
       
-      response += `**Next Steps:**\n`;
-      response += `• Create a detailed debt payoff plan\n`;
-      response += `• Set up automatic payments to avoid late fees\n`;
-      response += `• Track progress monthly to stay motivated\n\n`;
+      // Monthly payment analysis
+      const recommendedPayment = Math.max(
+        totalDebt * 0.05, // 5% of total debt
+        monthlyNetIncome * 0.2 // 20% of monthly income
+      );
+      
+      if (monthlyNetIncome > 0) {
+        recommendations.push(`Try to allocate $${recommendedPayment.toFixed(0)} per month toward debt payments (20% of your monthly income) to make meaningful progress.`);
+      }
     }
     
-    // Analysis metadata
-    const dataPoints = executionSummary.totalTransactions || financialContext?.allTransactions?.length || 0;
-    const confidence = financialContext?.contextMetadata?.confidenceLevel || 0.8;
+    return { recommendations };
+  }
+
+  /**
+   * Analyze cash flow situation
+   */
+  analyzeCashFlowSituation(transactions, currentBalance, monthlyNetIncome) {
+    const observations = [];
     
-    response += `*Analysis based on ${dataPoints} data points with ${(confidence * 100).toFixed(0)}% confidence.*`;
+    // Current financial position
+    if (currentBalance < 0) {
+      observations.push(`Your current net worth is negative ($${currentBalance.toLocaleString()}), indicating you owe more than you own.`);
+    }
     
-    console.log('✅ Debug: Final formatted response length:', response.length);
+    // Monthly cash flow analysis
+    if (monthlyNetIncome > 0) {
+      const monthlyExpenses = this.calculateAverageMonthlyExpenses(transactions);
+      const netCashFlow = monthlyNetIncome - monthlyExpenses;
+      
+      if (netCashFlow < 0) {
+        observations.push(`You're spending $${Math.abs(netCashFlow).toFixed(0)} more per month than you earn. This is unsustainable and requires immediate attention.`);
+      } else if (netCashFlow < 500) {
+        observations.push(`Your monthly cash flow is tight at $${netCashFlow.toFixed(0)}. You have little cushion for unexpected expenses.`);
+      } else {
+        observations.push(`You have $${netCashFlow.toFixed(0)} in positive monthly cash flow, which is good for building savings.`);
+      }
+    }
     
-    return response;
+    return { observations };
+  }
+
+  /**
+   * Calculate average monthly expenses
+   */
+  calculateAverageMonthlyExpenses(transactions) {
+    const expenseTransactions = transactions.filter(t => t.amount < 0);
+    
+    if (expenseTransactions.length === 0) return 0;
+    
+    const totalExpenses = expenseTransactions.reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    const dateRange = this.getDateRangeInMonths(transactions);
+    
+    return dateRange > 0 ? totalExpenses / dateRange : 0;
+  }
+
+  /**
+   * Get date range in months
+   */
+  getDateRangeInMonths(transactions) {
+    if (transactions.length === 0) return 0;
+    
+    const dates = transactions.map(t => new Date(t.date)).sort((a, b) => a - b);
+    const startDate = dates[0];
+    const endDate = dates[dates.length - 1];
+    
+    const monthsDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                      (endDate.getMonth() - startDate.getMonth());
+    
+    return Math.max(1, monthsDiff);
+  }
+
+  /**
+   * Generate actionable recommendations
+   */
+  generateActionableRecommendations(spendingAnalysis, userProfile, monthlyNetIncome, healthScore) {
+    const recommendations = [];
+    
+    // Based on spending analysis
+    const sortedCategories = Object.entries(spendingAnalysis.categorySpending)
+      .sort(([,a], [,b]) => b - a);
+    
+    if (sortedCategories.length > 0) {
+      const [topCategory, topAmount] = sortedCategories[0];
+      
+      if (topCategory === 'Housing' && topAmount > monthlyNetIncome * 0.3) {
+        recommendations.push(`Consider finding more affordable housing or increasing your income. Your housing costs are consuming too much of your budget.`);
+      }
+      
+      if (topCategory === 'Dining' || topCategory === 'Food') {
+        recommendations.push(`Track your food spending more carefully. Consider meal planning and cooking at home to reduce this expense.`);
+      }
+    }
+    
+    // Debt-specific recommendations
+    if (userProfile.creditCardDebt?.total > 0) {
+      recommendations.push(`Stop using credit cards for new purchases until you pay down existing debt.`);
+      
+      if (userProfile.creditCardDebt.total > 10000) {
+        recommendations.push(`Consider debt consolidation with a personal loan at a lower interest rate.`);
+      }
+    }
+    
+    // Health score based recommendations
+    if (healthScore < 2.5) {
+      recommendations.push(`Create a strict budget and track every expense for the next 30 days to identify where money is going.`);
+    }
+    
+    // Income recommendations
+    if (monthlyNetIncome > 0 && monthlyNetIncome < 4000) {
+      recommendations.push(`Look for ways to increase your income - side gigs, skill development, or job advancement opportunities.`);
+    }
+    
+    return recommendations;
   }
   
   formatForecastResponse(result, originalQuery, financialContext) {
