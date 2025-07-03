@@ -20,6 +20,7 @@ class FutureFundApp {
         this.isLoadingScenarios = false;
         this.isLoadingFinancialData = false;
         this.isCreatingCharts = false; // Flag to prevent rapid clicking during chart creation
+        this.isCreatingUser = false; // Flag to prevent multiple user creation
         
         this.init();
     }
@@ -515,132 +516,291 @@ class FutureFundApp {
 
     generateMockData() {
         const data = [];
-        const categories = ['Income', 'Housing', 'Transportation', 'Food', 'Utilities', 'Insurance', 'Healthcare', 'Savings', 'Debt', 'Entertainment', 'Other'];
         const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 12);
-
-        let currentBalance = 5000;
+        startDate.setMonth(startDate.getMonth() - 6); // 6 months of history
         
-        // Generate past transactions (12 months)
-        for (let i = 0; i < 365; i++) {
+        // Sampuel's current situation: $29.22 in checking, $20,360.90 in credit card debt
+        let currentBalance = 29.22;
+        
+        console.log('💰 Generating Sampuel Profileman\'s financial data...');
+        
+        // Generate Sampuel's realistic transaction history (last 6 months)
+        for (let i = 0; i < 180; i++) {
             const date = new Date(startDate);
             date.setDate(date.getDate() + i);
+            const dayOfWeek = date.getDay();
+            const dayOfMonth = date.getDate();
             
-            const transactionCount = Math.floor(Math.random() * 3) + 1;
-            
-            for (let j = 0; j < transactionCount; j++) {
-                const isIncome = Math.random() < 0.15;
-                const category = isIncome ? 'Income' : 
-                               categories[Math.floor(Math.random() * (categories.length - 1)) + 1];
-                
-                let amount;
-                if (isIncome) {
-                    amount = Math.random() * 1000 + 2000;
-                } else {
-                    amount = -(Math.random() * 200 + 10);
-                }
-                
-                currentBalance += amount;
-                
+            // Weekly barista income (Fridays) - $700-900
+            if (dayOfWeek === 5) { // Friday
+                const weeklyPay = 700 + Math.random() * 200; // $700-900
+                currentBalance += weeklyPay;
                 data.push({
-                    id: `${date.toISOString().split('T')[0]}-${j}`,
+                    id: `${date.toISOString().split('T')[0]}-income`,
                     date: date.toISOString().split('T')[0],
-                    description: this.generateTransactionDescription(category, isIncome),
-                    category: category,
-                    amount: amount,
+                    description: 'Barista Paycheck - Coffee Bean & Tea Leaf',
+                    category: 'Income',
+                    amount: Math.round(weeklyPay * 100) / 100,
                     balance: Math.round(currentBalance * 100) / 100,
-                    type: isIncome ? 'Income' : 'Expense',
+                    type: 'Income',
                     isProjected: false
                 });
             }
-        }
-
-        // Generate future projections with more frequent transactions
-        const futureStartDate = new Date();
-        for (let i = 1; i <= 365; i++) {
-            const date = new Date(futureStartDate);
-            date.setDate(date.getDate() + i);
             
-            // Monthly salary on the 1st
-            if (date.getDate() === 1) {
-                currentBalance += 2500;
-                data.push({
-                    id: `proj-${date.toISOString().split('T')[0]}-salary`,
-                    date: date.toISOString().split('T')[0],
-                    description: 'Projected Salary',
-                    category: 'Income',
-                    amount: 2500,
-                    balance: Math.round(currentBalance * 100) / 100,
-                    type: 'Income',
-                    isProjected: true
-                });
-            }
-            
-            // Investment return on the 10th of each month
-            if (date.getDate() === 10) {
-                const investmentAmount = Math.random() * 1000 + 1500; // $1500-2500
-                currentBalance += investmentAmount;
-                data.push({
-                    id: `proj-${date.toISOString().split('T')[0]}-investment`,
-                    date: date.toISOString().split('T')[0],
-                    description: 'Investment Return',
-                    category: 'Income',
-                    amount: Math.round(investmentAmount * 100) / 100,
-                    balance: Math.round(currentBalance * 100) / 100,
-                    type: 'Income',
-                    isProjected: true
-                });
-                
-                // Also add some shopping expense on the same day
-                const shoppingAmount = -(Math.random() * 200 + 50); // $50-250
-                currentBalance += shoppingAmount;
-                data.push({
-                    id: `proj-${date.toISOString().split('T')[0]}-shopping`,
-                    date: date.toISOString().split('T')[0],
-                    description: 'Shopping',
-                    category: 'Debt',
-                    amount: Math.round(shoppingAmount * 100) / 100,
-                    balance: Math.round(currentBalance * 100) / 100,
-                    type: 'Expense',
-                    isProjected: true
-                });
-            }
-            
-            // Monthly rent on the 15th
-            if (date.getDate() === 15) {
+            // Monthly rent (1st of each month) - $1,200
+            if (dayOfMonth === 1) {
                 currentBalance -= 1200;
                 data.push({
-                    id: `proj-${date.toISOString().split('T')[0]}-rent`,
+                    id: `${date.toISOString().split('T')[0]}-rent`,
                     date: date.toISOString().split('T')[0],
-                    description: 'Projected Rent',
+                    description: 'Rent Payment - LA Apartment',
                     category: 'Housing',
                     amount: -1200,
                     balance: Math.round(currentBalance * 100) / 100,
                     type: 'Expense',
-                    isProjected: true
+                    isProjected: false
                 });
             }
             
-            // More frequent random transactions (70% chance instead of 30%)
-            if (Math.random() < 0.7) {
-                const category = categories[Math.floor(Math.random() * (categories.length - 1)) + 1];
-                const amount = -(Math.random() * 150 + 5);
-                currentBalance += amount;
-                
+            // Monthly car insurance (15th of each month) - $200
+            if (dayOfMonth === 15) {
+                currentBalance -= 200;
                 data.push({
-                    id: `proj-${date.toISOString().split('T')[0]}-${Math.random().toString(36).substr(2, 9)}`,
+                    id: `${date.toISOString().split('T')[0]}-insurance`,
                     date: date.toISOString().split('T')[0],
-                    description: `Projected ${category}`,
-                    category: category,
-                    amount: amount,
+                    description: 'Auto Insurance Premium',
+                    category: 'Transportation',
+                    amount: -200,
                     balance: Math.round(currentBalance * 100) / 100,
                     type: 'Expense',
-                    isProjected: true
+                    isProjected: false
                 });
+            }
+            
+            // Daily expenses - realistic LA barista lifestyle
+            const dailyExpenses = this.generateSampuelDailyExpenses(date);
+            dailyExpenses.forEach(expense => {
+                currentBalance += expense.amount;
+                data.push({
+                    ...expense,
+                    balance: Math.round(currentBalance * 100) / 100,
+                    isProjected: false
+                });
+            });
+        }
+
+        // Add credit card debt context (separate from checking account)
+        const creditCardDebt = [
+            { name: 'Chase Freedom', balance: 5420.33, minPayment: 125, apr: 22.99 },
+            { name: 'Capital One Quicksilver', balance: 7891.12, minPayment: 185, apr: 24.49 },
+            { name: 'Discover it', balance: 4233.67, minPayment: 98, apr: 19.99 },
+            { name: 'Citi Double Cash', balance: 2815.78, minPayment: 65, apr: 21.99 }
+        ];
+        
+        // Monthly credit card payments (past 6 months)
+        const today = new Date();
+        for (let month = 0; month < 6; month++) {
+            const paymentDate = new Date(today);
+            paymentDate.setMonth(paymentDate.getMonth() - month);
+            paymentDate.setDate(15); // Mid-month payments
+            
+            creditCardDebt.forEach(card => {
+                const payment = card.minPayment + Math.random() * 50; // Minimum + extra
+                currentBalance -= payment;
+                data.push({
+                    id: `${paymentDate.toISOString().split('T')[0]}-${card.name.toLowerCase().replace(/\s+/g, '-')}`,
+                    date: paymentDate.toISOString().split('T')[0],
+                    description: `Credit Card Payment - ${card.name}`,
+                    category: 'Debt',
+                    amount: -payment,
+                    balance: Math.round(currentBalance * 100) / 100,
+                    type: 'Expense',
+                    isProjected: false
+                });
+            });
+        }
+
+        // Generate future projections with Sampuel's career transition (next 12 months)
+        const futureStartDate = new Date();
+        for (let i = 1; i <= 365; i++) {
+            const date = new Date(futureStartDate);
+            date.setDate(date.getDate() + i);
+            const monthsFromNow = Math.floor(i / 30);
+            
+            // Career transition happens in September 2025 (month 8 from now)
+            const isPostCareerChange = monthsFromNow >= 8;
+            
+            if (isPostCareerChange) {
+                // AI Engineering salary: $200k/year = ~$16,667/month (before taxes)
+                // Net after taxes in Austin: ~$12,000/month
+                if (date.getDate() === 1) { // Monthly salary
+                    currentBalance += 12000;
+                    data.push({
+                        id: `future-${date.toISOString().split('T')[0]}-salary`,
+                        date: date.toISOString().split('T')[0],
+                        description: 'AI Engineering Salary - Austin Tech Co',
+                        category: 'Income',
+                        amount: 12000,
+                        balance: Math.round(currentBalance * 100) / 100,
+                        type: 'Income',
+                        isProjected: true
+                    });
+                }
+                
+                // Austin living expenses (lower cost of living)
+                if (date.getDate() === 1) {
+                    currentBalance -= 1800; // Austin rent (vs $1200 LA)
+                    data.push({
+                        id: `future-${date.toISOString().split('T')[0]}-rent-austin`,
+                        date: date.toISOString().split('T')[0],
+                        description: 'Rent Payment - Austin Apartment',
+                        category: 'Housing',
+                        amount: -1800,
+                        balance: Math.round(currentBalance * 100) / 100,
+                        type: 'Expense',
+                        isProjected: true
+                    });
+                }
+                
+                // Aggressive debt payoff with higher income
+                if (date.getDate() === 15) {
+                    currentBalance -= 2000; // Aggressive debt payoff
+                    data.push({
+                        id: `future-${date.toISOString().split('T')[0]}-debt-payoff`,
+                        date: date.toISOString().split('T')[0],
+                        description: 'Aggressive Credit Card Payoff',
+                        category: 'Debt',
+                        amount: -2000,
+                        balance: Math.round(currentBalance * 100) / 100,
+                        type: 'Expense',
+                        isProjected: true
+                    });
+                }
+                
+            } else {
+                // Continue current barista income pattern (before career change)
+                if (date.getDay() === 5) { // Friday
+                    const weeklyPay = 700 + Math.random() * 200;
+                    currentBalance += weeklyPay;
+                    data.push({
+                        id: `future-${date.toISOString().split('T')[0]}-income`,
+                        date: date.toISOString().split('T')[0],
+                        description: 'Barista Paycheck - Coffee Bean & Tea Leaf',
+                        category: 'Income',
+                        amount: Math.round(weeklyPay * 100) / 100,
+                        balance: Math.round(currentBalance * 100) / 100,
+                        type: 'Income',
+                        isProjected: true
+                    });
+                }
+                
+                // Continue current LA expenses
+                if (date.getDate() === 1) {
+                    currentBalance -= 1200; // LA rent
+                    data.push({
+                        id: `future-${date.toISOString().split('T')[0]}-rent-la`,
+                        date: date.toISOString().split('T')[0],
+                        description: 'Rent Payment - LA Apartment',
+                        category: 'Housing',
+                        amount: -1200,
+                        balance: Math.round(currentBalance * 100) / 100,
+                        type: 'Expense',
+                        isProjected: true
+                    });
+                }
+                
+                // Continue minimum credit card payments
+                if (date.getDate() === 15) {
+                    currentBalance -= 473; // Total minimum payments
+                    data.push({
+                        id: `future-${date.toISOString().split('T')[0]}-debt-min`,
+                        date: date.toISOString().split('T')[0],
+                        description: 'Credit Card Minimum Payments',
+                        category: 'Debt',
+                        amount: -473,
+                        balance: Math.round(currentBalance * 100) / 100,
+                        type: 'Expense',
+                        isProjected: true
+                    });
+                }
             }
         }
 
         return data.sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+
+    generateSampuelDailyExpenses(date) {
+        const expenses = [];
+        const dayOfWeek = date.getDay();
+        const dayOfMonth = date.getDate();
+        
+        // Daily coffee/food expenses (barista gets some free coffee but still buys food)
+        if (Math.random() < 0.6) { // 60% chance daily
+            const foodExpense = {
+                id: `${date.toISOString().split('T')[0]}-food-${Math.random().toString(36).substr(2, 5)}`,
+                date: date.toISOString().split('T')[0],
+                description: Math.random() < 0.5 ? 'Lunch - Food Truck' : 'Groceries - Trader Joes',
+                category: 'Food',
+                amount: -(Math.random() * 15 + 8), // $8-23
+                type: 'Expense'
+            };
+            expenses.push(foodExpense);
+        }
+        
+        // Gas expenses (2-3x per week)
+        if (Math.random() < 0.3) { // 30% chance daily
+            const gasExpense = {
+                id: `${date.toISOString().split('T')[0]}-gas-${Math.random().toString(36).substr(2, 5)}`,
+                date: date.toISOString().split('T')[0],
+                description: 'Gas - Shell Station',
+                category: 'Transportation',
+                amount: -(Math.random() * 35 + 40), // $40-75
+                type: 'Expense'
+            };
+            expenses.push(gasExpense);
+        }
+        
+        // Weekend entertainment (Friday-Sunday)
+        if ([0, 5, 6].includes(dayOfWeek) && Math.random() < 0.4) { // 40% chance on weekends
+            const entertainmentExpense = {
+                id: `${date.toISOString().split('T')[0]}-entertainment-${Math.random().toString(36).substr(2, 5)}`,
+                date: date.toISOString().split('T')[0],
+                description: Math.random() < 0.5 ? 'Movie Night - AMC' : 'Drinks - Local Bar',
+                category: 'Entertainment',
+                amount: -(Math.random() * 40 + 15), // $15-55
+                type: 'Expense'
+            };
+            expenses.push(entertainmentExpense);
+        }
+        
+        // Credit card payments (stress spending)
+        if (Math.random() < 0.15) { // 15% chance - impulse purchases
+            const creditCardExpense = {
+                id: `${date.toISOString().split('T')[0]}-credit-${Math.random().toString(36).substr(2, 5)}`,
+                date: date.toISOString().split('T')[0],
+                description: 'Online Purchase - Amazon',
+                category: 'Other',
+                amount: -(Math.random() * 80 + 20), // $20-100
+                type: 'Expense'
+            };
+            expenses.push(creditCardExpense);
+        }
+        
+        // Utilities (monthly, spread across different days)
+        if (dayOfMonth === 5 || dayOfMonth === 12 || dayOfMonth === 22) {
+            const utilityExpense = {
+                id: `${date.toISOString().split('T')[0]}-utility-${Math.random().toString(36).substr(2, 5)}`,
+                date: date.toISOString().split('T')[0],
+                description: dayOfMonth === 5 ? 'Electric Bill - LADWP' : 
+                            dayOfMonth === 12 ? 'Internet - Spectrum' : 'Phone Bill - Verizon',
+                category: 'Utilities',
+                amount: dayOfMonth === 5 ? -85 : dayOfMonth === 12 ? -60 : -45,
+                type: 'Expense'
+            };
+            expenses.push(utilityExpense);
+        }
+        
+        return expenses;
     }
 
     generateTransactionDescription(category, isIncome) {
@@ -1068,6 +1228,42 @@ class FutureFundApp {
             dateRange: {
                 start: allTransactions[0]?.date,
                 end: allTransactions[allTransactions.length - 1]?.date
+            },
+            // Sampuel Profileman's specific context
+            userProfile: {
+                name: "Sampuel Profileman",
+                age: 31,
+                location: "Los Angeles, CA",
+                currentJob: "Barista at Coffee Bean & Tea Leaf",
+                weeklyIncome: "$700-900 (variable hours)",
+                monthlyRent: 1200,
+                carInsurance: 200,
+                creditCardDebt: {
+                    total: 20360.90,
+                    cards: [
+                        { name: "Chase Freedom", balance: 5420.33, apr: 22.99, minPayment: 125 },
+                        { name: "Capital One Quicksilver", balance: 7891.12, apr: 24.49, minPayment: 185 },
+                        { name: "Discover it", balance: 4233.67, apr: 19.99, minPayment: 98 },
+                        { name: "Citi Double Cash", balance: 2815.78, apr: 21.99, minPayment: 65 }
+                    ]
+                },
+                assets: {
+                    car: { value: 12000, status: "paid off" }
+                },
+                futureOpportunity: {
+                    job: "AI Engineering Position",
+                    salary: 200000,
+                    location: "Austin, TX",
+                    startDate: "September 2025",
+                    benefits: "Lower cost of living, no state income tax in Texas"
+                },
+                keyDecisions: [
+                    "Should I sell my car to pay down debt?",
+                    "How to manage the career transition period?",
+                    "Debt payoff strategy vs. emergency fund building?",
+                    "LA vs Austin cost of living analysis?",
+                    "Optimal timing for the move to Austin?"
+                ]
             }
         };
     }
@@ -1318,52 +1514,52 @@ class FutureFundApp {
     getScenarioTemplates() {
         return [
             {
-                id: 'salary_change',
-                icon: '💰',
-                name: 'Salary Change',
-                description: 'Model a salary increase, decrease, or bonus changes'
+                id: 'sell_car_for_debt',
+                icon: '🚗💰',
+                name: 'Sell Car for Debt Payoff',
+                description: 'Should Sampuel sell his $12,000 car to pay down credit card debt?'
             },
             {
-                id: 'job_change',
-                icon: '💼',
-                name: 'Job Change',
-                description: 'Plan for switching jobs or career transitions'
+                id: 'career_transition',
+                icon: '🤖💼',
+                name: 'AI Engineering Career Move',
+                description: 'Model the career change to $200k AI job in Austin'
             },
             {
-                id: 'major_purchase',
-                icon: '🏠',
-                name: 'Major Purchase',
-                description: 'Budget for home, car, or other large expenses'
+                id: 'aggressive_debt_payoff',
+                icon: '💳⚡',
+                name: 'Aggressive Debt Elimination',
+                description: 'Pay down $20,361 in credit card debt faster'
             },
             {
-                id: 'expense_change',
-                icon: '📊',
-                name: 'Expense Change',
-                description: 'Add, remove, or modify recurring expenses'
+                id: 'emergency_vs_debt',
+                icon: '🚨💰',
+                name: 'Emergency Fund vs Debt Payoff',
+                description: 'Should Sampuel build emergency fund or pay off debt first?'
             },
             {
-                id: 'investment_strategy',
-                icon: '📈',
-                name: 'Investment Strategy',
-                description: 'Plan investment contributions and returns'
+                id: 'la_vs_austin_costs',
+                icon: '🏙️🤠',
+                name: 'LA vs Austin Cost Analysis',
+                description: 'Compare living costs between Los Angeles and Austin'
             },
             {
-                id: 'emergency_fund',
-                icon: '🛡️',
-                name: 'Emergency Fund',
-                description: 'Build or use emergency fund scenarios'
+                id: 'temp_income_gap',
+                icon: '⏰💸',
+                name: 'Career Transition Income Gap',
+                description: 'Manage finances during the job transition period'
             },
             {
-                id: 'debt_payoff',
-                icon: '💳',
-                name: 'Debt Payoff',
-                description: 'Plan debt reduction or payoff strategies'
+                id: 'debt_consolidation',
+                icon: '💳🔄',
+                name: 'Credit Card Consolidation',
+                description: 'Consolidate 4 credit cards into one lower-rate loan'
             },
             {
-                id: 'retirement_planning',
-                icon: '🌅',
-                name: 'Retirement Planning',
-                description: 'Model retirement savings and withdrawal strategies'
+                id: 'side_hustle_income',
+                icon: '💼💪',
+                name: 'Side Hustle Income Boost',
+                description: 'Add freelance income to improve financial situation'
             }
         ];
     }
@@ -1482,114 +1678,128 @@ class FutureFundApp {
     
     getTemplateConfig(templateId) {
         const configs = {
-            salary_change: {
+            sell_car_for_debt: {
                 parameters: [{
-                    title: 'Salary Details',
+                    title: 'Car Sale Details',
                     fields: [
-                        { type: 'number', name: 'currentSalary', label: 'Current Annual Salary', placeholder: '60000', required: true },
-                        { type: 'number', name: 'newSalary', label: 'New Annual Salary', placeholder: '75000', required: true },
-                        { type: 'date', name: 'effectiveDate', label: 'Effective Date', required: true },
-                        { type: 'select', name: 'timing', label: 'Change Type', options: [
-                            { value: 'immediate', label: 'Immediate Change' },
-                            { value: 'gradual', label: 'Gradual Increase' }
-                        ]}
+                        { type: 'number', name: 'carValue', label: 'Car Sale Price ($)', placeholder: '12000', required: true },
+                        { type: 'number', name: 'newTransportCost', label: 'New Monthly Transport Cost ($)', placeholder: '150', required: true },
+                        { type: 'select', name: 'whichDebt', label: 'Which Debt to Pay Off', options: [
+                            { value: 'chase', label: 'Chase Freedom ($5,420 @ 22.99%)' },
+                            { value: 'capital_one', label: 'Capital One ($7,891 @ 24.49%)' },
+                            { value: 'discover', label: 'Discover it ($4,234 @ 19.99%)' },
+                            { value: 'citi', label: 'Citi Double Cash ($2,816 @ 21.99%)' },
+                            { value: 'highest_interest', label: 'Pay Highest Interest Rate First' },
+                            { value: 'split_evenly', label: 'Split Evenly Across All Cards' }
+                        ], required: true }
                     ]
                 }]
             },
-            major_purchase: {
+            career_transition: {
                 parameters: [{
-                    title: 'Purchase Details',
+                    title: 'Career Transition Details',
                     fields: [
-                        { type: 'text', name: 'purchaseType', label: 'Purchase Type', placeholder: 'House, Car, etc.', required: true },
-                        { type: 'number', name: 'totalCost', label: 'Total Cost', placeholder: '300000', required: true },
-                        { type: 'number', name: 'downPayment', label: 'Down Payment', placeholder: '60000' },
-                        { type: 'date', name: 'targetDate', label: 'Target Purchase Date', required: true },
-                        { type: 'number', name: 'monthlyPayment', label: 'Monthly Payment (if financed)', placeholder: '2000' }
+                        { type: 'date', name: 'transitionDate', label: 'AI Job Start Date', placeholder: '2025-09-01', required: true },
+                        { type: 'number', name: 'newSalary', label: 'AI Engineering Salary ($)', placeholder: '200000', required: true },
+                        { type: 'number', name: 'movingCosts', label: 'Moving Costs ($)', placeholder: '5000', required: true },
+                        { type: 'number', name: 'austinRent', label: 'Austin Monthly Rent ($)', placeholder: '1800', required: true },
+                        { type: 'number', name: 'gapWeeks', label: 'Income Gap (weeks)', placeholder: '2', required: true }
                     ]
                 }]
             },
-            investment_strategy: {
+            aggressive_debt_payoff: {
                 parameters: [{
-                    title: 'Investment Parameters',
+                    title: 'Debt Payoff Strategy',
                     fields: [
-                        { type: 'number', name: 'monthlyContribution', label: 'Monthly Contribution', placeholder: '500', required: true },
-                        { type: 'number', name: 'expectedReturn', label: 'Expected Annual Return (%)', placeholder: '8', required: true },
-                        { type: 'select', name: 'riskProfile', label: 'Risk Profile', options: [
-                            { value: 'conservative', label: 'Conservative (3-5%)' },
-                            { value: 'moderate', label: 'Moderate (6-8%)' },
-                            { value: 'aggressive', label: 'Aggressive (9-12%)' }
-                        ]},
-                        { type: 'date', name: 'startDate', label: 'Start Date', required: true }
-                    ]
-                }]
-            },
-            expense_change: {
-                parameters: [{
-                    title: 'Expense Details',
-                    fields: [
-                        { type: 'select', name: 'changeType', label: 'Change Type', options: [
-                            { value: 'add', label: 'Add New Expense' },
-                            { value: 'modify', label: 'Modify Existing Expense' },
-                            { value: 'remove', label: 'Remove Expense' }
+                        { type: 'number', name: 'extraPayment', label: 'Extra Monthly Payment ($)', placeholder: '300', required: true },
+                        { type: 'select', name: 'strategy', label: 'Payoff Method', options: [
+                            { value: 'avalanche', label: 'Debt Avalanche (Highest Interest First)' },
+                            { value: 'snowball', label: 'Debt Snowball (Smallest Balance First)' },
+                            { value: 'equal_split', label: 'Split Extra Payment Equally' }
                         ], required: true },
-                        { type: 'text', name: 'expenseName', label: 'Expense Name', placeholder: 'Gym Membership, Netflix, etc.', required: true },
-                        { type: 'number', name: 'monthlyAmount', label: 'Monthly Amount', placeholder: '50', required: true },
-                        { type: 'date', name: 'startDate', label: 'Start Date', required: true }
-                    ]
-                }]
-            },
-            emergency_fund: {
-                parameters: [{
-                    title: 'Emergency Fund Planning',
-                    fields: [
-                        { type: 'number', name: 'targetAmount', label: 'Target Emergency Fund', placeholder: '10000', required: true },
-                        { type: 'number', name: 'currentAmount', label: 'Current Emergency Fund', placeholder: '2000' },
-                        { type: 'number', name: 'monthlyContribution', label: 'Monthly Contribution', placeholder: '200', required: true },
-                        { type: 'select', name: 'priority', label: 'Priority Level', options: [
-                            { value: 'high', label: 'High Priority' },
-                            { value: 'medium', label: 'Medium Priority' },
-                            { value: 'low', label: 'Low Priority' }
+                        { type: 'select', name: 'fundingSource', label: 'Where Will Extra Payment Come From?', options: [
+                            { value: 'reduced_expenses', label: 'Reduce Current Expenses' },
+                            { value: 'side_income', label: 'Side Income/Gig Work' },
+                            { value: 'sell_car', label: 'Sell Car (one-time payment)' },
+                            { value: 'mixed', label: 'Combination of Sources' }
                         ]}
                     ]
                 }]
             },
-            debt_payoff: {
+            emergency_vs_debt: {
                 parameters: [{
-                    title: 'Debt Information',
+                    title: 'Priority Allocation',
                     fields: [
-                        { type: 'text', name: 'debtType', label: 'Debt Type', placeholder: 'Credit Card, Student Loan, etc.', required: true },
-                        { type: 'number', name: 'currentBalance', label: 'Current Balance', placeholder: '5000', required: true },
-                        { type: 'number', name: 'interestRate', label: 'Interest Rate (%)', placeholder: '18.5', required: true },
-                        { type: 'number', name: 'monthlyPayment', label: 'Monthly Payment', placeholder: '200', required: true },
-                        { type: 'select', name: 'strategy', label: 'Payoff Strategy', options: [
-                            { value: 'minimum', label: 'Minimum Payments' },
-                            { value: 'snowball', label: 'Debt Snowball' },
-                            { value: 'avalanche', label: 'Debt Avalanche' }
+                        { type: 'number', name: 'monthlyAmount', label: 'Monthly Amount Available ($)', placeholder: '200', required: true },
+                        { type: 'number', name: 'emergencyTarget', label: 'Emergency Fund Target ($)', placeholder: '3000', required: true },
+                        { type: 'number', name: 'debtPercent', label: 'Debt Payoff Allocation (%)', placeholder: '70', required: true },
+                        { type: 'select', name: 'strategy', label: 'Strategy Preference', options: [
+                            { value: 'debt_first', label: 'Pay Minimum Emergency, Focus on Debt' },
+                            { value: 'emergency_first', label: 'Build Emergency Fund First' },
+                            { value: 'balanced', label: 'Split Between Both' },
+                            { value: 'adaptive', label: 'Adaptive (Emergency First, Then Debt)' }
                         ]}
                     ]
                 }]
             },
-            retirement_planning: {
+            la_vs_austin_costs: {
                 parameters: [{
-                    title: 'Retirement Planning',
+                    title: 'Cost Comparison',
                     fields: [
-                        { type: 'number', name: 'currentAge', label: 'Current Age', placeholder: '30', required: true },
-                        { type: 'number', name: 'retirementAge', label: 'Target Retirement Age', placeholder: '65', required: true },
-                        { type: 'number', name: 'currentSavings', label: 'Current Retirement Savings', placeholder: '50000' },
-                        { type: 'number', name: 'monthlyContribution', label: 'Monthly Contribution', placeholder: '500', required: true },
-                        { type: 'number', name: 'expectedReturn', label: 'Expected Annual Return (%)', placeholder: '7', required: true }
+                        { type: 'number', name: 'laRent', label: 'LA Monthly Rent ($)', placeholder: '1200', required: true },
+                        { type: 'number', name: 'austinRent', label: 'Austin Monthly Rent ($)', placeholder: '1800', required: true },
+                        { type: 'number', name: 'monthlyTaxSavings', label: 'Monthly Tax Savings in TX ($)', placeholder: '1000', required: true },
+                        { type: 'number', name: 'foodCostDiff', label: 'Food Cost Difference ($)', placeholder: '-100' },
+                        { type: 'number', name: 'transportCostDiff', label: 'Transport Cost Difference ($)', placeholder: '-50' }
                     ]
                 }]
             },
-            job_change: {
+            temp_income_gap: {
                 parameters: [{
-                    title: 'Job Change Details',
+                    title: 'Transition Gap Planning',
                     fields: [
-                        { type: 'text', name: 'newJobTitle', label: 'New Job Title', placeholder: 'Senior Developer, Manager, etc.', required: true },
-                        { type: 'number', name: 'newSalary', label: 'New Annual Salary', placeholder: '80000', required: true },
-                        { type: 'date', name: 'startDate', label: 'Start Date', required: true },
-                        { type: 'number', name: 'signingBonus', label: 'Signing Bonus', placeholder: '5000' },
-                        { type: 'number', name: 'relocationCost', label: 'Relocation Cost', placeholder: '3000' }
+                        { type: 'number', name: 'gapDuration', label: 'Income Gap Duration (weeks)', placeholder: '2', required: true },
+                        { type: 'number', name: 'currentSavings', label: 'Current Savings ($)', placeholder: '29', required: true },
+                        { type: 'number', name: 'reducedExpenses', label: 'Monthly Expense Reduction ($)', placeholder: '400', required: true },
+                        { type: 'select', name: 'bridgeStrategy', label: 'Bridge Strategy', options: [
+                            { value: 'savings_only', label: 'Use Savings Only' },
+                            { value: 'freelance', label: 'Freelance/Gig Work' },
+                            { value: 'family_help', label: 'Family Financial Support' },
+                            { value: 'credit_advance', label: 'Credit Card Cash Advance (last resort)' }
+                        ]}
+                    ]
+                }]
+            },
+            debt_consolidation: {
+                parameters: [{
+                    title: 'Consolidation Loan Details',
+                    fields: [
+                        { type: 'number', name: 'consolidationRate', label: 'Consolidation Loan Rate (%)', placeholder: '12', required: true },
+                        { type: 'number', name: 'loanTerm', label: 'Loan Term (months)', placeholder: '48', required: true },
+                        { type: 'number', name: 'totalDebt', label: 'Total Debt to Consolidate ($)', placeholder: '20361', required: true },
+                        { type: 'number', name: 'monthlyPayment', label: 'New Monthly Payment ($)', placeholder: '550', required: true }
+                    ]
+                }]
+            },
+            side_hustle_income: {
+                parameters: [{
+                    title: 'Side Income Details',
+                    fields: [
+                        { type: 'number', name: 'monthlyIncome', label: 'Monthly Side Income ($)', placeholder: '500', required: true },
+                        { type: 'number', name: 'hoursPerWeek', label: 'Hours Per Week', placeholder: '10', required: true },
+                        { type: 'select', name: 'incomeType', label: 'Income Type', options: [
+                            { value: 'freelance', label: 'Freelance Programming' },
+                            { value: 'tutoring', label: 'Tutoring/Teaching' },
+                            { value: 'delivery', label: 'Food Delivery' },
+                            { value: 'consulting', label: 'Consulting' },
+                            { value: 'other', label: 'Other Side Work' }
+                        ]},
+                        { type: 'select', name: 'incomeUse', label: 'Use Income For', options: [
+                            { value: 'debt_payoff', label: 'Debt Payoff Only' },
+                            { value: 'emergency_fund', label: 'Emergency Fund Only' },
+                            { value: 'mixed_70_30', label: '70% Debt, 30% Emergency' },
+                            { value: 'mixed_50_50', label: '50% Debt, 50% Emergency' }
+                        ]}
                     ]
                 }]
             }
@@ -3395,15 +3605,15 @@ ${health.status === 'healthy' ?
      */
     async getDefaultUserId() {
         try {
-            // Get accounts to find a user ID
+            // Try to find existing accounts first
             const response = await electronAPI.getAccounts('any-user', { limit: 1 });
             
             if (response.success && response.accounts.length > 0) {
-                return response.accounts[0].userId;
+                console.log('🔍 Found existing account with user_profile_id:', response.accounts[0].user_profile_id);
+                return response.accounts[0].user_profile_id;
             }
             
-            // If no accounts exist, try to get first user profile
-            // For now we'll return null and create a default user
+            // No users found
             return null;
         } catch (error) {
             console.error('Error getting default user:', error);
@@ -3415,28 +3625,164 @@ ${health.status === 'healthy' ?
      * Create default user if none exists
      */
     async createDefaultUser() {
+        // Prevent multiple user creation
+        if (this.isCreatingUser) {
+            console.log('⚠️ Already creating user, skipping...');
+            return;
+        }
+        
+        this.isCreatingUser = true;
+        
         try {
-            const defaultUser = {
-                first_name: 'Demo',
-                last_name: 'User',
+            const sampuelProfile = {
+                first_name: 'Sampuel',
+                last_name: 'Profileman',
                 employment_status: 'employed',
-                annual_income: 75000,
+                annual_income: 45000, // Barista income (~$850/week average)
                 risk_category: 'moderate',
                 primary_currency: 'USD'
             };
 
-            const response = await electronAPI.createUserProfile(defaultUser);
+            const response = await electronAPI.createUserProfile(sampuelProfile);
             
             if (response.success) {
                 this.currentUserId = response.profile.id;
-                console.log('✅ Created default user:', this.currentUserId);
+                console.log('✅ Created Sampuel Profileman user:', this.currentUserId);
+                
+                // Create Sampuel's accounts
+                await this.createSampuelAccounts();
             } else {
                 throw new Error(response.error);
             }
         } catch (error) {
             console.error('Error creating default user:', error);
             throw error;
+        } finally {
+            this.isCreatingUser = false;
         }
+    }
+
+    /**
+     * Create Sampuel's specific accounts
+     */
+    async createSampuelAccounts() {
+        console.log('🏦 Creating Sampuel\'s account portfolio...');
+        
+        // Check if accounts already exist for this user with correct balances
+        const existingAccountsResponse = await electronAPI.getAccounts(this.currentUserId);
+        if (existingAccountsResponse.success && existingAccountsResponse.accounts.length > 0) {
+            // Check if existing accounts have proper balances
+            const hasProperBalances = existingAccountsResponse.accounts.some(account => {
+                const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+                return Math.abs(balance) > 0;
+            });
+            
+            if (hasProperBalances) {
+                console.log('✅ Accounts already exist for user with proper balances, skipping creation');
+                return;
+            } else {
+                console.log('⚠️ Existing accounts have zero balances, will recreate with correct data');
+                // Delete existing zero-balance accounts
+                for (const account of existingAccountsResponse.accounts) {
+                    try {
+                        await electronAPI.deleteAccount(account.id);
+                        console.log('🗑️ Deleted zero-balance account:', account.account_name || account.name);
+                    } catch (error) {
+                        console.warn('⚠️ Could not delete account:', account.account_name || account.name, error);
+                    }
+                }
+            }
+        }
+        
+        const accounts = [
+            // Checking Account
+            {
+                account_name: 'Checking Account - Wells Fargo',
+                account_type: 'checking',
+                current_balance: 29.22,
+                currency: 'USD',
+                is_active: true,
+                created_at: new Date().toISOString()
+            },
+            
+            // Credit Card Accounts (Liabilities)
+            {
+                account_name: 'Chase Freedom Credit Card',
+                account_type: 'credit_card',
+                current_balance: -5420.33, // Negative for liability
+                currency: 'USD',
+                credit_limit: 7500,
+                interest_rate: 22.99,
+                minimum_payment: 125,
+                is_active: true,
+                created_at: new Date().toISOString()
+            },
+            {
+                account_name: 'Capital One Quicksilver',
+                account_type: 'credit_card', 
+                current_balance: -7891.12, // Negative for liability
+                currency: 'USD',
+                credit_limit: 10000,
+                interest_rate: 24.49,
+                minimum_payment: 185,
+                is_active: true,
+                created_at: new Date().toISOString()
+            },
+            {
+                account_name: 'Discover it Credit Card',
+                account_type: 'credit_card',
+                current_balance: -4233.67, // Negative for liability
+                currency: 'USD',
+                credit_limit: 6000,
+                interest_rate: 19.99,
+                minimum_payment: 98,
+                is_active: true,
+                created_at: new Date().toISOString()
+            },
+            {
+                account_name: 'Citi Double Cash Card',
+                account_type: 'credit_card',
+                current_balance: -2815.78, // Negative for liability
+                currency: 'USD',
+                credit_limit: 4000,
+                interest_rate: 21.99,
+                minimum_payment: 65,
+                is_active: true,
+                created_at: new Date().toISOString()
+            },
+            
+            // Car Asset (using investment type since vehicle isn't supported)
+            {
+                account_name: '2018 Honda Civic (Paid Off)',
+                account_type: 'investment',
+                current_balance: 12000, // Positive for asset
+                currency: 'USD',
+                purchase_date: '2018-03-15',
+                purchase_price: 18500,
+                current_value: 12000,
+                is_active: true,
+                created_at: new Date().toISOString()
+            }
+        ];
+
+        for (const account of accounts) {
+            try {
+                const response = await electronAPI.createAccount({
+                    ...account,
+                    user_profile_id: this.currentUserId // Use user_profile_id to match schema
+                });
+                
+                if (response.success) {
+                    console.log('✅ Created account:', account.account_name);
+                } else {
+                    console.error('❌ Failed to create account:', account.account_name, response.error);
+                }
+            } catch (error) {
+                console.error('❌ Error creating account:', account.account_name, error);
+            }
+        }
+        
+        console.log('💰 Sampuel\'s portfolio setup complete!');
     }
 
     /**
@@ -3457,6 +3803,26 @@ ${health.status === 'healthy' ?
             if (response.success) {
                 this.accounts = response.accounts || [];
                 console.log('📊 Loaded', this.accounts.length, 'accounts');
+                
+                // Debug: Log account structure
+                if (this.accounts.length > 0) {
+                    console.log('🔍 First account structure:', this.accounts[0]);
+                    console.log('🔍 First account keys:', Object.keys(this.accounts[0]));
+                    console.log('🔍 All account types:', this.accounts.map(a => ({ name: a.account_name, type: a.account_type })));
+                    console.log('🔍 Account balances:', this.accounts.map(a => ({
+                        name: a.account_name || a.name,
+                        balance: a.balance,
+                        currentBalance: a.currentBalance,
+                        current_balance: a.current_balance,
+                        rawAccount: a
+                    })));
+                    console.log('🔍 Account field mapping:', this.accounts.map(a => ({
+                        id: a.id,
+                        name: a.account_name || a.name,
+                        type: a.account_type || a.type,
+                        allKeys: Object.keys(a)
+                    })));
+                }
                 
                 // Load account statistics
                 await this.loadAccountStatistics();
@@ -3505,36 +3871,69 @@ ${health.status === 'healthy' ?
      * Update portfolio summary cards
      */
     updatePortfolioSummary() {
-        if (!this.accountStats) return;
+        if (!this.accounts || this.accounts.length === 0) return;
 
-        const { totals } = this.accountStats;
+        // Calculate totals directly from accounts
+        let totalAssets = 0;
+        let totalLiabilities = 0;
+        let assetCount = 0;
+        let liabilityCount = 0;
+
+        this.accounts.forEach(account => {
+            const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+            const accountType = account.account_type || account.type;
+            
+            if (this.isAssetAccount(accountType)) {
+                totalAssets += Math.abs(balance); // Ensure positive for assets
+                assetCount++;
+            } else if (this.isLiabilityAccount(accountType)) {
+                totalLiabilities += Math.abs(balance); // Ensure positive for liabilities display
+                liabilityCount++;
+            }
+        });
+
+        const netWorth = totalAssets - totalLiabilities;
         
-        // Net Worth
-        document.getElementById('portfolioNetWorth').textContent = this.formatCurrency(totals.net_worth || 0);
+        // Update UI
+        document.getElementById('portfolioNetWorth').textContent = this.formatCurrency(netWorth);
         
         // Assets
-        document.getElementById('portfolioAssets').textContent = this.formatCurrency(totals.total_assets || 0);
-        const assetAccounts = this.accounts.filter(a => this.isAssetAccount(a.type)).length;
-        document.getElementById('assetAccountCount').textContent = `${assetAccounts} accounts`;
+        document.getElementById('portfolioAssets').textContent = this.formatCurrency(totalAssets);
+        document.getElementById('assetAccountCount').textContent = `${assetCount} accounts`;
         
-        // Liabilities
-        document.getElementById('portfolioLiabilities').textContent = this.formatCurrency(totals.total_liabilities || 0);
-        const liabilityAccounts = this.accounts.filter(a => this.isLiabilityAccount(a.type)).length;
-        document.getElementById('liabilityAccountCount').textContent = `${liabilityAccounts} accounts`;
+        // Liabilities  
+        document.getElementById('portfolioLiabilities').textContent = this.formatCurrency(totalLiabilities);
+        document.getElementById('liabilityAccountCount').textContent = `${liabilityCount} accounts`;
         
         // Active Accounts
-        document.getElementById('activeAccountCount').textContent = (totals.active_accounts || 0).toString();
-        document.getElementById('totalAccountCount').textContent = `of ${totals.total_accounts || 0} total`;
+        const activeAccounts = this.accounts.filter(a => a.is_active).length;
+        document.getElementById('activeAccountCount').textContent = activeAccounts.toString();
+        document.getElementById('totalAccountCount').textContent = `of ${this.accounts.length} total`;
         
         // Net Worth Change (placeholder for now)
         document.getElementById('netWorthChange').textContent = '—';
+        
+        console.log('💰 Portfolio Summary Updated:', {
+            netWorth,
+            totalAssets,
+            totalLiabilities,
+            assetCount,
+            liabilityCount,
+            activeAccounts: activeAccounts
+        });
+        
+        // Debug: Log first account structure to understand data format
+        if (this.accounts.length > 0) {
+            console.log('🔍 First account structure:', this.accounts[0]);
+        }
     }
 
     /**
      * Check if account type is an asset
      */
     isAssetAccount(accountType) {
-        const assetTypes = ['checking', 'savings', 'investment', 'retirement_401k', 'retirement_ira', 'brokerage'];
+        if (!accountType) return false;
+        const assetTypes = ['checking', 'savings', 'investment', 'retirement_401k', 'retirement_ira', 'brokerage', '401k', 'ira_traditional', 'ira_roth', 'money_market', 'cd'];
         return assetTypes.includes(accountType);
     }
 
@@ -3542,7 +3941,8 @@ ${health.status === 'healthy' ?
      * Check if account type is a liability
      */
     isLiabilityAccount(accountType) {
-        const liabilityTypes = ['credit_card', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
+        if (!accountType) return false;
+        const liabilityTypes = ['credit_card', 'line_of_credit', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
         return liabilityTypes.includes(accountType);
     }
 
@@ -3820,16 +4220,57 @@ ${health.status === 'healthy' ?
         
         let html = '';
         this.accounts.forEach(account => {
-            const balanceClass = account.currentBalance >= 0 ? 'positive' : 'negative';
+            // Skip accounts with missing essential data
+            // Check both old and new field naming conventions
+            const accountName = account.account_name || account.name;
+            const accountType = account.account_type || account.type;
+            const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+            
+            if (!accountName || !accountType) {
+                console.warn('⚠️ Skipping account with missing data:', {
+                    account: account,
+                    missingName: !accountName,
+                    missingType: !accountType,
+                    availableFields: Object.keys(account)
+                });
+                return;
+            }
+            const isAsset = this.isAssetAccount(accountType);
+            const isLiability = this.isLiabilityAccount(accountType);
+            
+            // For display, show liabilities as positive amounts with red color
+            const displayBalance = isLiability ? Math.abs(balance) : balance;
+            const balanceClass = isLiability ? 'negative' : (balance >= 0 ? 'positive' : 'negative');
+            
+            // Format account type for display (special case for car)
+            let accountTypeDisplay = this.formatAccountType(accountType);
+            let accountIcon = this.getAccountIcon(accountType);
+            
+            // Special handling for car account
+            if (accountName && (accountName.includes('Honda Civic') || accountName.includes('Paid Off'))) {
+                accountTypeDisplay = 'Vehicle';
+                accountIcon = '🚗';
+            }
+            
+            // Get additional account properties with field name mapping
+            const creditLimit = account.credit_limit || account.creditLimit;
+            const interestRate = account.interest_rate || account.interestRate;
+            const minimumPayment = account.minimum_payment || account.minimumPayment;
+            
             html += `
-                <div class="account-card">
+                <div class="account-card ${isLiability ? 'liability' : 'asset'}">
                     <div class="account-info">
-                        <h4>${account.name}</h4>
-                        <p>${account.institution}</p>
-                        <span class="account-type">${account.type}</span>
+                        <div class="account-header">
+                            <span class="account-icon">${accountIcon}</span>
+                            <h4>${accountName}</h4>
+                        </div>
+                        <span class="account-type">${accountTypeDisplay}</span>
+                        ${creditLimit ? `<span class="credit-limit">Limit: ${this.formatCurrency(creditLimit)}</span>` : ''}
+                        ${interestRate ? `<span class="interest-rate">APR: ${interestRate}%</span>` : ''}
+                        ${minimumPayment ? `<span class="minimum-payment">Min Payment: ${this.formatCurrency(minimumPayment)}</span>` : ''}
                     </div>
                     <div class="account-balance ${balanceClass}">
-                        ${this.formatCurrency(account.currentBalance)}
+                        ${this.formatCurrency(displayBalance)}
                     </div>
                 </div>
             `;
@@ -3839,17 +4280,84 @@ ${health.status === 'healthy' ?
     }
 
     /**
+     * Format account type for display
+     */
+    formatAccountType(accountType) {
+        if (!accountType) return 'Unknown';
+        
+        const typeMap = {
+            'checking': 'Checking',
+            'savings': 'Savings',
+            'money_market': 'Money Market',
+            'cd': 'Certificate of Deposit',
+            'investment': 'Investment',
+            'brokerage': 'Brokerage',
+            '401k': '401(k)',
+            'ira_traditional': 'Traditional IRA',
+            'ira_roth': 'Roth IRA',
+            'credit_card': 'Credit Card',
+            'line_of_credit': 'Line of Credit',
+            'mortgage': 'Mortgage',
+            'auto_loan': 'Auto Loan',
+            'student_loan': 'Student Loan',
+            'personal_loan': 'Personal Loan'
+        };
+        return typeMap[accountType] || accountType;
+    }
+
+    /**
+     * Get account icon
+     */
+    getAccountIcon(accountType) {
+        if (!accountType) return '❓';
+        
+        const iconMap = {
+            'checking': '🏦',
+            'savings': '💰',
+            'money_market': '🏦',
+            'cd': '🏦',
+            'investment': '📈',
+            'brokerage': '💼',
+            '401k': '🏦',
+            'ira_traditional': '🏦',
+            'ira_roth': '🏦',
+            'credit_card': '💳',
+            'line_of_credit': '💳',
+            'mortgage': '🏠',
+            'auto_loan': '🚗',
+            'student_loan': '🎓',
+            'personal_loan': '💸'
+        };
+        return iconMap[accountType] || '💳';
+    }
+
+    /**
      * Update account category tabs
      */
     updateAccountCategoryTabs() {
         // Update category tab badges with account counts
         const categoryCounters = {
             all: this.accounts.length,
-            liquid: this.accounts.filter(a => ['checking', 'savings'].includes(a.type)).length,
-            investment: this.accounts.filter(a => ['investment', 'brokerage'].includes(a.type)).length,
-            retirement: this.accounts.filter(a => a.type.includes('retirement')).length,
-            credit: this.accounts.filter(a => ['credit_card', 'line_of_credit'].includes(a.type)).length,
-            real_estate: this.accounts.filter(a => ['mortgage', 'home_equity'].includes(a.type)).length
+            liquid: this.accounts.filter(a => {
+                const accountType = a.account_type || a.type;
+                return accountType && ['checking', 'savings'].includes(accountType);
+            }).length,
+            investment: this.accounts.filter(a => {
+                const accountType = a.account_type || a.type;
+                return accountType && ['investment', 'brokerage'].includes(accountType);
+            }).length,
+            retirement: this.accounts.filter(a => {
+                const accountType = a.account_type || a.type;
+                return accountType && accountType.includes('retirement');
+            }).length,
+            credit: this.accounts.filter(a => {
+                const accountType = a.account_type || a.type;
+                return accountType && ['credit_card', 'line_of_credit'].includes(accountType);
+            }).length,
+            real_estate: this.accounts.filter(a => {
+                const accountType = a.account_type || a.type;
+                return accountType && ['mortgage', 'home_equity'].includes(accountType);
+            }).length
         };
         
         for (const [category, count] of Object.entries(categoryCounters)) {
@@ -3888,16 +4396,27 @@ ${health.status === 'healthy' ?
 
         // Add account options
         this.accounts
-            .filter(account => account.is_active) // Only show active accounts
-            .sort((a, b) => a.name.localeCompare(b.name))
+            .filter(account => {
+                const isActive = account.is_active !== undefined ? account.is_active : account.isActive;
+                const accountName = account.account_name || account.name;
+                const accountType = account.account_type || account.type;
+                return isActive && accountName && accountType;
+            })
+            .sort((a, b) => {
+                const nameA = a.account_name || a.name || '';
+                const nameB = b.account_name || b.name || '';
+                return nameA.localeCompare(nameB);
+            })
             .forEach(account => {
+                const accountName = account.account_name || account.name;
+                const accountType = account.account_type || account.type;
                 const option = document.createElement('option');
                 option.value = account.id;
-                option.textContent = `${account.name} (${account.institution})`;
+                option.textContent = `${accountName} (${this.formatAccountType(accountType)})`;
                 accountFilter.appendChild(option);
             });
 
-        console.log('🏦 Populated account filter with', this.accounts.filter(a => a.is_active).length, 'active accounts');
+        console.log('🏦 Populated account filter with', this.accounts.filter(a => a.is_active !== undefined ? a.is_active : a.isActive).length, 'active accounts');
     }
 
     /**
