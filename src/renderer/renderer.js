@@ -935,7 +935,7 @@ class FutureFundApp {
                         <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
                             ${this.formatCurrency(transaction.amount)}
                         </td>
-                        <td class="text-right">
+                        <td class="text-right ${transaction.balance >= 0 ? 'text-success' : 'text-danger'}">
                             ${this.formatCurrency(transaction.balance)}
                         </td>
                         <td>
@@ -991,7 +991,7 @@ class FutureFundApp {
                             <td class="${transaction.amount >= 0 ? 'text-success' : 'text-danger'}">
                                 ${this.formatCurrency(transaction.amount)}
                             </td>
-                            <td class="text-right">
+                            <td class="text-right ${transaction.balance >= 0 ? 'text-success' : 'text-danger'}">
                                 ${this.formatCurrency(transaction.balance)}
                             </td>
                             <td>
@@ -4756,9 +4756,9 @@ ${health.status === 'healthy' ?
                         callbacks: {
                             label: (context) => {
                                 const value = context.parsed.y || context.parsed;
-                                const originalBalance = summaryData[context.dataIndex].originalBalance;
-                                const isLiability = summaryData[context.dataIndex].type === 'Expense';
-                                return `${context.label}: ${this.chartService.formatCurrency(originalBalance)} ${isLiability ? '(Debt)' : '(Asset)'}`;
+                                const isLiability = summaryData[context.dataIndex].isLiability;
+                                const absValue = Math.abs(value);
+                                return `${context.label}: ${this.chartService.formatCurrency(absValue)} ${isLiability ? '(Debt)' : '(Asset)'}`;
                             }
                         }
                     }
@@ -4773,10 +4773,25 @@ ${health.status === 'healthy' ?
                     y: {
                         title: {
                             display: true,
-                            text: 'Amount'
+                            text: 'Balance Amount'
                         },
                         ticks: {
                             callback: (value) => this.chartService.formatCurrency(value)
+                        },
+                        grid: {
+                            color: (context) => {
+                                // Make the zero line more prominent
+                                if (context.tick.value === 0) {
+                                    return 'rgba(0, 0, 0, 0.8)';
+                                }
+                                return 'rgba(0, 0, 0, 0.1)';
+                            },
+                            lineWidth: (context) => {
+                                if (context.tick.value === 0) {
+                                    return 2;
+                                }
+                                return 1;
+                            }
                         }
                     }
                 } : {}
@@ -4882,9 +4897,9 @@ ${health.status === 'healthy' ?
             const accountName = account.account_name || account.name;
             const accountType = account.account_type || account.type;
             
-            // For liabilities, show as positive amounts but with different styling
-            const displayAmount = Math.abs(balance);
+            // Show actual balance values (negative for debts, positive for assets)
             const isLiability = this.isLiabilityAccount(accountType);
+            const displayAmount = isLiability ? -Math.abs(balance) : Math.abs(balance);
             
             return {
                 category: accountName,
@@ -4892,9 +4907,10 @@ ${health.status === 'healthy' ?
                 type: isLiability ? 'Expense' : 'Income', // This will affect coloring
                 date: '2024-07-03',
                 description: `${accountName} Balance`,
-                originalBalance: balance
+                originalBalance: balance,
+                isLiability: isLiability
             };
-        }).sort((a, b) => b.amount - a.amount); // Sort by absolute balance, largest first
+        }).sort((a, b) => b.amount - a.amount); // Sort by balance, assets first, then debts
         
         console.log('📊 Prepared Balance Distribution chart data:', result);
         return result;

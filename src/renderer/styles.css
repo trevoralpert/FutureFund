@@ -3148,6 +3148,17 @@ select:focus {
     color: var(--danger-color);
 }
 
+/* Account balance styling in account cards */
+.account-balance.positive {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.account-balance.negative {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
 .available-balance, .credit-limit {
     font-size: 0.75rem;
     color: var(--text-muted);
