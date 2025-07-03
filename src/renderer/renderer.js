@@ -311,10 +311,9 @@ class FutureFundApp {
         // Check if this is a first-time user
         const hasSeenOnboarding = localStorage.getItem('futurefund_onboarding_completed');
         if (!hasSeenOnboarding) {
-            // Delay onboarding slightly to let UI load
-            setTimeout(() => {
-                window.onboardingManager.start();
-            }, 1000);
+            // Onboarding disabled for demo - mark as completed
+            localStorage.setItem('futurefund_onboarding_completed', 'true');
+            console.log('📝 Onboarding skipped for demo mode');
         }
     }
 
