@@ -3159,6 +3159,106 @@ select:focus {
     font-weight: 600;
 }
 
+/* Chart legend styling */
+.chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-lg);
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-md);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.legend-color {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+}
+
+.legend-color.baseline {
+    background-color: var(--primary-color);
+}
+
+.legend-color.scenario {
+    background-color: var(--warning-color);
+}
+
+.legend-color.historical {
+    background-color: var(--text-secondary);
+}
+
+/* Portfolio chart styling */
+.portfolio-chart {
+    flex: 1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-left: var(--spacing-xl);
+    min-height: 300px;
+}
+
+.portfolio-chart .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: var(--spacing-sm);
+}
+
+.portfolio-chart .chart-header h3 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.portfolio-chart .chart-wrapper {
+    height: 200px;
+    margin-bottom: var(--spacing-sm);
+}
+
+.portfolio-chart .chart-legend {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-sm);
+    padding: var(--spacing-xs);
+}
+
+/* Adjust accounts summary layout for chart */
+.accounts-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-lg);
+}
+
+.portfolio-overview {
+    min-width: 400px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .accounts-summary {
+        flex-direction: column;
+    }
+    
+    .portfolio-chart {
+        margin-left: 0;
+        margin-top: var(--spacing-lg);
+    }
+}
+
 .available-balance, .credit-limit {
     font-size: 0.75rem;
     color: var(--text-muted);

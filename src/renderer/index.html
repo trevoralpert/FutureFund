@@ -238,6 +238,43 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Net Worth Trend Chart -->
+                        <div class="portfolio-chart">
+                            <div class="chart-header">
+                                <h3>Net Worth Trend</h3>
+                                <div class="chart-controls">
+                                    <select id="netWorthTimeframe" class="chart-type-selector">
+                                        <option value="6m">6 Months</option>
+                                        <option value="1y" selected>1 Year</option>
+                                        <option value="2y">2 Years</option>
+                                        <option value="5y">5 Years</option>
+                                    </select>
+                                    <button class="btn btn-secondary btn-sm" onclick="app.exportChart('netWorthProjectionChart')">
+                                        <span class="btn-icon">📈</span>
+                                        Export
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="chart-wrapper">
+                                <canvas id="netWorthProjectionChart"></canvas>
+                            </div>
+                            <div class="chart-legend">
+                                <div class="legend-item">
+                                    <div class="legend-color historical"></div>
+                                    <span>Historical</span>
+                                </div>
+                                <div class="legend-item">
+                                    <div class="legend-color baseline"></div>
+                                    <span>Baseline Projection</span>
+                                </div>
+                                <div class="legend-item" id="scenarioLegend" style="display: none;">
+                                    <div class="legend-color scenario"></div>
+                                    <span id="scenarioLegendText">With Active Scenarios</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="accounts-actions">
                             <button id="addAccountBtn" class="btn btn-primary">
                                 <span class="btn-icon">➕</span>
@@ -390,6 +427,8 @@
                                     <canvas id="balanceDistributionChart"></canvas>
                                 </div>
                             </div>
+
+
                         </div>
                     </div>
                 </div>

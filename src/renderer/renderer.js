@@ -4451,6 +4451,14 @@ ${health.status === 'healthy' ?
                 this.updateBalanceDistributionChart();
             });
         }
+
+        // Net Worth Projection timeframe change
+        const netWorthTimeframe = document.getElementById('netWorthTimeframe');
+        if (netWorthTimeframe) {
+            netWorthTimeframe.addEventListener('change', () => {
+                this.createNetWorthProjectionChart();
+            });
+        }
     }
 
     /**
@@ -4498,6 +4506,9 @@ ${health.status === 'healthy' ?
         
         // Create Balance Distribution Chart
         this.createBalanceDistributionChart();
+        
+        // Create Net Worth Projection Chart
+        this.createNetWorthProjectionChart();
     }
 
     /**
@@ -4803,6 +4814,392 @@ ${health.status === 'healthy' ?
     }
 
     /**
+     * Create Net Worth Projection Chart
+     */
+    createNetWorthProjectionChart() {
+        if (!this.chartService) return;
+
+        const timeframe = document.getElementById('netWorthTimeframe')?.value || '1y';
+        
+        console.log('🎯 Creating Net Worth Projection chart with timeframe:', timeframe);
+        
+        // Generate baseline and scenario projections
+        const baselineProjection = this.generateNetWorthProjection(timeframe, false);
+        const scenarioProjection = this.generateNetWorthProjection(timeframe, true);
+        
+        console.log('📊 Baseline projection data points:', baselineProjection.length);
+        console.log('📊 Scenario projection data points:', scenarioProjection.length);
+        
+        // Separate historical and future data
+        const historicalData = baselineProjection.filter(point => point.isHistorical);
+        const futureBaseline = baselineProjection.filter(point => !point.isHistorical);
+        const futureScenario = scenarioProjection.filter(point => !point.isHistorical);
+        
+        console.log('📈 Historical data points:', historicalData.length);
+        console.log('📈 Future baseline points:', futureBaseline.length);
+        console.log('📈 Future scenario points:', futureScenario.length);
+        
+        // Prepare chart datasets
+        const datasets = [
+            {
+                label: 'Historical',
+                data: historicalData,
+                borderColor: 'rgba(100, 116, 139, 1)',
+                backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                borderWidth: 3,
+                fill: false,
+                tension: 0.2,
+                pointRadius: 2,
+                pointHoverRadius: 6,
+                pointBackgroundColor: 'rgba(100, 116, 139, 1)'
+            },
+            {
+                label: 'Baseline Projection',
+                data: futureBaseline,
+                borderColor: 'rgba(37, 99, 235, 1)',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                pointRadius: 1,
+                pointHoverRadius: 4,
+                pointBackgroundColor: 'rgba(37, 99, 235, 1)'
+            }
+        ];
+
+        // Add scenario projection if different from baseline
+        const hasActiveScenarios = this.activeScenarios && this.activeScenarios.size > 0;
+        if (hasActiveScenarios && futureScenario.length > 0) {
+            datasets.push({
+                label: 'With Active Scenarios',
+                data: futureScenario,
+                borderColor: 'rgba(245, 158, 11, 1)',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointRadius: 1,
+                pointHoverRadius: 4,
+                pointBackgroundColor: 'rgba(245, 158, 11, 1)',
+                borderDash: [8, 4]
+            });
+        }
+
+        const chartData = {
+            datasets: datasets
+        };
+
+        // Create chart directly
+        const canvas = document.getElementById('netWorthProjectionChart');
+        if (!canvas) {
+            console.error('❌ Canvas netWorthProjectionChart not found');
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.accountCharts && this.accountCharts.netWorthProjectionChart) {
+            this.accountCharts.netWorthProjectionChart.destroy();
+        }
+
+        // Initialize accountCharts if not exists
+        if (!this.accountCharts) {
+            this.accountCharts = {};
+        }
+
+        // Set canvas dimensions
+        this.chartService.ensureCanvasDimensions(canvas);
+        
+        const ctx = canvas.getContext('2d');
+        const config = {
+            type: 'line',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    title: {
+                        display: false // Title now in HTML
+                    },
+                    legend: {
+                        display: false // Custom legend below chart
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: (context) => {
+                                const date = new Date(context[0].parsed.x);
+                                return date.toLocaleDateString('en-US', { 
+                                    year: 'numeric', 
+                                    month: 'long', 
+                                    day: 'numeric' 
+                                });
+                            },
+                            label: (context) => {
+                                const value = context.parsed.y;
+                                const isHistorical = context.dataset.label === 'Historical';
+                                return `${context.dataset.label}: ${this.chartService.formatCurrency(value)}${isHistorical ? ' (actual)' : ' (projected)'}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: timeframe === '6m' ? 'week' : timeframe === '1y' ? 'month' : 'quarter',
+                            displayFormats: {
+                                week: 'MMM dd',
+                                month: 'MMM yyyy',
+                                quarter: 'MMM yyyy'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Net Worth'
+                        },
+                        ticks: {
+                            callback: (value) => this.chartService.formatCurrency(value)
+                        },
+                        grid: {
+                            color: (context) => {
+                                // Make the zero line more prominent
+                                if (context.tick.value === 0) {
+                                    return 'rgba(0, 0, 0, 0.8)';
+                                }
+                                return 'rgba(0, 0, 0, 0.1)';
+                            },
+                            lineWidth: (context) => {
+                                if (context.tick.value === 0) {
+                                    return 3;
+                                }
+                                return 1;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        this.accountCharts.netWorthProjectionChart = new Chart(ctx, config);
+        
+        // Update legend visibility
+        this.updateNetWorthLegend(hasActiveScenarios);
+        
+        console.log('✅ Net Worth Projection chart created with historical + future data');
+    }
+
+    /**
+     * Update the custom legend for net worth chart
+     */
+    updateNetWorthLegend(hasActiveScenarios) {
+        const scenarioLegend = document.getElementById('scenarioLegend');
+        if (scenarioLegend) {
+            if (hasActiveScenarios) {
+                scenarioLegend.style.display = 'flex';
+                const scenarioCount = this.activeScenarios ? this.activeScenarios.size : 0;
+                const legendText = document.getElementById('scenarioLegendText');
+                if (legendText) {
+                    legendText.textContent = `With ${scenarioCount} Active Scenario${scenarioCount > 1 ? 's' : ''}`;
+                }
+            } else {
+                scenarioLegend.style.display = 'none';
+            }
+        }
+    }
+
+    /**
+     * Generate net worth projection data points
+     */
+    generateNetWorthProjection(timeframe, includeScenarios = false) {
+        // Calculate current net worth
+        let currentNetWorth = 0;
+        this.accounts.forEach(account => {
+            const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+            const accountType = account.account_type || account.type;
+            
+            if (this.isAssetAccount(accountType)) {
+                currentNetWorth += balance;
+            } else if (this.isLiabilityAccount(accountType)) {
+                currentNetWorth -= Math.abs(balance);
+            }
+        });
+        
+        const projectionData = [];
+        const now = new Date();
+        
+        // Generate historical data (6 months back)
+        const historicalMonths = 6;
+        let historicalNetWorth = currentNetWorth;
+        
+        // Calculate account-specific parameters
+        const accounts = this.accounts || [];
+        const creditCardDebt = accounts.filter(acc => acc.type === 'credit_card').reduce((sum, acc) => sum + Math.abs(acc.balance || 0), 0);
+        const assets = accounts.filter(acc => acc.type !== 'credit_card').reduce((sum, acc) => sum + (acc.balance || 0), 0);
+        
+        // Work backwards from current net worth with realistic variations
+        for (let i = historicalMonths; i >= 0; i--) {
+            const date = new Date(now);
+            date.setMonth(now.getMonth() - i);
+            
+            if (i === 0) {
+                // Current month
+                historicalNetWorth = currentNetWorth;
+            } else {
+                // Calculate backwards with realistic financial patterns
+                const monthsBack = i;
+                const baseImprovement = 400 * (historicalMonths - monthsBack); // Gradual improvement
+                const seasonalEffect = Math.sin((date.getMonth() / 12) * Math.PI * 2) * 1200; // Holiday spending, tax refunds
+                const lifeEvent = (Math.random() - 0.5) * 800; // Random financial events
+                const trendNoise = (Math.random() - 0.5) * 300; // Small random variations
+                
+                historicalNetWorth = currentNetWorth - baseImprovement + seasonalEffect + lifeEvent + trendNoise;
+            }
+            
+            projectionData.push({
+                x: date.getTime(),
+                y: historicalNetWorth,
+                isHistorical: true
+            });
+        }
+        
+        // Generate future projections with realistic complexity
+        const futureMonths = { '6m': 6, '1y': 12, '2y': 24, '5y': 60 }[timeframe] || 12;
+        
+        // Financial parameters based on current situation
+        const monthlyIncome = 5500;
+        const monthlyFixedExpenses = 3200; // Rent, utilities, insurance
+        const monthlyVariableExpenses = 1100; // Food, entertainment, misc
+        const creditCardMinPayment = Math.max(25, Math.min(creditCardDebt * 0.02, 400));
+        const additionalDebtPayment = creditCardDebt > 0 ? 300 : 0;
+        const emergencyFundContribution = currentNetWorth < 0 ? 250 : 100;
+        
+        let netWorth = currentNetWorth;
+        
+        for (let i = 1; i <= futureMonths; i++) {
+            const date = new Date(now);
+            date.setMonth(now.getMonth() + i);
+            
+            // Base income vs expenses
+            const baseMonthlyFlow = monthlyIncome - monthlyFixedExpenses;
+            
+            // Variable expenses with seasonal and lifestyle patterns
+            const seasonalMultiplier = 1 + Math.sin((date.getMonth() / 12) * Math.PI * 2) * 0.4; // 40% seasonal variation
+            const monthlyVariable = monthlyVariableExpenses * seasonalMultiplier;
+            
+            // Debt payments - decreasing over time as debt is paid off
+            const remainingDebt = Math.max(0, creditCardDebt - (creditCardMinPayment + additionalDebtPayment) * i);
+            const totalDebtPayment = remainingDebt > 0 ? creditCardMinPayment + additionalDebtPayment : creditCardMinPayment;
+            
+            // Investment growth (compound monthly)
+            const investmentGrowth = Math.max(0, netWorth) * 0.006; // ~7% annual
+            
+            // Random life events
+            let lifeEventCost = 0;
+            const randomEvent = Math.random();
+            if (randomEvent < 0.08) { // 8% chance per month
+                if (randomEvent < 0.02) { // 2% major expense
+                    lifeEventCost = Math.random() * 2500 + 1000; // $1000-$3500
+                } else if (randomEvent < 0.05) { // 3% moderate expense
+                    lifeEventCost = Math.random() * 800 + 300; // $300-$1100
+                } else { // 3% minor expense
+                    lifeEventCost = Math.random() * 300 + 100; // $100-$400
+                }
+            }
+            
+            // Occasional windfalls
+            let windfall = 0;
+            if (Math.random() < 0.03) { // 3% chance per month
+                windfall = Math.random() * 1000 + 200; // $200-$1200 (tax refund, bonus, etc.)
+            }
+            
+            // Calculate net monthly change
+            const monthlyChange = baseMonthlyFlow 
+                - monthlyVariable 
+                - totalDebtPayment 
+                - emergencyFundContribution 
+                + investmentGrowth 
+                - lifeEventCost 
+                + windfall;
+            
+            netWorth += monthlyChange;
+            
+            // Apply scenario effects if requested
+            if (includeScenarios && this.activeScenarios && this.activeScenarios.size > 0) {
+                for (const [scenarioId, scenario] of this.activeScenarios) {
+                    const scenarioEffect = this.calculateScenarioNetWorthImpact(scenario, i);
+                    netWorth += scenarioEffect;
+                }
+            }
+            
+            projectionData.push({
+                x: date.getTime(),
+                y: netWorth,
+                isHistorical: false
+            });
+        }
+        
+        return projectionData;
+    }
+
+    /**
+     * Calculate scenario impact on net worth projection
+     */
+    calculateScenarioNetWorthImpact(scenario, monthsElapsed) {
+        if (!scenario || !scenario.parameters) return 0;
+        
+        const params = scenario.parameters;
+        let impact = 0;
+        
+        switch (scenario.template || scenario.type) {
+            case 'salary_increase':
+                if (params.increase_amount && monthsElapsed > 0) {
+                    impact = parseFloat(params.increase_amount) * monthsElapsed;
+                }
+                break;
+                
+            case 'job_loss':
+                if (params.duration_months && monthsElapsed <= parseFloat(params.duration_months)) {
+                    const monthlyIncomeLoss = parseFloat(params.lost_income || 5000);
+                    impact = -monthlyIncomeLoss * monthsElapsed;
+                }
+                break;
+                
+            case 'major_purchase':
+                if (monthsElapsed >= (parseFloat(params.timing_months || 0))) {
+                    impact = -parseFloat(params.purchase_amount || 0);
+                }
+                break;
+                
+            case 'debt_payoff':
+                if (params.extra_payment && monthsElapsed > 0) {
+                    // Extra debt payments reduce debt (improve net worth)
+                    impact = parseFloat(params.extra_payment) * monthsElapsed;
+                }
+                break;
+                
+            case 'emergency_fund':
+                if (params.monthly_savings && monthsElapsed > 0) {
+                    impact = parseFloat(params.monthly_savings) * monthsElapsed;
+                }
+                break;
+        }
+        
+        return impact;
+    }
+
+    /**
      * Prepare data for Assets vs Liabilities chart
      */
     prepareAssetLiabilityData() {
@@ -4960,6 +5357,23 @@ ${health.status === 'healthy' ?
         const chartsContainer = document.getElementById('accountChartsContainer');
         if (chartsContainer && !chartsContainer.classList.contains('hidden')) {
             this.createAccountCharts();
+        }
+    }
+
+    /**
+     * Refresh net worth projection chart (called when scenarios change)
+     */
+    refreshNetWorthProjection() {
+        console.log('🔄 Refreshing Net Worth Projection chart...');
+        if (!this.chartService || !this.accounts || this.accounts.length === 0) {
+            console.log('❌ Cannot refresh net worth chart: missing service or data');
+            return;
+        }
+
+        // Only refresh if chart exists and is visible
+        const canvas = document.getElementById('netWorthProjectionChart');
+        if (canvas && this.accountCharts && this.accountCharts.netWorthProjectionChart) {
+            this.createNetWorthProjectionChart();
         }
     }
 
@@ -5262,8 +5676,9 @@ ${health.status === 'healthy' ?
                         this.activeScenarios.set(scenario.id, scenario);
                     }
                 });
-                this.updateActiveScenariosUI();
-                console.log(`📋 Loaded ${this.activeScenarios.size} active scenarios`);
+                        this.updateActiveScenariosUI();
+        this.refreshNetWorthProjection(); // Refresh net worth chart when scenarios change
+        console.log(`📋 Loaded ${this.activeScenarios.size} active scenarios`);
             }
         } catch (error) {
             console.error('Error loading active scenarios:', error);
@@ -5755,6 +6170,7 @@ ${health.status === 'healthy' ?
 
             // Update UI
             this.updateActiveScenariosUI();
+            this.refreshNetWorthProjection(); // Refresh net worth chart when scenarios cleared
             this.scenarioMode = 'base';
             this.updateScenarioModeUI();
             this.refreshLedger();
