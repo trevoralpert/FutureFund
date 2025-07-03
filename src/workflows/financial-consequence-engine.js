@@ -655,23 +655,28 @@ async function synthesizeConsequenceReport(state) {
  * Calculate required amount for scenario execution
  */
 function calculateScenarioRequiredAmount(scenario) {
-  const { type, parameters } = scenario;
+  const { type, parameters, amount } = scenario;
+  
+  // Handle direct amount on scenario or parameters object
+  const params = parameters || {};
+  const directAmount = amount || params.amount || params.totalAmount || 0;
   
   switch (type) {
     case 'home_purchase':
-      return (parameters.downPayment || 0) + (parameters.closingCosts || 0);
+      return (params.downPayment || 0) + (params.closingCosts || 0) || directAmount;
     case 'car_purchase':
-      return parameters.downPayment || parameters.totalPrice || 0;
+      return params.downPayment || params.totalPrice || directAmount;
     case 'investment':
-      return parameters.initialInvestment || parameters.investmentAmount || 0;
+      return params.initialInvestment || params.investmentAmount || directAmount;
     case 'debt_payoff':
-      return parameters.payoffAmount || parameters.currentBalance || 0;
+      return params.payoffAmount || params.currentBalance || directAmount;
     case 'major_purchase':
-      return parameters.purchaseAmount || parameters.amount || 0;
+    case 'purchase':
+      return params.purchaseAmount || params.amount || directAmount;
     case 'emergency_expense':
-      return parameters.expenseAmount || parameters.amount || 0;
+      return params.expenseAmount || params.amount || directAmount;
     default:
-      return parameters.amount || parameters.totalAmount || 0;
+      return directAmount;
   }
 }
 
@@ -958,7 +963,7 @@ function generateAlternativeApproaches(scenario, paymentAnalysis, consequenceMod
   });
   
   // Scaled down version
-  if (scenario.parameters.amount || scenario.parameters.purchaseAmount) {
+  if (scenario.amount || scenario.parameters?.amount || scenario.parameters?.purchaseAmount) {
     alternatives.push({
       type: 'scaled_down',
       title: `Scaled-down version of ${scenario.name}`,

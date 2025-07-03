@@ -1,6 +1,6 @@
 /**
- * Workflow Orchestrator - Phase 3.5.3 Updated
- * Enhanced with Background Intelligence continuous monitoring capabilities
+ * Workflow Orchestrator - Phase 4.1 Updated
+ * Enhanced with Financial Consequence Engine - Realistic Financial Consequence Modeling
  * FlowGenius Assignment: Advanced LangGraph Integration Complete
  */
 
@@ -13,12 +13,13 @@ const { createAdvancedScenarioModelingWorkflow } = require('./advanced-scenario-
 const { createMultiAccountIntelligenceWorkflow } = require('./multi-account-intelligence');
 const { createPredictiveAnalyticsPipeline } = require('./predictive-analytics-pipeline');
 const { FinancialHealthMonitoring } = require('./financial-health-monitoring');
+const { FinancialConsequenceEngine } = require('./financial-consequence-engine');
 const config = require('../config');
 
 /**
  * Workflow Orchestrator Class
  * Handles execution, progress tracking, and caching for all LangGraph workflows
- * Enhanced with Background Intelligence continuous monitoring
+ * Enhanced with Background Intelligence continuous monitoring and Financial Consequence Engine
  */
 class WorkflowOrchestrator {
   constructor() {
@@ -37,6 +38,7 @@ class WorkflowOrchestrator {
     this.multiAccountIntelligenceWorkflow = null;
     this.predictiveAnalyticsPipeline = null;
     this.financialHealthMonitoring = null;
+    this.financialConsequenceEngine = null;
     this.resultCache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
     this.isInitialized = false;
@@ -67,6 +69,9 @@ class WorkflowOrchestrator {
 
     // Initialize Financial Health Monitoring for Phase 3.7.3
     this.initializeFinancialHealthMonitoring();
+
+    // Initialize Financial Consequence Engine for Phase 4.1
+    this.initializeFinancialConsequenceEngine();
   }
 
   /**
@@ -214,6 +219,20 @@ class WorkflowOrchestrator {
     } catch (error) {
       console.error('❌ [Orchestrator] Financial Health Monitoring initialization failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Initialize Financial Consequence Engine for Phase 4.1
+   */
+  initializeFinancialConsequenceEngine() {
+    try {
+      console.log('🏦 [Orchestrator] Initializing Financial Consequence Engine...');
+      this.financialConsequenceEngine = new FinancialConsequenceEngine();
+      console.log('✅ [Orchestrator] Financial Consequence Engine initialized successfully');
+    } catch (error) {
+      console.error('❌ [Orchestrator] Failed to initialize Financial Consequence Engine:', error);
+      this.financialConsequenceEngine = null;
     }
   }
 
@@ -1453,10 +1472,17 @@ class WorkflowOrchestrator {
    * Execute Predictive Analytics Pipeline with progress tracking
    */
   async executePredictiveAnalyticsWithProgress(inputData, workflowId, options = {}) {
-    const progressCallback = this.progressCallbacks.get(workflowId);
+    console.log(`🤖 [Orchestrator] Starting Predictive Analytics Pipeline with progress tracking: ${workflowId}`);
     
-    // Predictive Analytics Pipeline phases
-    const phases = [
+    if (!this.predictiveAnalyticsPipeline) {
+      throw new Error('Predictive Analytics Pipeline not initialized');
+    }
+
+    const progressCallback = this.progressCallbacks.get(workflowId);
+    let currentPhase = 0;
+    const totalPhases = 8; // 8-node pipeline
+    
+    const phaseNames = [
       'integrateDataStreams',
       'orchestrateExistingAnalytics',
       'generateMLPredictions',
@@ -1466,37 +1492,47 @@ class WorkflowOrchestrator {
       'performAdaptiveLearning',
       'integrateComprehensivePredictions'
     ];
-    
-    let currentPhaseIndex = 0;
-    
-    // Progress tracking with more detailed phases
-    const progressInterval = setInterval(() => {
-      if (progressCallback && currentPhaseIndex < phases.length) {
-        const progress = {
-          stage: phases[currentPhaseIndex],
-          progress: Math.min(95, ((currentPhaseIndex + 1) / phases.length) * 95),
-          message: this.getPredictiveAnalyticsProgressMessage(phases[currentPhaseIndex]),
-          framework: 'PredictiveAnalyticsPipeline',
-          phase: currentPhaseIndex + 1,
-          totalPhases: phases.length
-        };
-        
-        progressCallback(progress);
-        currentPhaseIndex++;
-      }
-    }, 2000); // Slower interval for complex pipeline
 
     try {
-      console.log('🔮 [Orchestrator] Invoking Predictive Analytics Pipeline with progress tracking...');
-      const result = await this.runPredictiveAnalyticsPipeline(inputData, options);
+      const enhancedData = this.preparePredictiveAnalyticsData(inputData, options);
+      
+      // Progress tracking simulation for the 8-node pipeline
+      const progressInterval = setInterval(() => {
+        if (progressCallback && currentPhase < totalPhases) {
+          const progress = Math.round(((currentPhase + 1) / totalPhases) * 95);
+          const message = this.getPredictiveAnalyticsProgressMessage(phaseNames[currentPhase]);
+          
+          progressCallback({
+            progress,
+            message,
+            phase: phaseNames[currentPhase],
+            currentPhase: currentPhase + 1,
+            totalPhases,
+            framework: 'PredictiveAnalyticsPipeline',
+            timestamp: new Date().toISOString()
+          });
+          
+          currentPhase++;
+        }
+      }, 1500); // Adjust timing for realistic workflow execution
+      
+      // Execute the Predictive Analytics Pipeline
+      const result = await this.predictiveAnalyticsPipeline.invoke({
+        inputDataStreams: enhancedData.inputDataStreams
+      });
+      
+      clearInterval(progressInterval);
       
       // Final progress update
       if (progressCallback) {
         progressCallback({
-          stage: 'complete',
           progress: 100,
           message: 'Predictive Analytics Pipeline complete',
+          phase: 'completed',
+          currentPhase: totalPhases,
+          totalPhases,
           framework: 'PredictiveAnalyticsPipeline',
+          timestamp: new Date().toISOString(),
           results: {
             overallConfidence: result.integratedPredictions?.confidenceMetrics?.overallConfidence || 0,
             totalInsights: result.integratedPredictions?.actionableInsights?.length || 0,
@@ -1507,12 +1543,22 @@ class WorkflowOrchestrator {
         });
       }
       
-      clearInterval(progressInterval);
       return result;
       
     } catch (error) {
-      clearInterval(progressInterval);
-      console.error('❌ [Orchestrator] Predictive Analytics Pipeline execution error:', error);
+      console.error(`❌ [Orchestrator] Predictive Analytics Pipeline execution error: ${error.message}`);
+      
+      if (progressCallback) {
+        progressCallback({
+          progress: -1,
+          message: `Error: ${error.message}`,
+          phase: 'error',
+          error: error.message,
+          framework: 'PredictiveAnalyticsPipeline',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       throw error;
     }
   }
@@ -2080,6 +2126,304 @@ class WorkflowOrchestrator {
         `Generated ${alertCount} alerts (${criticalAlerts} critical)`,
         `Provided ${recommendationCount} recommendations`,
         `Health trend: ${trendDirection}`
+      ]
+    };
+  }
+
+  /**
+   * Execute Financial Consequence Engine workflow - Phase 4.1
+   */
+  async executeFinancialConsequenceAnalysis(scenario, financialContext, accounts, options = {}) {
+    const workflowId = this.generateWorkflowId();
+    const startTime = Date.now();
+    
+    console.log(`🏦 [Orchestrator] Starting Financial Consequence Analysis: ${workflowId}`);
+
+    try {
+      // Ensure Financial Consequence Engine is initialized
+      if (!this.financialConsequenceEngine) {
+        this.initializeFinancialConsequenceEngine();
+        if (!this.financialConsequenceEngine) {
+          throw new Error('Financial Consequence Engine initialization failed');
+        }
+      }
+
+      // Check cache first
+      const cacheKey = this.generateCacheKey({ scenario, financialContext, accounts }, 'financial_consequence');
+      if (options.useCache !== false && this.cache.has(cacheKey)) {
+        console.log('📦 [Orchestrator] Returning cached Financial Consequence result');
+        const cachedResult = this.cache.get(cacheKey);
+        return {
+          ...cachedResult,
+          metadata: {
+            ...cachedResult.metadata,
+            cached: true,
+            retrievalTime: Date.now() - startTime
+          }
+        };
+      }
+
+      // Validate input data
+      const validationErrors = this.validateConsequenceData(scenario, financialContext, accounts);
+      if (validationErrors.length > 0) {
+        return {
+          success: false,
+          workflowId,
+          error: 'Invalid consequence analysis data',
+          details: validationErrors
+        };
+      }
+
+      // Track active workflow
+      this.activeWorkflows.set(workflowId, {
+        startTime,
+        timeout: options.timeout || this.defaultTimeout,
+        status: 'running',
+        type: 'financial_consequence'
+      });
+
+      // Set up progress tracking
+      if (options.onProgress) {
+        this.progressCallbacks.set(workflowId, options.onProgress);
+      }
+
+      // Execute with progress tracking
+      const result = await Promise.race([
+        this.executeFinancialConsequenceWithProgress({ scenario, financialContext, accounts }, workflowId, options),
+        this.createTimeoutPromise(options.timeout || this.defaultTimeout)
+      ]);
+
+      // Cache successful results
+      if (result.success) {
+        this.cacheResult(cacheKey, result);
+      }
+
+      // Cleanup
+      this.activeWorkflows.delete(workflowId);
+      this.progressCallbacks.delete(workflowId);
+
+      const totalTime = Date.now() - startTime;
+      console.log(`✅ [Orchestrator] Financial Consequence Analysis completed in ${totalTime}ms: ${workflowId}`);
+
+      return {
+        success: true,
+        workflowId,
+        data: result.result,
+        metadata: {
+          ...result.metadata,
+          totalExecutionTime: totalTime,
+          workflowId,
+          framework: 'FinancialConsequenceEngine',
+          version: '4.1',
+          phase: 'FinancialConsequenceAnalysis'
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Financial Consequence Analysis failed: ${workflowId}`, error);
+
+      // Cleanup on error
+      this.activeWorkflows.delete(workflowId);
+      this.progressCallbacks.delete(workflowId);
+
+      return {
+        success: false,
+        workflowId,
+        error: error.message,
+        code: error.code || 'FINANCIAL_CONSEQUENCE_ERROR'
+      };
+    }
+  }
+
+  /**
+   * Execute Financial Consequence Engine with progress tracking
+   */
+  async executeFinancialConsequenceWithProgress(inputData, workflowId, options = {}) {
+    console.log(`🏦 [Orchestrator] Starting Financial Consequence Engine with progress tracking: ${workflowId}`);
+    
+    if (!this.financialConsequenceEngine) {
+      throw new Error('Financial Consequence Engine not initialized');
+    }
+
+    const progressCallback = this.progressCallbacks.get(workflowId);
+    let currentPhase = 0;
+    const totalPhases = 6; // 6-node pipeline
+    
+    const phaseNames = [
+      'analyzePaymentCapacity',
+      'modelOverdraftConsequences', 
+      'calculateCreditImpacts',
+      'analyzeCascadeEffects',
+      'generateIntelligentSolutions',
+      'synthesizeConsequenceReport'
+    ];
+
+    try {
+      const enhancedData = this.prepareConsequenceData(inputData, options);
+      
+      // Progress tracking simulation for the 6-node pipeline
+      const progressInterval = setInterval(() => {
+        if (progressCallback && currentPhase < totalPhases) {
+          const progress = Math.round(((currentPhase + 1) / totalPhases) * 95);
+          const message = this.getConsequenceAnalysisProgressMessage(phaseNames[currentPhase]);
+          
+          progressCallback({
+            progress,
+            message,
+            phase: phaseNames[currentPhase],
+            currentPhase: currentPhase + 1,
+            totalPhases,
+            framework: 'FinancialConsequenceEngine',
+            timestamp: new Date().toISOString()
+          });
+          
+          currentPhase++;
+        }
+      }, 1500); // Adjust timing for realistic workflow execution
+      
+      // Execute the Financial Consequence Engine
+      const result = await this.financialConsequenceEngine.executeConsequenceAnalysis(
+        enhancedData.scenario,
+        enhancedData.financialContext,
+        enhancedData.accounts
+      );
+      
+      clearInterval(progressInterval);
+      
+      // Final progress update
+      if (progressCallback) {
+        progressCallback({
+          progress: 100,
+          message: 'Financial Consequence Analysis completed successfully',
+          phase: 'completed',
+          currentPhase: totalPhases,
+          totalPhases,
+          framework: 'FinancialConsequenceEngine',
+          timestamp: new Date().toISOString(),
+          results: {
+            executionFeasible: result.result?.executionFeasible || false,
+            totalCost: result.result?.totalCost || 0,
+            riskLevel: result.result?.riskLevel || 'unknown',
+            warningCount: result.result?.warnings?.length || 0,
+            alternativeCount: result.result?.recommendedApproach?.alternativeApproaches?.length || 0
+          }
+        });
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Financial Consequence Engine failed: ${error.message}`);
+      
+      if (progressCallback) {
+        progressCallback({
+          progress: -1,
+          message: `Error: ${error.message}`,
+          phase: 'error',
+          error: error.message,
+          framework: 'FinancialConsequenceEngine',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Prepare Financial Consequence Engine data with context
+   */
+  prepareConsequenceData(inputData, options) {
+    console.log('🏦 [Orchestrator] Preparing Financial Consequence data...');
+    
+    return {
+      ...inputData,
+      orchestratorMetadata: {
+        preparedAt: Date.now(),
+        version: '4.1',
+        framework: 'FinancialConsequenceEngine',
+        orchestratorId: this.generateWorkflowId(),
+        options: options,
+        analysisType: 'realistic_consequence_modeling'
+      }
+    };
+  }
+
+  /**
+   * Get progress message for Financial Consequence Analysis phases
+   */
+  getConsequenceAnalysisProgressMessage(phase) {
+    const messages = {
+      'analyzePaymentCapacity': 'Analyzing payment capacity across all accounts...',
+      'modelOverdraftConsequences': 'Modeling realistic overdraft fees and NSF charges...',
+      'calculateCreditImpacts': 'Calculating credit utilization and interest impacts...',
+      'analyzeCascadeEffects': 'Analyzing cascade effects and secondary consequences...',
+      'generateIntelligentSolutions': 'Generating intelligent payment method solutions...',
+      'synthesizeConsequenceReport': 'Synthesizing comprehensive consequence analysis report...'
+    };
+    
+    return messages[phase] || `Processing ${phase}...`;
+  }
+
+  /**
+   * Validate Financial Consequence analysis input data
+   */
+  validateConsequenceData(scenario, financialContext, accounts) {
+    const errors = [];
+    
+    // Validate scenario
+    if (!scenario) {
+      errors.push('Scenario is required');
+    } else {
+      if (!scenario.name) errors.push('Scenario name is required');
+      if (!scenario.type) errors.push('Scenario type is required');
+      if (typeof scenario.amount !== 'number' || scenario.amount <= 0) {
+        errors.push('Scenario amount must be a positive number');
+      }
+    }
+    
+    // Validate financial context
+    if (!financialContext) {
+      errors.push('Financial context is required');
+    }
+    
+    // Validate accounts
+    if (!accounts || !Array.isArray(accounts) || accounts.length === 0) {
+      errors.push('At least one account is required');
+    } else {
+      accounts.forEach((account, index) => {
+        if (!account.name) errors.push(`Account ${index + 1} name is required`);
+        if (!account.type) errors.push(`Account ${index + 1} type is required`);
+        if (typeof account.currentBalance !== 'number') {
+          errors.push(`Account ${index + 1} current balance must be a number`);
+        }
+      });
+    }
+    
+    return errors;
+  }
+
+  /**
+   * Get Financial Consequence Engine Status
+   */
+  getConsequenceEngineStatus() {
+    if (!this.financialConsequenceEngine) {
+      return { 
+        initialized: false, 
+        error: 'Financial Consequence Engine not initialized'
+      };
+    }
+    
+    return {
+      initialized: true,
+      workflow_nodes: 6,
+      capabilities: [
+        'payment_capacity_analysis',
+        'overdraft_consequence_modeling',
+        'credit_impact_calculation',
+        'cascade_effect_analysis',
+        'intelligent_solution_generation',
+        'comprehensive_consequence_reporting'
       ]
     };
   }
