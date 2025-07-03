@@ -12,6 +12,7 @@ const { createSmartScenarioWorkflows } = require('./smart-scenario-workflows');
 const { createAdvancedScenarioModelingWorkflow } = require('./advanced-scenario-modeling');
 const { createMultiAccountIntelligenceWorkflow } = require('./multi-account-intelligence');
 const { createPredictiveAnalyticsPipeline } = require('./predictive-analytics-pipeline');
+const { FinancialHealthMonitoring } = require('./financial-health-monitoring');
 const config = require('../config');
 
 /**
@@ -35,6 +36,7 @@ class WorkflowOrchestrator {
     this.backgroundManager = null;
     this.multiAccountIntelligenceWorkflow = null;
     this.predictiveAnalyticsPipeline = null;
+    this.financialHealthMonitoring = null;
     this.resultCache = new Map();
     this.cacheTimeout = 30 * 60 * 1000; // 30 minutes
     this.isInitialized = false;
@@ -60,8 +62,11 @@ class WorkflowOrchestrator {
     // Initialize Multi-Account Intelligence workflow for Phase 3.7.1
     this.initializeMultiAccountIntelligence();
 
-    // Initialize Predictive Analytics Pipeline
+    // Initialize Predictive Analytics Pipeline for Phase 3.7.2
     this.initializePredictiveAnalyticsPipeline();
+
+    // Initialize Financial Health Monitoring for Phase 3.7.3
+    this.initializeFinancialHealthMonitoring();
   }
 
   /**
@@ -190,6 +195,24 @@ class WorkflowOrchestrator {
       console.log('✅ [Orchestrator] Predictive Analytics Pipeline initialized');
     } catch (error) {
       console.error('❌ [Orchestrator] Predictive Analytics Pipeline initialization failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Initialize Financial Health Monitoring System - Phase 3.7.3
+   */
+  async initializeFinancialHealthMonitoring() {
+    console.log('🏥 [Orchestrator] Initializing Financial Health Monitoring System...');
+    
+    try {
+      this.financialHealthMonitoring = new FinancialHealthMonitoring(
+        config.openaiApiKey,
+        this // Pass orchestrator reference for integration
+      );
+      console.log('✅ [Orchestrator] Financial Health Monitoring System initialized');
+    } catch (error) {
+      console.error('❌ [Orchestrator] Financial Health Monitoring initialization failed:', error);
       throw error;
     }
   }
@@ -1730,6 +1753,335 @@ class WorkflowOrchestrator {
       }
     }
     return 'Q1';
+  }
+
+  /**
+   * Run Financial Health Monitoring Pipeline - Phase 3.7.3
+   */
+  async runFinancialHealthMonitoring(inputData, options = {}) {
+    const cacheKey = this.generateCacheKey(inputData, 'financial_health_monitoring');
+    
+    // Check cache first
+    const cachedResult = this.resultCache.get(cacheKey);
+    if (cachedResult && Date.now() - cachedResult.timestamp < this.cacheTimeout) {
+      console.log('📋 [Orchestrator] Returning cached Financial Health Monitoring result');
+      return {
+        ...cachedResult.result,
+        fromCache: true,
+        cacheAge: Date.now() - cachedResult.timestamp
+      };
+    }
+
+    console.log('🏥 [Orchestrator] Running Financial Health Monitoring Pipeline...');
+    
+    if (!this.financialHealthMonitoring) {
+      throw new Error('Financial Health Monitoring system not initialized');
+    }
+
+    const startTime = Date.now();
+    
+    try {
+      // Prepare enhanced input data with context
+      const enhancedData = this.prepareHealthMonitoringData(inputData, options);
+      
+      // Execute the health monitoring pipeline
+      const result = await this.financialHealthMonitoring.runHealthMonitoringPipeline(
+        enhancedData, 
+        options
+      );
+      
+      const executionTime = Date.now() - startTime;
+      const enhancedResult = this.enhanceHealthMonitoringResult(result, { 
+        executionTime,
+        inputSize: JSON.stringify(enhancedData).length 
+      });
+      
+      // Cache the result
+      this.cacheResult(cacheKey, enhancedResult);
+      
+      console.log(`✅ [Orchestrator] Financial Health Monitoring completed in ${executionTime}ms`);
+      return enhancedResult;
+      
+    } catch (error) {
+      console.error('❌ [Orchestrator] Financial Health Monitoring failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute Financial Health Monitoring with Progress Tracking
+   */
+  async executeFinancialHealthMonitoringWithProgress(inputData, workflowId, options = {}) {
+    console.log(`🏥 [Orchestrator] Starting Financial Health Monitoring with progress tracking: ${workflowId}`);
+    
+    if (!this.financialHealthMonitoring) {
+      throw new Error('Financial Health Monitoring system not initialized');
+    }
+
+    const progressCallback = this.progressCallbacks.get(workflowId);
+    let currentPhase = 0;
+    const totalPhases = 8; // 8-node pipeline
+    
+    const phaseNames = [
+      'gatherRealTimeData',
+      'calculateHealthScores', 
+      'analyzeHealthTrends',
+      'assessRisksAndWarnings',
+      'generateAutomatedAlerts',
+      'createProactiveRecommendations',
+      'integratePredictiveAnalytics',
+      'generateHealthDashboard'
+    ];
+
+    try {
+      const enhancedData = this.prepareHealthMonitoringData(inputData, options);
+      
+      // Execute with progress tracking
+      const result = await this.financialHealthMonitoring.runHealthMonitoringPipeline(
+        enhancedData,
+        {
+          ...options,
+          progressCallback: (phase) => {
+            currentPhase++;
+            const progress = Math.round((currentPhase / totalPhases) * 100);
+            const message = this.getHealthMonitoringProgressMessage(phase);
+            
+            if (progressCallback) {
+              progressCallback({
+                progress,
+                message,
+                phase,
+                currentPhase,
+                totalPhases,
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
+        }
+      );
+      
+      // Final progress update
+      if (progressCallback) {
+        progressCallback({
+          progress: 100,
+          message: 'Financial Health Monitoring completed successfully',
+          phase: 'completed',
+          currentPhase: totalPhases,
+          totalPhases,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      return result;
+      
+    } catch (error) {
+      console.error(`❌ [Orchestrator] Financial Health Monitoring failed: ${error.message}`);
+      
+      if (progressCallback) {
+        progressCallback({
+          progress: -1,
+          message: `Error: ${error.message}`,
+          phase: 'error',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Start Continuous Financial Health Monitoring
+   */
+  async startContinuousHealthMonitoring(inputData, intervalMinutes = 30) {
+    console.log('🔄 [Orchestrator] Starting continuous financial health monitoring...');
+    
+    if (!this.financialHealthMonitoring) {
+      throw new Error('Financial Health Monitoring system not initialized');
+    }
+    
+    return await this.financialHealthMonitoring.startContinuousMonitoring(inputData, intervalMinutes);
+  }
+
+  /**
+   * Stop Continuous Financial Health Monitoring
+   */
+  async stopContinuousHealthMonitoring() {
+    console.log('⏹️ [Orchestrator] Stopping continuous financial health monitoring...');
+    
+    if (!this.financialHealthMonitoring) {
+      throw new Error('Financial Health Monitoring system not initialized');
+    }
+    
+    return this.financialHealthMonitoring.stopContinuousMonitoring();
+  }
+
+  /**
+   * Get Financial Health Monitoring Status
+   */
+  getHealthMonitoringStatus() {
+    if (!this.financialHealthMonitoring) {
+      return { 
+        initialized: false, 
+        monitoring_active: false,
+        error: 'System not initialized'
+      };
+    }
+    
+    return {
+      initialized: true,
+      monitoring_active: this.financialHealthMonitoring.monitoringActive,
+      health_history_points: this.financialHealthMonitoring.healthMetrics.size,
+      trend_history_points: this.financialHealthMonitoring.healthTrends.length
+    };
+  }
+
+  /**
+   * Prepare Financial Health Monitoring data with context
+   */
+  prepareHealthMonitoringData(inputData, options) {
+    console.log('📊 [Orchestrator] Preparing Financial Health Monitoring data...');
+    
+    return {
+      ...inputData,
+      orchestratorMetadata: {
+        preparedAt: Date.now(),
+        version: '3.7.3',
+        framework: 'FinancialHealthMonitoring',
+        orchestratorId: this.generateWorkflowId(),
+        options: options,
+        seasonality: this.getCurrentSeasonality()
+      }
+    };
+  }
+
+  /**
+   * Enhance Financial Health Monitoring results
+   */
+  enhanceHealthMonitoringResult(result, metadata) {
+    console.log('✨ [Orchestrator] Enhancing Financial Health Monitoring results...');
+    
+    return {
+      ...result,
+      orchestratorMetadata: {
+        enhancedAt: Date.now(),
+        executionTime: metadata.executionTime,
+        version: '3.7.3',
+        framework: 'FinancialHealthMonitoring',
+        qualityScore: this.calculateHealthMonitoringQuality(result),
+        readinessLevel: this.assessHealthMonitoringReadiness(result),
+        summary: this.generateHealthMonitoringSummary(result)
+      }
+    };
+  }
+
+  /**
+   * Get progress message for Financial Health Monitoring phases
+   */
+  getHealthMonitoringProgressMessage(phase) {
+    const messages = {
+      'gatherRealTimeData': 'Gathering real-time financial data and market information...',
+      'calculateHealthScores': 'Calculating comprehensive financial health scores across 8 dimensions...',
+      'analyzeHealthTrends': 'Analyzing health trends and patterns over time...',
+      'assessRisksAndWarnings': 'Assessing financial risks and generating early warnings...',
+      'generateAutomatedAlerts': 'Creating automated alerts based on health thresholds...',
+      'createProactiveRecommendations': 'Generating proactive recommendations for improvement...',
+      'integratePredictiveAnalytics': 'Integrating with predictive analytics for future health forecasting...',
+      'generateHealthDashboard': 'Generating comprehensive health dashboard and visual indicators...'
+    };
+    
+    return messages[phase] || `Processing ${phase}...`;
+  }
+
+  /**
+   * Calculate quality score for Financial Health Monitoring results
+   */
+  calculateHealthMonitoringQuality(result) {
+    if (!result || !result.success) return 0;
+    
+    let qualityScore = 0;
+    let factors = 0;
+    
+    // Dashboard completeness
+    if (result.overview && result.component_health && result.trends) {
+      qualityScore += 0.3;
+      factors += 0.3;
+    }
+    
+    // Health scores validity
+    if (result.overview?.overall_health_score && 
+        result.overview.overall_health_score >= 0 && 
+        result.overview.overall_health_score <= 100) {
+      qualityScore += 0.25;
+      factors += 0.25;
+    }
+    
+    // Alert system functionality
+    if (result.alerts && Array.isArray(result.alerts.all_alerts)) {
+      qualityScore += 0.2;
+      factors += 0.2;
+    }
+    
+    // Recommendation quality
+    if (result.recommendations && result.recommendations.all_recommendations) {
+      qualityScore += 0.25;
+      factors += 0.25;
+    }
+    
+    return factors > 0 ? qualityScore / factors : 0.5;
+  }
+
+  /**
+   * Assess readiness level of Financial Health Monitoring results
+   */
+  assessHealthMonitoringReadiness(result) {
+    const quality = this.calculateHealthMonitoringQuality(result);
+    const hasHealthScore = !!result.overview?.overall_health_score;
+    const hasRecommendations = !!(result.recommendations?.all_recommendations?.length > 0);
+    
+    if (quality >= 0.8 && hasHealthScore && hasRecommendations) {
+      return 'production_ready';
+    } else if (quality >= 0.6 && hasHealthScore) {
+      return 'review_recommended';
+    } else {
+      return 'development_required';
+    }
+  }
+
+  /**
+   * Generate summary for Financial Health Monitoring results
+   */
+  generateHealthMonitoringSummary(result) {
+    if (!result || !result.success) {
+      return {
+        status: 'failed',
+        message: 'Health monitoring execution failed'
+      };
+    }
+    
+    const healthScore = result.overview?.overall_health_score || 0;
+    const healthGrade = result.overview?.overall_health_grade || 'N/A';
+    const alertCount = result.alerts?.alert_count || 0;
+    const recommendationCount = result.recommendations?.recommendation_count || 0;
+    const criticalAlerts = result.alerts?.critical_count || 0;
+    const trendDirection = result.trends?.trend_analysis?.direction || 'stable';
+    
+    return {
+      healthScore: healthScore,
+      healthGrade: healthGrade,
+      alertCount: alertCount,
+      recommendationCount: recommendationCount,
+      criticalAlerts: criticalAlerts,
+      trendDirection: trendDirection,
+      status: healthScore >= 70 ? 'healthy' : healthScore >= 50 ? 'fair' : 'needs_attention',
+      keyHighlights: [
+        `Overall Health Score: ${healthScore}/100 (${healthGrade})`,
+        `Generated ${alertCount} alerts (${criticalAlerts} critical)`,
+        `Provided ${recommendationCount} recommendations`,
+        `Health trend: ${trendDirection}`
+      ]
+    };
   }
 }
 
