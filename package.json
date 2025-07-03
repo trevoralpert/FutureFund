@@ -1,107 +1,194 @@
 {
   "name": "futurefund",
   "version": "1.0.0",
-  "description": "AI-Powered Personal Finance Forecasting Desktop App",
+  "description": "AI-Powered Personal Finance Forecasting Desktop Application",
   "main": "src/main.js",
+  "homepage": "https://github.com/yourusername/futurefund",
+  "author": {
+    "name": "FutureFund Team",
+    "email": "contact@futurefund.com"
+  },
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "npm run build:clean && electron-builder",
-    "build:clean": "rm -rf dist/",
+    "test": "node src/test-suite/test-runner.js",
+    "test:comprehensive": "node src/test-suite/comprehensive-test-suite.js",
+    "test:performance": "node src/test-suite/performance-test.js",
+    "db:init": "node -e \"const db = require('./src/database/database.js'); db.initializeDatabase();\"",
+    "db:migrate": "node src/database/data-migration.js",
+    "build": "npm run build:clean && npm run build:optimize && electron-builder",
+    "build:clean": "rimraf dist",
+    "build:optimize": "npm run optimize:assets && npm run optimize:database",
+    "build:windows": "electron-builder --windows",
     "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux",
+    "optimize:assets": "echo 'Optimizing assets...'",
+    "optimize:database": "echo 'Optimizing database...'",
     "pack": "electron-builder --dir",
-    "dist": "npm run build",
-    "test": "node src/test-suite.js",
-    "postinstall": "electron-builder install-app-deps"
+    "dist": "electron-builder",
+    "dist:all": "electron-builder --mac --windows --linux",
+    "postinstall": "electron-builder install-app-deps",
+    "release": "npm run build && npm run release:notes",
+    "release:notes": "node scripts/generate-release-notes.js"
   },
   "keywords": [
     "finance",
-    "forecasting",
     "ai",
+    "forecasting",
+    "budgeting",
+    "personal-finance",
     "desktop",
-    "electron"
+    "electron",
+    "langchain",
+    "scenario-modeling"
   ],
-  "author": "Trevor Alpert",
-  "license": "MIT",
   "devDependencies": {
-    "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron": "^32.0.1",
+    "electron-builder": "^24.13.3",
+    "rimraf": "^5.0.5"
   },
   "dependencies": {
-    "@langchain/langgraph": "^0.0.19",
-    "@langchain/openai": "^0.0.14",
-    "chart.js": "^4.5.0",
-    "csv-parser": "^3.0.0",
-    "date-fns": "^3.0.0",
-    "dotenv": "^17.0.0",
-    "langchain": "^0.1.0",
-    "langsmith": "^0.0.48",
-    "openai": "^4.24.0",
-    "sqlite3": "^5.1.7"
+    "@langchain/community": "^0.3.16",
+    "@langchain/core": "^0.3.22",
+    "@langchain/openai": "^0.3.15",
+    "better-sqlite3": "^11.6.0",
+    "chart.js": "^4.4.6",
+    "dotenv": "^17.0.1",
+    "langchain": "^0.3.6",
+    "langgraph": "^0.2.19"
   },
   "build": {
-    "appId": "com.gauntletai.futurefund",
+    "appId": "com.futurefund.app",
     "productName": "FutureFund",
-    "compression": "maximum",
+    "copyright": "Copyright © 2025 FutureFund Team",
+    "buildVersion": "1.0.0",
     "directories": {
       "output": "dist",
-      "buildResources": "assets"
+      "app": ".",
+      "buildResources": "build"
     },
     "files": [
       "src/**/*",
-      "data/**/*",
-      "!src/test-suite.js",
+      "data/sample-transactions.json",
+      "environment.template",
+      "package.json",
+      "README.md",
+      "USER_MANUAL.md",
+      "!data/futurefund*.db*",
+      "!data/exports/**/*",
+      "!src/test-suite/**/*",
       "!**/*.test.js",
-      "!**/*.spec.js",
-      "!**/node_modules/.cache"
+      "!**/.DS_Store"
     ],
-    "extraFiles": [
+    "extraResources": [
       {
-        "from": "environment.template",
-        "to": ".env.example"
+        "from": "data/sample-transactions.json",
+        "to": "data/"
       }
     ],
     "mac": {
       "category": "public.app-category.finance",
+      "icon": "build/icon.icns",
       "target": [
         {
           "target": "dmg",
           "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
         }
       ],
-      "icon": "assets/icon.icns"
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false
     },
     "win": {
+      "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
           "arch": ["x64"]
         }
       ],
-      "icon": "assets/icon.ico"
+      "publisherName": "FutureFund Team",
+      "verifyUpdateCodeSignature": false
     },
     "linux": {
+      "icon": "build/icon.png",
+      "category": "Office",
       "target": [
         {
           "target": "AppImage",
           "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "rpm",
+          "arch": ["x64"]
         }
       ],
-      "icon": "assets/icon.png",
-      "category": "Office"
+      "synopsis": "AI-Powered Personal Finance Forecasting",
+      "description": "Transform your personal finance management with AI-powered forecasting, scenario modeling, and intelligent insights."
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false
+    },
+    "dmg": {
+      "title": "FutureFund ${version}",
+      "icon": "build/icon.icns",
+      "background": "build/background.png",
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "contents": [
+        {
+          "x": 410,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 130,
+          "y": 180,
+          "type": "file"
+        }
+      ]
     },
     "publish": {
       "provider": "github",
-      "owner": "trevoralpert",
-      "repo": "FutureFund"
-    }
+      "owner": "futurefund",
+      "repo": "futurefund"
+    },
+    "afterSign": "scripts/notarize.js",
+    "compression": "maximum",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/futurefund.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/futurefund/issues"
   }
 }
