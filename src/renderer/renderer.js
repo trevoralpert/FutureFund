@@ -27,6 +27,9 @@ class FutureFundApp {
     async init() {
         console.log('FutureFund initializing...');
         
+        // Initialize UI enhancement systems
+        this.initializeUIEnhancements();
+        
         // Initialize UI components
         this.initializeTabs();
         this.initializeEventListeners();
@@ -41,7 +44,31 @@ class FutureFundApp {
         await this.loadScenarios();
         await this.loadActiveScenarios();
         
+        // Initialize onboarding for new users
+        this.initializeOnboarding();
+        
         console.log('FutureFund initialized successfully!');
+    }
+
+    initializeUIEnhancements() {
+        // Initialize all UI enhancement managers
+        window.microInteractions = new MicroInteractionManager();
+        window.progressManager = new ProgressManager();
+        window.onboardingManager = new OnboardingManager();
+        window.accessibilityManager = new AccessibilityManager();
+        
+        console.log('✨ UI Enhancement systems initialized');
+    }
+
+    initializeOnboarding() {
+        // Check if this is a first-time user
+        const hasSeenOnboarding = localStorage.getItem('futurefund_onboarding_completed');
+        if (!hasSeenOnboarding) {
+            // Delay onboarding slightly to let UI load
+            setTimeout(() => {
+                window.onboardingManager.start();
+            }, 1000);
+        }
     }
 
     initializeTabs() {
@@ -5181,521 +5208,878 @@ class TooltipManager {
     }
 }
 
-// =============================================================================
-// GLOBAL ENHANCEMENT INITIALIZATION
-// =============================================================================
-
-// Create global instances
-const notifications = new NotificationManager();
-const loadingManager = new LoadingManager();
-const keyboardShortcuts = new KeyboardShortcuts();
-const tooltipManager = new TooltipManager();
-
-// Enhance the existing FutureFundApp class
-if (window.FutureFundApp) {
-    const originalInit = FutureFundApp.prototype.init;
-    FutureFundApp.prototype.init = async function() {
-        await originalInit.call(this);
-        
-        // Add enhanced UX features
-        this.notifications = notifications;
-        this.loadingManager = loadingManager;
-        this.keyboardShortcuts = keyboardShortcuts;
-        this.tooltipManager = tooltipManager;
-        
-        // Show welcome message
-        setTimeout(() => {
-            notifications.info(`
-                <div>
-                    <strong>Welcome to FutureFund!</strong><br>
-                    <small>Press Ctrl+? for keyboard shortcuts</small>
-                </div>
-            `, 6000);
-        }, 2000);
-    };
-    
-    // Enhance existing methods with notifications and loading states
-    const originalSendChatMessage = FutureFundApp.prototype.sendChatMessage;
-    FutureFundApp.prototype.sendChatMessage = async function() {
-        const chatInput = document.getElementById('chatInput');
-        if (!chatInput || !chatInput.value.trim()) {
-            notifications.warning('Please enter a message before sending.');
-            if (chatInput) chatInput.focus();
-            return;
-        }
-        
-        try {
-            await originalSendChatMessage.call(this);
-        } catch (error) {
-            notifications.error('Failed to send message. Please try again.');
-            console.error('Chat error:', error);
-        }
-    };
-}
-
-// Add global event handlers for enhanced UX
-document.addEventListener('DOMContentLoaded', () => {
-    // Handle form submissions with better UX
-    document.addEventListener('submit', (e) => {
-        const form = e.target;
-        if (form.tagName === 'FORM') {
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<div class="spinner" style="width: 16px; height: 16px; margin-right: 8px;"></div>Submitting...';
-                
-                setTimeout(() => {
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = submitBtn.dataset.originalText || 'Submit';
-                    }
-                }, 2000);
-            }
-        }
-    });
-    
-    // Handle errors gracefully
-    window.addEventListener('error', (e) => {
-        console.error('Global error:', e);
-        notifications.error('An unexpected error occurred. Please try again.');
-    });
-    
-    // Handle unhandled promise rejections
-    window.addEventListener('unhandledrejection', (e) => {
-        console.error('Unhandled promise rejection:', e);
-        notifications.error('A background operation failed. Some features may not work correctly.');
-    });
-    
-    // Add accessibility improvements
-    document.addEventListener('keydown', (e) => {
-        // Skip to main content with Ctrl+M
-        if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
-            e.preventDefault();
-            const mainContent = document.querySelector('main') || 
-                              document.querySelector('.main-content') ||
-                              document.querySelector('.tab-content.active');
-            if (mainContent) {
-                mainContent.focus();
-                notifications.info('Jumped to main content');
-            }
-        }
-    });
-});
-
-// Expose enhanced functionality globally
-window.FutureFundUX = {
-    notifications,
-    loadingManager,
-    keyboardShortcuts,
-    tooltipManager,
-    
-    // Utility functions
-    showSuccess: (message) => notifications.success(message),
-    showError: (message) => notifications.error(message),
-    showInfo: (message) => notifications.info(message),
-    showWarning: (message) => notifications.warning(message),
-    
-    showLoading: (element, text) => loadingManager.show(element, text),
-    hideLoading: (element) => loadingManager.hide(element),
-    
-    addTooltip: (selector, text, options) => tooltipManager.add(selector, text, options),
-    addShortcut: (combo, action, description) => keyboardShortcuts.add(combo, action, description)
-};
-
-console.log('🎨 Enhanced UX features loaded successfully!');
-console.log('🔥 FutureFund is now fully enhanced with:');
-console.log('  ✅ Smart notifications');
-console.log('  ✅ Keyboard shortcuts (Ctrl+? for help)');
-console.log('  ✅ Interactive tooltips');
-console.log('  ✅ Enhanced loading states');
-console.log('  ✅ Better accessibility');
-console.log('  ✅ Improved error handling');
-
-// =============================================================================
-// PERFORMANCE OPTIMIZATION UTILITIES
-// =============================================================================
-
-class PerformanceManager {
+/**
+ * AccessibilityManager - Enhanced accessibility features
+ */
+class AccessibilityManager {
     constructor() {
-        this.debounceTimers = new Map();
-        this.responseCache = new Map();
-        this.cacheExpiry = 5 * 60 * 1000; // 5 minutes
-        this.maxCacheSize = 100;
-        this.memoryUsage = {
-            components: new Map(), // Changed from WeakMap to Map for iteration support
-            cleanupIntervals: new Set()
-        };
+        this.initializeAccessibility();
+        this.setupKeyboardNavigation();
+        this.setupScreenReaderSupport();
+        this.setupFocusManagement();
+    }
+
+    initializeAccessibility() {
+        // Add skip-to-content link
+        this.addSkipToContent();
         
-        this.initializePerformanceMonitoring();
+        // Enhance existing ARIA labels
+        this.enhanceAriaLabels();
+        
+        // Setup focus indicators
+        this.setupFocusIndicators();
     }
 
-    // =============================================================================
-    // DEBOUNCING UTILITIES
-    // =============================================================================
+    addSkipToContent() {
+        const skipLink = document.createElement('a');
+        skipLink.href = '#main-content';
+        skipLink.textContent = 'Skip to main content';
+        skipLink.className = 'skip-to-content';
+        skipLink.style.cssText = `
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 4px;
+            z-index: 1000;
+            transition: top 0.3s;
+        `;
+        
+        skipLink.addEventListener('focus', () => {
+            skipLink.style.top = '6px';
+        });
+        
+        skipLink.addEventListener('blur', () => {
+            skipLink.style.top = '-40px';
+        });
+        
+        document.body.insertBefore(skipLink, document.body.firstChild);
+    }
 
-    /**
-     * Debounce function calls to prevent excessive executions
-     * @param {string} key - Unique identifier for the debounced operation
-     * @param {Function} func - Function to debounce
-     * @param {number} delay - Delay in milliseconds (default: 300ms)
-     * @returns {Function} Debounced function
-     */
-    debounce(key, func, delay = 300) {
-        return (...args) => {
-            // Clear existing timer
-            if (this.debounceTimers.has(key)) {
-                clearTimeout(this.debounceTimers.get(key));
+    enhanceAriaLabels() {
+        // Add ARIA labels to interactive elements
+        const buttons = document.querySelectorAll('button:not([aria-label]):not([aria-labelledby])');
+        buttons.forEach(button => {
+            if (button.textContent.trim()) {
+                button.setAttribute('aria-label', button.textContent.trim());
             }
+        });
 
-            // Set new timer
-            const timer = setTimeout(() => {
-                func.apply(this, args);
-                this.debounceTimers.delete(key);
-            }, delay);
-
-            this.debounceTimers.set(key, timer);
-        };
-    }
-
-    /**
-     * Throttle function calls to limit execution frequency
-     * @param {string} key - Unique identifier for the throttled operation
-     * @param {Function} func - Function to throttle
-     * @param {number} limit - Time limit in milliseconds (default: 100ms)
-     * @returns {Function} Throttled function
-     */
-    throttle(key, func, limit = 100) {
-        let inThrottle = false;
-        return (...args) => {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
-        };
-    }
-
-    // =============================================================================
-    // CACHING SYSTEM
-    // =============================================================================
-
-    /**
-     * Cache AI responses and expensive computations
-     * @param {string} key - Cache key
-     * @param {any} data - Data to cache
-     */
-    setCache(key, data) {
-        // Implement LRU cache eviction
-        if (this.responseCache.size >= this.maxCacheSize) {
-            const firstKey = this.responseCache.keys().next().value;
-            this.responseCache.delete(firstKey);
+        // Add ARIA roles to key sections
+        const nav = document.querySelector('.nav-tabs');
+        if (nav) {
+            nav.setAttribute('role', 'tablist');
+            nav.setAttribute('aria-label', 'Main navigation');
         }
 
-        this.responseCache.set(key, {
-            data: data,
-            timestamp: Date.now(),
-            accessCount: 1
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        tabButtons.forEach((tab, index) => {
+            tab.setAttribute('role', 'tab');
+            tab.setAttribute('aria-selected', tab.classList.contains('active'));
+            tab.setAttribute('aria-controls', `${tab.dataset.tab}Tab`);
+            tab.setAttribute('tabindex', tab.classList.contains('active') ? '0' : '-1');
+        });
+
+        const tabPanels = document.querySelectorAll('.tab-content');
+        tabPanels.forEach(panel => {
+            panel.setAttribute('role', 'tabpanel');
+            panel.setAttribute('aria-hidden', !panel.classList.contains('active'));
         });
     }
 
-    /**
-     * Retrieve cached data
-     * @param {string} key - Cache key
-     * @returns {any|null} Cached data or null if not found/expired
-     */
-    getCache(key) {
-        const cached = this.responseCache.get(key);
-        if (!cached) return null;
-
-        // Check if cache is expired
-        if (Date.now() - cached.timestamp > this.cacheExpiry) {
-            this.responseCache.delete(key);
-            return null;
-        }
-
-        // Update access count and timestamp for LRU
-        cached.accessCount++;
-        cached.timestamp = Date.now();
-        return cached.data;
+    setupKeyboardNavigation() {
+        // Enhanced tab navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.target.closest('.nav-tabs')) {
+                this.handleTabNavigation(e);
+            }
+        });
     }
 
-    /**
-     * Clear cache entries
-     * @param {string} pattern - Optional pattern to match keys for selective clearing
-     */
-    clearCache(pattern = null) {
-        if (pattern) {
-            for (const key of this.responseCache.keys()) {
-                if (key.includes(pattern)) {
-                    this.responseCache.delete(key);
+    handleTabNavigation(e) {
+        const tabs = Array.from(document.querySelectorAll('.tab-btn'));
+        const currentIndex = tabs.findIndex(tab => tab === document.activeElement);
+
+        switch (e.key) {
+            case 'ArrowRight':
+            case 'ArrowDown':
+                e.preventDefault();
+                const nextIndex = (currentIndex + 1) % tabs.length;
+                this.focusTab(tabs[nextIndex]);
+                break;
+            case 'ArrowLeft':
+            case 'ArrowUp':
+                e.preventDefault();
+                const prevIndex = currentIndex === 0 ? tabs.length - 1 : currentIndex - 1;
+                this.focusTab(tabs[prevIndex]);
+                break;
+            case 'Home':
+                e.preventDefault();
+                this.focusTab(tabs[0]);
+                break;
+            case 'End':
+                e.preventDefault();
+                this.focusTab(tabs[tabs.length - 1]);
+                break;
+        }
+    }
+
+    focusTab(tab) {
+        // Update tabindex
+        document.querySelectorAll('.tab-btn').forEach(t => t.setAttribute('tabindex', '-1'));
+        tab.setAttribute('tabindex', '0');
+        tab.focus();
+    }
+
+    setupScreenReaderSupport() {
+        // Add live regions for dynamic content
+        this.createLiveRegions();
+        
+        // Announce important updates
+        this.setupUpdateAnnouncements();
+    }
+
+    createLiveRegions() {
+        const liveRegion = document.createElement('div');
+        liveRegion.setAttribute('aria-live', 'polite');
+        liveRegion.setAttribute('aria-atomic', 'true');
+        liveRegion.className = 'sr-only';
+        liveRegion.id = 'live-region';
+        liveRegion.style.cssText = `
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        `;
+        document.body.appendChild(liveRegion);
+    }
+
+    announce(message) {
+        const liveRegion = document.getElementById('live-region');
+        if (liveRegion) {
+            liveRegion.textContent = message;
+        }
+    }
+
+    setupUpdateAnnouncements() {
+        // Announce tab changes
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tab-btn')) {
+                const tabName = e.target.textContent.trim();
+                this.announce(`${tabName} tab selected`);
+            }
+        });
+
+        // Announce loading states
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1 && node.classList?.contains('loading-overlay')) {
+                        this.announce('Loading...');
+                    }
+                });
+                
+                mutation.removedNodes.forEach((node) => {
+                    if (node.nodeType === 1 && node.classList?.contains('loading-overlay')) {
+                        this.announce('Loading complete');
+                    }
+                });
+            });
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    setupFocusManagement() {
+        // Focus management for modals
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.querySelector('.modal:not(.hidden)');
+                if (modal) {
+                    const closeBtn = modal.querySelector('.modal-close');
+                    if (closeBtn) closeBtn.click();
                 }
+            }
+        });
+
+        // Trap focus in modals
+        this.setupFocusTrap();
+    }
+
+    setupFocusTrap() {
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                const modal = document.querySelector('.modal:not(.hidden)');
+                if (modal) {
+                    this.trapFocus(e, modal);
+                }
+            }
+        });
+    }
+
+    trapFocus(e, container) {
+        const focusableElements = container.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+            if (document.activeElement === firstElement) {
+                e.preventDefault();
+                lastElement.focus();
             }
         } else {
-            this.responseCache.clear();
-        }
-    }
-
-    // =============================================================================
-    // MEMORY OPTIMIZATION
-    // =============================================================================
-
-    /**
-     * Register component for memory tracking
-     * @param {Element} element - DOM element to track
-     * @param {Object} data - Associated data
-     */
-    trackComponent(element, data = {}) {
-        this.memoryUsage.components.set(element, {
-            ...data,
-            createdAt: Date.now(),
-            lastAccessed: Date.now()
-        });
-    }
-
-    /**
-     * Clean up unused DOM references and event listeners
-     */
-    cleanupMemory() {
-        // Safety check: ensure components is properly initialized
-        if (!this.memoryUsage?.components || typeof this.memoryUsage.components[Symbol.iterator] !== 'function') {
-            console.warn('⚠️ Memory components not properly initialized, skipping cleanup');
-            return;
-        }
-
-        // Clean up detached DOM elements
-        const elementsToClean = [];
-        
-        try {
-            for (const [element, data] of this.memoryUsage.components) {
-                if (!document.contains(element)) {
-                    elementsToClean.push(element);
-                } else if (data && Date.now() - data.lastAccessed > 10 * 60 * 1000) { // 10 minutes
-                    // Mark for potential cleanup if not accessed recently
-                    data.markedForCleanup = true;
-                }
+            if (document.activeElement === lastElement) {
+                e.preventDefault();
+                firstElement.focus();
             }
+        }
+    }
 
-            // Remove detached elements
-            elementsToClean.forEach(element => {
-                this.memoryUsage.components.delete(element);
+    setupFocusIndicators() {
+        const style = document.createElement('style');
+        style.textContent = `
+            body.keyboard-navigation *:focus {
+                outline: 2px solid var(--primary-color);
+                outline-offset: 2px;
+            }
+            
+            body:not(.keyboard-navigation) *:focus {
+                outline: none;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+/**
+ * ErrorManager - Global error handling and recovery
+ */
+class ErrorManager {
+    constructor() {
+        this.errorCount = 0;
+        this.recentErrors = [];
+        this.maxRecentErrors = 10;
+        this.setupGlobalErrorHandling();
+        this.initializeStyles();
+    }
+
+    initializeStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .error-boundary {
+                background: #fef2f2;
+                border: 1px solid #fecaca;
+                border-radius: 8px;
+                padding: 1rem;
+                margin: 1rem 0;
+            }
+            
+            .error-title {
+                color: #dc2626;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+            }
+            
+            .error-message {
+                color: #7f1d1d;
+                margin-bottom: 1rem;
+            }
+            
+            .error-actions {
+                display: flex;
+                gap: 0.5rem;
+            }
+            
+            .retry-btn {
+                background: #dc2626;
+                color: white;
+                border: none;
+                padding: 0.5rem 1rem;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.875rem;
+            }
+            
+            .retry-btn:hover {
+                background: #b91c1c;
+            }
+            
+            .error-details {
+                font-family: monospace;
+                font-size: 0.75rem;
+                background: #fee2e2;
+                padding: 0.5rem;
+                border-radius: 4px;
+                margin-top: 0.5rem;
+                white-space: pre-wrap;
+                max-height: 200px;
+                overflow-y: auto;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    setupGlobalErrorHandling() {
+        // Catch JavaScript errors
+        window.addEventListener('error', (event) => {
+            this.handleError({
+                type: 'javascript',
+                message: event.message,
+                filename: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
             });
-
-            console.log(`🧹 Memory cleanup: Removed ${elementsToClean.length} detached elements`);
-        } catch (error) {
-            console.error('❌ Memory cleanup error:', error);
-        }
-    }
-
-    /**
-     * Schedule automatic memory cleanup
-     */
-    scheduleCleanup() {
-        const cleanupInterval = setInterval(() => {
-            this.cleanupMemory();
-            this.clearExpiredCache();
-        }, 2 * 60 * 1000); // Every 2 minutes
-
-        this.memoryUsage.cleanupIntervals.add(cleanupInterval);
-    }
-
-    /**
-     * Clear expired cache entries
-     */
-    clearExpiredCache() {
-        const now = Date.now();
-        const expiredKeys = [];
-
-        for (const [key, cached] of this.responseCache) {
-            if (now - cached.timestamp > this.cacheExpiry) {
-                expiredKeys.push(key);
-            }
-        }
-
-        expiredKeys.forEach(key => this.responseCache.delete(key));
-        
-        if (expiredKeys.length > 0) {
-            console.log(`🗑️ Cache cleanup: Removed ${expiredKeys.length} expired entries`);
-        }
-    }
-
-    // =============================================================================
-    // PERFORMANCE MONITORING
-    // =============================================================================
-
-    /**
-     * Initialize performance monitoring
-     */
-    initializePerformanceMonitoring() {
-        // Monitor memory usage
-        if (window.performance && window.performance.memory) {
-            const checkMemory = () => {
-                const memory = window.performance.memory;
-                const memoryInfo = {
-                    used: Math.round(memory.usedJSHeapSize / 1048576), // MB
-                    total: Math.round(memory.totalJSHeapSize / 1048576), // MB
-                    limit: Math.round(memory.jsHeapSizeLimit / 1048576) // MB
-                };
-
-                // Log warning if memory usage is high
-                if (memoryInfo.used > memoryInfo.limit * 0.8) {
-                    console.warn('🚨 High memory usage detected:', memoryInfo);
-                    this.cleanupMemory();
-                }
-            };
-
-            setInterval(checkMemory, 30000); // Check every 30 seconds
-        }
-
-        // Start cleanup scheduler
-        this.scheduleCleanup();
-        
-        console.log('📊 Performance monitoring initialized');
-    }
-
-    /**
-     * Measure and log performance of operations
-     * @param {string} label - Performance label
-     * @param {Function} operation - Operation to measure
-     * @returns {Promise<any>} Operation result
-     */
-    async measurePerformance(label, operation) {
-        const startTime = performance.now();
-        
-        try {
-            const result = await operation();
-            const endTime = performance.now();
-            const duration = endTime - startTime;
-            
-            if (duration > 100) { // Log operations taking more than 100ms
-                console.log(`⏱️ Performance: ${label} took ${duration.toFixed(2)}ms`);
-            }
-            
-            return result;
-        } catch (error) {
-            const endTime = performance.now();
-            const duration = endTime - startTime;
-            console.error(`❌ Performance: ${label} failed after ${duration.toFixed(2)}ms`, error);
-            throw error;
-        }
-    }
-
-    /**
-     * Create a performance-optimized virtual scroll for large lists
-     * @param {Element} container - Container element
-     * @param {Array} items - Items to render
-     * @param {Function} renderItem - Function to render each item
-     * @param {number} itemHeight - Height of each item in pixels
-     */
-    createVirtualScroll(container, items, renderItem, itemHeight = 50) {
-        const containerHeight = container.clientHeight;
-        const visibleCount = Math.ceil(containerHeight / itemHeight) + 2; // Buffer
-        const totalHeight = items.length * itemHeight;
-        
-        let scrollTop = 0;
-        let startIndex = 0;
-        
-        // Create virtual container
-        const virtualContainer = document.createElement('div');
-        virtualContainer.style.height = `${totalHeight}px`;
-        virtualContainer.style.position = 'relative';
-        
-        // Create visible items container
-        const visibleContainer = document.createElement('div');
-        visibleContainer.style.position = 'absolute';
-        visibleContainer.style.top = '0px';
-        visibleContainer.style.width = '100%';
-        
-        virtualContainer.appendChild(visibleContainer);
-        container.appendChild(virtualContainer);
-        
-        const updateVisible = this.throttle('virtualScroll', () => {
-            startIndex = Math.floor(scrollTop / itemHeight);
-            const endIndex = Math.min(startIndex + visibleCount, items.length);
-            
-            // Clear visible items
-            visibleContainer.innerHTML = '';
-            visibleContainer.style.transform = `translateY(${startIndex * itemHeight}px)`;
-            
-            // Render visible items
-            for (let i = startIndex; i < endIndex; i++) {
-                const itemElement = renderItem(items[i], i);
-                itemElement.style.height = `${itemHeight}px`;
-                visibleContainer.appendChild(itemElement);
-            }
-        }, 16); // 60fps
-        
-        container.addEventListener('scroll', (e) => {
-            scrollTop = e.target.scrollTop;
-            updateVisible();
         });
-        
-        // Initial render
-        updateVisible();
-        
-        return {
-            update: (newItems) => {
-                items = newItems;
-                virtualContainer.style.height = `${newItems.length * itemHeight}px`;
-                updateVisible();
-            },
-            destroy: () => {
-                container.removeChild(virtualContainer);
+
+        // Catch unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            this.handleError({
+                type: 'promise',
+                message: event.reason?.message || 'Unhandled promise rejection',
+                error: event.reason
+            });
+        });
+
+        // Catch network errors
+        this.setupNetworkErrorHandling();
+    }
+
+    setupNetworkErrorHandling() {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            try {
+                const response = await originalFetch(...args);
+                if (!response.ok) {
+                    this.handleError({
+                        type: 'network',
+                        message: `HTTP ${response.status}: ${response.statusText}`,
+                        url: args[0]
+                    });
+                }
+                return response;
+            } catch (error) {
+                this.handleError({
+                    type: 'network',
+                    message: `Network error: ${error.message}`,
+                    url: args[0],
+                    error
+                });
+                throw error;
             }
         };
     }
 
-    /**
-     * Destroy performance manager and cleanup resources
-     */
-    destroy() {
-        // Clear all timers
-        for (const timer of this.debounceTimers.values()) {
-            clearTimeout(timer);
+    handleError(errorInfo) {
+        this.errorCount++;
+        this.recentErrors.unshift({
+            ...errorInfo,
+            timestamp: new Date(),
+            id: Date.now()
+        });
+
+        // Keep only recent errors
+        if (this.recentErrors.length > this.maxRecentErrors) {
+            this.recentErrors = this.recentErrors.slice(0, this.maxRecentErrors);
         }
-        this.debounceTimers.clear();
+
+        // Show user-friendly error message
+        this.showUserFriendlyError(errorInfo);
+
+        // Log detailed error for debugging
+        console.error('🚨 Error captured:', errorInfo);
+
+        // Track error for analytics
+        this.trackError(errorInfo);
+    }
+
+    showUserFriendlyError(errorInfo) {
+        const friendlyMessage = this.getFriendlyMessage(errorInfo);
         
-        // Clear cache
-        this.responseCache.clear();
+        if (window.notificationManager) {
+            window.notificationManager.error(friendlyMessage, 8000);
+        }
+
+        // For critical errors, show recovery UI
+        if (this.isCriticalError(errorInfo)) {
+            this.showErrorBoundary(errorInfo);
+        }
+    }
+
+    getFriendlyMessage(errorInfo) {
+        switch (errorInfo.type) {
+            case 'network':
+                return 'Connection issue detected. Please check your internet connection.';
+            case 'javascript':
+                return 'Something went wrong. The app is attempting to recover automatically.';
+            case 'promise':
+                return 'A background operation failed. Your data is safe.';
+            default:
+                return 'An unexpected error occurred. Please try again.';
+        }
+    }
+
+    isCriticalError(errorInfo) {
+        return errorInfo.type === 'javascript' && 
+               (errorInfo.message?.includes('Cannot read property') ||
+                errorInfo.message?.includes('undefined is not a function'));
+    }
+
+    showErrorBoundary(errorInfo) {
+        const container = document.createElement('div');
+        container.className = 'error-boundary';
+        container.innerHTML = `
+            <div class="error-title">Something went wrong</div>
+            <div class="error-message">
+                The application encountered an error but is attempting to recover.
+                Your data has been preserved.
+            </div>
+            <div class="error-actions">
+                <button class="retry-btn" onclick="window.errorManager.retry()">
+                    Retry Operation
+                </button>
+                <button class="retry-btn" onclick="window.errorManager.refresh()">
+                    Refresh Page
+                </button>
+                <button class="btn" onclick="window.errorManager.showDetails('${errorInfo.id}')">
+                    Show Details
+                </button>
+            </div>
+        `;
+
+        // Insert at top of main content
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.insertBefore(container, mainContent.firstChild);
+        }
+    }
+
+    retry() {
+        // Remove error boundaries
+        document.querySelectorAll('.error-boundary').forEach(el => el.remove());
         
-        // Clear component tracking
-        if (this.memoryUsage?.components) {
-            this.memoryUsage.components.clear();
+        // Attempt to refresh current view
+        if (window.app) {
+            window.app.refreshCurrentTab();
         }
         
-        // Clear cleanup intervals
-        for (const interval of this.memoryUsage.cleanupIntervals) {
-            clearInterval(interval);
+        window.notificationManager?.info('Retrying operation...', 3000);
+    }
+
+    refresh() {
+        window.location.reload();
+    }
+
+    showDetails(errorId) {
+        const error = this.recentErrors.find(e => e.id.toString() === errorId);
+        if (error) {
+            const details = `
+Error Type: ${error.type}
+Message: ${error.message}
+Time: ${error.timestamp.toISOString()}
+${error.filename ? `File: ${error.filename}:${error.lineno}:${error.colno}` : ''}
+${error.error?.stack ? `Stack: ${error.error.stack}` : ''}
+            `.trim();
+
+            const container = document.querySelector('.error-boundary');
+            if (container) {
+                let detailsEl = container.querySelector('.error-details');
+                if (!detailsEl) {
+                    detailsEl = document.createElement('div');
+                    detailsEl.className = 'error-details';
+                    container.appendChild(detailsEl);
+                }
+                detailsEl.textContent = details;
+            }
         }
-        this.memoryUsage.cleanupIntervals.clear();
-        
-        console.log('🛑 Performance manager destroyed');
+    }
+
+    trackError(errorInfo) {
+        // Could send to analytics service
+        console.log('📊 Error tracked:', {
+            type: errorInfo.type,
+            message: errorInfo.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    getErrorStats() {
+        return {
+            totalErrors: this.errorCount,
+            recentErrors: this.recentErrors.length,
+            errorTypes: this.recentErrors.reduce((acc, error) => {
+                acc[error.type] = (acc[error.type] || 0) + 1;
+                return acc;
+            }, {})
+        };
     }
 }
 
-// ============================================================================
-// GLOBAL MANAGER INSTANCES
-// ============================================================================
+/**
+ * FormValidator - Enhanced form validation with real-time feedback
+ */
+class FormValidator {
+    constructor() {
+        this.validationRules = new Map();
+        this.activeValidations = new Map();
+        this.initializeStyles();
+        this.setupGlobalValidation();
+    }
 
-// Create global manager instances
-window.performanceManager = new PerformanceManager();
+    initializeStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .form-field {
+                position: relative;
+                margin-bottom: 1rem;
+            }
+            
+            .form-field.has-error input,
+            .form-field.has-error select,
+            .form-field.has-error textarea {
+                border-color: #ef4444;
+                box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+            }
+            
+            .form-field.has-success input,
+            .form-field.has-success select,
+            .form-field.has-success textarea {
+                border-color: #10b981;
+                box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+            }
+            
+            .validation-message {
+                position: absolute;
+                left: 0;
+                top: 100%;
+                font-size: 0.75rem;
+                margin-top: 0.25rem;
+                opacity: 0;
+                transform: translateY(-10px);
+                transition: all 0.3s ease;
+                pointer-events: none;
+            }
+            
+            .validation-message.show {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            
+            .validation-message.error {
+                color: #ef4444;
+            }
+            
+            .validation-message.success {
+                color: #10b981;
+            }
+            
+            .validation-icon {
+                position: absolute;
+                right: 0.75rem;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 0.875rem;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+            
+            .form-field.has-error .validation-icon {
+                opacity: 1;
+                color: #ef4444;
+            }
+            
+            .form-field.has-success .validation-icon {
+                opacity: 1;
+                color: #10b981;
+            }
+            
+            .form-progress {
+                height: 4px;
+                background: #e5e7eb;
+                border-radius: 2px;
+                margin-bottom: 1rem;
+                overflow: hidden;
+            }
+            
+            .form-progress-bar {
+                height: 100%;
+                background: linear-gradient(90deg, #ef4444, #f59e0b, #10b981);
+                width: 0%;
+                transition: width 0.3s ease;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    setupGlobalValidation() {
+        // Real-time validation on input
+        document.addEventListener('input', (e) => {
+            if (e.target.matches('input, select, textarea')) {
+                this.validateField(e.target);
+            }
+        });
+
+        // Validation on blur
+        document.addEventListener('blur', (e) => {
+            if (e.target.matches('input, select, textarea')) {
+                this.validateField(e.target, true);
+            }
+        }, true);
+
+        // Form submission validation
+        document.addEventListener('submit', (e) => {
+            if (!this.validateForm(e.target)) {
+                e.preventDefault();
+            }
+        });
+    }
+
+    addValidationRule(fieldSelector, rules) {
+        this.validationRules.set(fieldSelector, rules);
+    }
+
+    validateField(field, showSuccess = false) {
+        const fieldContainer = field.closest('.form-field') || this.wrapField(field);
+        const rules = this.getFieldRules(field);
+        
+        if (!rules || rules.length === 0) return true;
+
+        const value = field.value.trim();
+        const result = this.runValidationRules(value, rules, field);
+
+        this.updateFieldUI(fieldContainer, result, showSuccess);
+        return result.isValid;
+    }
+
+    wrapField(field) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-field';
+        field.parentNode.insertBefore(wrapper, field);
+        wrapper.appendChild(field);
+        
+        // Add validation elements
+        const icon = document.createElement('span');
+        icon.className = 'validation-icon';
+        wrapper.appendChild(icon);
+        
+        const message = document.createElement('div');
+        message.className = 'validation-message';
+        wrapper.appendChild(message);
+        
+        return wrapper;
+    }
+
+    getFieldRules(field) {
+        // Try to find rules by various selectors
+        for (const [selector, rules] of this.validationRules) {
+            if (field.matches(selector)) {
+                return rules;
+            }
+        }
+
+        // Default rules based on field attributes
+        return this.getDefaultRules(field);
+    }
+
+    getDefaultRules(field) {
+        const rules = [];
+        
+        if (field.required) {
+            rules.push({ type: 'required', message: 'This field is required' });
+        }
+        
+        if (field.type === 'email') {
+            rules.push({ type: 'email', message: 'Please enter a valid email address' });
+        }
+        
+        if (field.type === 'number') {
+            if (field.min !== '') {
+                rules.push({ type: 'min', value: parseFloat(field.min), message: `Minimum value is ${field.min}` });
+            }
+            if (field.max !== '') {
+                rules.push({ type: 'max', value: parseFloat(field.max), message: `Maximum value is ${field.max}` });
+            }
+        }
+        
+        if (field.minLength) {
+            rules.push({ type: 'minLength', value: field.minLength, message: `Minimum length is ${field.minLength} characters` });
+        }
+        
+        return rules;
+    }
+
+    runValidationRules(value, rules, field) {
+        for (const rule of rules) {
+            const result = this.validateRule(value, rule, field);
+            if (!result.isValid) {
+                return result;
+            }
+        }
+        
+        return { isValid: true, message: 'Valid' };
+    }
+
+    validateRule(value, rule, field) {
+        switch (rule.type) {
+            case 'required':
+                return {
+                    isValid: value.length > 0,
+                    message: rule.message || 'This field is required'
+                };
+                
+            case 'email':
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return {
+                    isValid: !value || emailRegex.test(value),
+                    message: rule.message || 'Please enter a valid email address'
+                };
+                
+            case 'min':
+                const numValue = parseFloat(value);
+                return {
+                    isValid: !value || numValue >= rule.value,
+                    message: rule.message || `Minimum value is ${rule.value}`
+                };
+                
+            case 'max':
+                const maxValue = parseFloat(value);
+                return {
+                    isValid: !value || maxValue <= rule.value,
+                    message: rule.message || `Maximum value is ${rule.value}`
+                };
+                
+            case 'minLength':
+                return {
+                    isValid: !value || value.length >= rule.value,
+                    message: rule.message || `Minimum length is ${rule.value} characters`
+                };
+                
+            case 'custom':
+                return rule.validator(value, field);
+                
+            default:
+                return { isValid: true, message: '' };
+        }
+    }
+
+    updateFieldUI(container, result, showSuccess) {
+        const field = container.querySelector('input, select, textarea');
+        const icon = container.querySelector('.validation-icon');
+        const message = container.querySelector('.validation-message');
+        
+        // Remove existing classes
+        container.classList.remove('has-error', 'has-success');
+        message.classList.remove('show', 'error', 'success');
+        
+        if (!result.isValid) {
+            container.classList.add('has-error');
+            message.classList.add('show', 'error');
+            message.textContent = result.message;
+            icon.textContent = '✗';
+        } else if (showSuccess && field.value.trim()) {
+            container.classList.add('has-success');
+            message.classList.add('show', 'success');
+            message.textContent = result.message;
+            icon.textContent = '✓';
+        } else {
+            icon.textContent = '';
+        }
+    }
+
+    validateForm(form) {
+        const fields = form.querySelectorAll('input, select, textarea');
+        let isValid = true;
+        let invalidCount = 0;
+        
+        fields.forEach(field => {
+            if (!this.validateField(field, true)) {
+                isValid = false;
+                invalidCount++;
+            }
+        });
+        
+        // Update form progress
+        this.updateFormProgress(form, fields.length - invalidCount, fields.length);
+        
+        if (!isValid) {
+            // Focus first invalid field
+            const firstInvalid = form.querySelector('.form-field.has-error input, .form-field.has-error select, .form-field.has-error textarea');
+            if (firstInvalid) {
+                firstInvalid.focus();
+            }
+            
+            window.notificationManager?.error(`Please fix ${invalidCount} field${invalidCount > 1 ? 's' : ''} before submitting`, 5000);
+        }
+        
+        return isValid;
+    }
+
+    updateFormProgress(form, validCount, totalCount) {
+        let progressContainer = form.querySelector('.form-progress');
+        if (!progressContainer && totalCount > 1) {
+            progressContainer = document.createElement('div');
+            progressContainer.className = 'form-progress';
+            progressContainer.innerHTML = '<div class="form-progress-bar"></div>';
+            form.insertBefore(progressContainer, form.firstChild);
+        }
+        
+        if (progressContainer) {
+            const progress = (validCount / totalCount) * 100;
+            const progressBar = progressContainer.querySelector('.form-progress-bar');
+            progressBar.style.width = `${progress}%`;
+        }
+    }
+
+    // Preset validation rules for common scenarios
+    addFinancialValidation() {
+        this.addValidationRule('.amount-input', [
+            { type: 'required', message: 'Amount is required' },
+            { type: 'min', value: 0, message: 'Amount must be positive' },
+            { type: 'custom', validator: (value) => {
+                const num = parseFloat(value);
+                return {
+                    isValid: !isNaN(num) && num < 1000000,
+                    message: 'Please enter a valid amount under $1,000,000'
+                };
+            }}
+        ]);
+        
+        this.addValidationRule('.date-input', [
+            { type: 'required', message: 'Date is required' },
+            { type: 'custom', validator: (value) => {
+                const date = new Date(value);
+                const now = new Date();
+                return {
+                    isValid: date <= now,
+                    message: 'Date cannot be in the future'
+                };
+            }}
+        ]);
+    }
+}
+
+// Initialize global instances
 window.notificationManager = new NotificationManager();
 window.loadingManager = new LoadingManager();
 window.keyboardShortcuts = new KeyboardShortcuts();
 window.tooltipManager = new TooltipManager();
+window.performanceManager = new PerformanceManager();
+window.errorManager = new ErrorManager();
+window.formValidator = new FormValidator();
 
-// Initialize global app instance when DOM is ready
+// Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new FutureFundApp();
-    window.app.init().catch(error => {
-        console.error('❌ Failed to initialize FutureFund:', error);
-        document.body.innerHTML = `
-            <div style="padding: 2rem; text-align: center; color: #dc2626;">
-                <h1>🚨 Application Error</h1>
-                <p>Failed to initialize FutureFund. Please refresh the page.</p>
-                <pre style="margin-top: 1rem; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem; font-size: 0.875rem;">${error.message}</pre>
-            </div>
-        `;
-    });
 });
 
 console.log('📚 FutureFund modules loaded successfully');
