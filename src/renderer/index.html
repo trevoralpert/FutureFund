@@ -317,6 +317,83 @@
                     </div>
                 </div>
 
+                <!-- Account Visualization -->
+                <div class="account-visualization">
+                    <div class="visualization-header">
+                        <h3>Portfolio Overview</h3>
+                        <div class="visualization-controls">
+                            <button class="btn btn-secondary btn-sm" id="toggleAccountCharts">
+                                <span class="btn-icon">📊</span>
+                                <span id="chartToggleText">Hide Charts</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="charts-container" id="accountChartsContainer">
+                        <div class="account-charts-grid">
+                            <!-- Assets vs Liabilities Chart -->
+                            <div class="chart-container">
+                                <div class="chart-header">
+                                    <h4>Assets vs Liabilities</h4>
+                                    <div class="chart-controls">
+                                        <select id="assetLiabilityChartType" class="chart-type-selector">
+                                            <option value="doughnut">Doughnut</option>
+                                            <option value="pie">Pie</option>
+                                        </select>
+                                        <button class="btn btn-secondary btn-sm" onclick="app.exportChart('assetLiabilityChart')">
+                                            <span class="btn-icon">📊</span>
+                                            Export
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-wrapper">
+                                    <canvas id="assetLiabilityChart"></canvas>
+                                </div>
+                            </div>
+                            
+                            <!-- Account Type Breakdown -->
+                            <div class="chart-container">
+                                <div class="chart-header">
+                                    <h4>Account Type Breakdown</h4>
+                                    <div class="chart-controls">
+                                        <select id="accountTypeChartType" class="chart-type-selector">
+                                            <option value="doughnut">Doughnut</option>
+                                            <option value="pie">Pie</option>
+                                            <option value="bar">Bar</option>
+                                        </select>
+                                        <button class="btn btn-secondary btn-sm" onclick="app.exportChart('accountTypeChart')">
+                                            <span class="btn-icon">📊</span>
+                                            Export
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-wrapper">
+                                    <canvas id="accountTypeChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Account Balance Distribution -->
+                            <div class="chart-container full-width">
+                                <div class="chart-header">
+                                    <h4>Account Balance Distribution</h4>
+                                    <div class="chart-controls">
+                                        <select id="balanceDistributionType" class="chart-type-selector">
+                                            <option value="bar">Bar Chart</option>
+                                            <option value="horizontalBar">Horizontal Bar</option>
+                                        </select>
+                                        <button class="btn btn-secondary btn-sm" onclick="app.exportChart('balanceDistributionChart')">
+                                            <span class="btn-icon">📊</span>
+                                            Export
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="chart-wrapper">
+                                    <canvas id="balanceDistributionChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Account List -->
                 <div class="accounts-list" id="accountsList">
                     <!-- Dynamic account cards will be inserted here -->

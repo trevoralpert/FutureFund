@@ -3831,6 +3831,10 @@ ${health.status === 'healthy' ?
                 this.renderAccounts();
                 this.updateAccountCategoryTabs();
                 this.populateAccountFilter();
+                this.setupAccountCharts();
+                
+                // Refresh charts with the new account data
+                this.refreshAccountCharts();
                 
                 // Show empty state if no accounts
                 if (this.accounts.length === 0) {
@@ -3936,8 +3940,14 @@ ${health.status === 'healthy' ?
      */
     isAssetAccount(accountType) {
         if (!accountType) return false;
-        const assetTypes = ['checking', 'savings', 'investment', 'retirement_401k', 'retirement_ira', 'brokerage', '401k', 'ira_traditional', 'ira_roth', 'money_market', 'cd'];
-        return assetTypes.includes(accountType);
+        const assetTypes = [
+            'checking', 'savings', 'investment', 'retirement_401k', 'retirement_ira', 
+            'brokerage', '401k', 'ira_traditional', 'ira_roth', 'money_market', 'cd',
+            'vehicle', 'real_estate', 'cash', 'other_asset'
+        ];
+        const isAsset = assetTypes.includes(accountType);
+        console.log(`🔍 Asset check for ${accountType}: ${isAsset}`);
+        return isAsset;
     }
 
     /**
@@ -3945,8 +3955,13 @@ ${health.status === 'healthy' ?
      */
     isLiabilityAccount(accountType) {
         if (!accountType) return false;
-        const liabilityTypes = ['credit_card', 'line_of_credit', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
-        return liabilityTypes.includes(accountType);
+        const liabilityTypes = [
+            'credit_card', 'line_of_credit', 'mortgage', 'auto_loan', 
+            'student_loan', 'personal_loan', 'other_loan'
+        ];
+        const isLiability = liabilityTypes.includes(accountType);
+        console.log(`🔍 Liability check for ${accountType}: ${isLiability}`);
+        return isLiability;
     }
 
     /**
@@ -4383,6 +4398,553 @@ ${health.status === 'healthy' ?
         
         this.currentAccountCategory = category;
         this.renderAccounts();
+    }
+
+    /**
+     * Set up account charts and toggle functionality
+     */
+    setupAccountCharts() {
+        console.log('🎨 Setting up account charts...');
+        
+        // Add toggle functionality
+        const toggleBtn = document.getElementById('toggleAccountCharts');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                this.toggleAccountCharts();
+            });
+        }
+        
+        // Add chart type change listeners
+        this.setupAccountChartListeners();
+        
+        // Create charts immediately since they're visible by default  
+        // Add a small delay to ensure accounts are fully loaded
+        setTimeout(() => {
+            this.createAccountCharts();
+        }, 100);
+    }
+
+    /**
+     * Set up chart type change listeners
+     */
+    setupAccountChartListeners() {
+        // Assets vs Liabilities chart type change
+        const assetLiabilityChartType = document.getElementById('assetLiabilityChartType');
+        if (assetLiabilityChartType) {
+            assetLiabilityChartType.addEventListener('change', () => {
+                this.updateAssetLiabilityChart();
+            });
+        }
+
+        // Account Type chart type change
+        const accountTypeChartType = document.getElementById('accountTypeChartType');
+        if (accountTypeChartType) {
+            accountTypeChartType.addEventListener('change', () => {
+                this.updateAccountTypeChart();
+            });
+        }
+
+        // Balance Distribution chart type change
+        const balanceDistributionType = document.getElementById('balanceDistributionType');
+        if (balanceDistributionType) {
+            balanceDistributionType.addEventListener('change', () => {
+                this.updateBalanceDistributionChart();
+            });
+        }
+    }
+
+    /**
+     * Toggle account charts visibility
+     */
+    toggleAccountCharts() {
+        const chartsContainer = document.getElementById('accountChartsContainer');
+        const toggleBtn = document.getElementById('toggleAccountCharts');
+        const toggleText = document.getElementById('chartToggleText');
+        
+        if (!chartsContainer || !toggleBtn || !toggleText) return;
+        
+        const isHidden = chartsContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Show charts
+            chartsContainer.classList.remove('hidden');
+            toggleText.textContent = 'Hide Charts';
+            
+            // Create charts if they don't exist yet
+            this.createAccountCharts();
+        } else {
+            // Hide charts
+            chartsContainer.classList.add('hidden');
+            toggleText.textContent = 'Show Charts';
+        }
+    }
+
+    /**
+     * Create all account charts
+     */
+    createAccountCharts() {
+        console.log('📊 Creating account charts...');
+        
+        if (!this.accounts || this.accounts.length === 0) {
+            console.log('❌ No accounts available for charts');
+            return;
+        }
+
+        // Create Assets vs Liabilities Chart
+        this.createAssetLiabilityChart();
+        
+        // Create Account Type Breakdown Chart
+        this.createAccountTypeChart();
+        
+        // Create Balance Distribution Chart
+        this.createBalanceDistributionChart();
+    }
+
+    /**
+     * Create Assets vs Liabilities Chart
+     */
+    createAssetLiabilityChart() {
+        if (!this.chartService) return;
+
+        const summaryData = this.prepareAssetLiabilityData();
+        const chartType = document.getElementById('assetLiabilityChartType')?.value || 'doughnut';
+        
+        console.log('🎯 Creating Assets vs Liabilities chart with data:', summaryData);
+        console.log('🎯 Chart type:', chartType);
+        
+        // Create chart data directly instead of using transaction-based method
+        const chartData = {
+            labels: summaryData.map(item => item.category),
+            datasets: [{
+                label: 'Portfolio',
+                data: summaryData.map(item => item.amount),
+                backgroundColor: [
+                    'rgba(16, 185, 129, 0.8)',  // Green for Assets
+                    'rgba(239, 68, 68, 0.8)'    // Red for Liabilities
+                ],
+                borderColor: [
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(239, 68, 68, 1)'
+                ],
+                borderWidth: 2
+            }]
+        };
+
+        // Create chart directly
+        const canvas = document.getElementById('assetLiabilityChart');
+        if (!canvas) {
+            console.error('❌ Canvas assetLiabilityChart not found');
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.accountCharts && this.accountCharts.assetLiabilityChart) {
+            this.accountCharts.assetLiabilityChart.destroy();
+        }
+
+        // Initialize accountCharts if not exists
+        if (!this.accountCharts) {
+            this.accountCharts = {};
+        }
+
+        // Set canvas dimensions
+        this.chartService.ensureCanvasDimensions(canvas);
+        
+        const ctx = canvas.getContext('2d');
+        const config = {
+            type: chartType,
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Assets vs Liabilities',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: ${this.chartService.formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: chartType === 'doughnut' ? '60%' : 0
+            }
+        };
+
+        this.accountCharts.assetLiabilityChart = new Chart(ctx, config);
+        console.log('✅ Assets vs Liabilities chart created with direct Chart.js');
+    }
+
+    /**
+     * Create Account Type Breakdown Chart
+     */
+    createAccountTypeChart() {
+        if (!this.chartService) return;
+
+        const summaryData = this.prepareAccountTypeData();
+        const chartType = document.getElementById('accountTypeChartType')?.value || 'doughnut';
+        
+        console.log('🎯 Creating Account Type chart with data:', summaryData);
+        
+        // Create chart data directly
+        const chartData = {
+            labels: summaryData.map(item => item.category),
+            datasets: [{
+                label: 'Account Types',
+                data: summaryData.map(item => item.amount),
+                backgroundColor: [
+                    'rgba(37, 99, 235, 0.8)',   // Blue for checking
+                    'rgba(239, 68, 68, 0.8)',   // Red for credit cards
+                    'rgba(16, 185, 129, 0.8)',  // Green for investments/assets
+                    'rgba(245, 158, 11, 0.8)',  // Yellow for other
+                    'rgba(139, 92, 246, 0.8)',  // Purple for savings
+                    'rgba(6, 182, 212, 0.8)'    // Cyan for loans
+                ],
+                borderColor: [
+                    'rgba(37, 99, 235, 1)',
+                    'rgba(239, 68, 68, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(245, 158, 11, 1)',
+                    'rgba(139, 92, 246, 1)',
+                    'rgba(6, 182, 212, 1)'
+                ],
+                borderWidth: 2
+            }]
+        };
+
+        // Create chart directly
+        const canvas = document.getElementById('accountTypeChart');
+        if (!canvas) {
+            console.error('❌ Canvas accountTypeChart not found');
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.accountCharts && this.accountCharts.accountTypeChart) {
+            this.accountCharts.accountTypeChart.destroy();
+        }
+
+        // Initialize accountCharts if not exists
+        if (!this.accountCharts) {
+            this.accountCharts = {};
+        }
+
+        // Set canvas dimensions
+        this.chartService.ensureCanvasDimensions(canvas);
+        
+        const ctx = canvas.getContext('2d');
+        const config = {
+            type: chartType,
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Account Type Breakdown',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${context.label}: ${this.chartService.formatCurrency(value)} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: chartType === 'doughnut' ? '60%' : 0
+            }
+        };
+
+        this.accountCharts.accountTypeChart = new Chart(ctx, config);
+        console.log('✅ Account Type chart created with direct Chart.js');
+    }
+
+    /**
+     * Create Balance Distribution Chart
+     */
+    createBalanceDistributionChart() {
+        if (!this.chartService) return;
+
+        const summaryData = this.prepareBalanceDistributionData();
+        const chartType = document.getElementById('balanceDistributionType')?.value || 'bar';
+        
+        console.log('🎯 Creating Balance Distribution chart with data:', summaryData);
+        console.log('🎯 Chart type:', chartType);
+        
+        // Create chart data directly
+        const chartData = {
+            labels: summaryData.map(item => item.category),
+            datasets: [{
+                label: 'Account Balances',
+                data: summaryData.map(item => item.amount),
+                backgroundColor: summaryData.map(item => 
+                    item.type === 'Expense' ? 'rgba(239, 68, 68, 0.8)' : 'rgba(16, 185, 129, 0.8)'
+                ),
+                borderColor: summaryData.map(item => 
+                    item.type === 'Expense' ? 'rgba(239, 68, 68, 1)' : 'rgba(16, 185, 129, 1)'
+                ),
+                borderWidth: 2
+            }]
+        };
+
+        // Create chart directly
+        const canvas = document.getElementById('balanceDistributionChart');
+        if (!canvas) {
+            console.error('❌ Canvas balanceDistributionChart not found');
+            return;
+        }
+
+        // Destroy existing chart if it exists
+        if (this.accountCharts && this.accountCharts.balanceDistributionChart) {
+            this.accountCharts.balanceDistributionChart.destroy();
+        }
+
+        // Initialize accountCharts if not exists
+        if (!this.accountCharts) {
+            this.accountCharts = {};
+        }
+
+        // Set canvas dimensions
+        this.chartService.ensureCanvasDimensions(canvas);
+        
+        const ctx = canvas.getContext('2d');
+        const config = {
+            type: chartType,
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Account Balance Distribution',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const value = context.parsed.y || context.parsed;
+                                const originalBalance = summaryData[context.dataIndex].originalBalance;
+                                const isLiability = summaryData[context.dataIndex].type === 'Expense';
+                                return `${context.label}: ${this.chartService.formatCurrency(originalBalance)} ${isLiability ? '(Debt)' : '(Asset)'}`;
+                            }
+                        }
+                    }
+                },
+                scales: chartType === 'bar' ? {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Accounts'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Amount'
+                        },
+                        ticks: {
+                            callback: (value) => this.chartService.formatCurrency(value)
+                        }
+                    }
+                } : {}
+            }
+        };
+
+        this.accountCharts.balanceDistributionChart = new Chart(ctx, config);
+        console.log('✅ Balance Distribution chart created with direct Chart.js');
+    }
+
+    /**
+     * Prepare data for Assets vs Liabilities chart
+     */
+    prepareAssetLiabilityData() {
+        let totalAssets = 0;
+        let totalLiabilities = 0;
+
+        this.accounts.forEach(account => {
+            const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+            const accountType = account.account_type || account.type;
+            
+            if (this.isAssetAccount(accountType)) {
+                totalAssets += Math.abs(balance);
+            } else if (this.isLiabilityAccount(accountType)) {
+                totalLiabilities += Math.abs(balance);
+            }
+        });
+
+        console.log('💰 Assets vs Liabilities data:', { totalAssets, totalLiabilities });
+
+        // Create mock transaction-like data for the chart service
+        // Both values should be positive for proper chart display
+        const mockData = [];
+        if (totalAssets > 0) {
+            mockData.push({
+                category: 'Assets',
+                amount: totalAssets,
+                type: 'Income',
+                date: '2024-07-03',
+                description: 'Total Assets'
+            });
+        }
+        if (totalLiabilities > 0) {
+            mockData.push({
+                category: 'Liabilities', 
+                amount: totalLiabilities, // Keep positive for chart display
+                type: 'Expense',
+                date: '2024-07-03',
+                description: 'Total Liabilities'
+            });
+        }
+
+        console.log('📊 Prepared Assets vs Liabilities chart data:', mockData);
+        return mockData;
+    }
+
+    /**
+     * Prepare data for Account Type chart
+     */
+    prepareAccountTypeData() {
+        const typeBreakdown = {};
+
+        this.accounts.forEach(account => {
+            const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+            const accountType = account.account_type || account.type;
+            const displayType = this.formatAccountType(accountType);
+            
+            console.log('🔍 Account type processing:', { 
+                accountName: account.account_name || account.name,
+                accountType, 
+                displayType, 
+                balance 
+            });
+            
+            if (!typeBreakdown[displayType]) {
+                typeBreakdown[displayType] = 0;
+            }
+            // Use absolute value for display purposes
+            typeBreakdown[displayType] += Math.abs(balance);
+        });
+
+        console.log('📊 Account type breakdown:', typeBreakdown);
+
+        // Convert to mock transaction format
+        const result = Object.entries(typeBreakdown).map(([type, amount]) => ({
+            category: type,
+            amount: amount,
+            type: 'Income',
+            date: '2024-07-03',
+            description: `${type} Total`
+        }));
+        
+        console.log('📊 Prepared Account Type chart data:', result);
+        return result;
+    }
+
+    /**
+     * Prepare data for Balance Distribution chart
+     */
+    prepareBalanceDistributionData() {
+        const result = this.accounts.map(account => {
+            const balance = parseFloat(account.balance || account.currentBalance || account.current_balance) || 0;
+            const accountName = account.account_name || account.name;
+            const accountType = account.account_type || account.type;
+            
+            // For liabilities, show as positive amounts but with different styling
+            const displayAmount = Math.abs(balance);
+            const isLiability = this.isLiabilityAccount(accountType);
+            
+            return {
+                category: accountName,
+                amount: displayAmount,
+                type: isLiability ? 'Expense' : 'Income', // This will affect coloring
+                date: '2024-07-03',
+                description: `${accountName} Balance`,
+                originalBalance: balance
+            };
+        }).sort((a, b) => b.amount - a.amount); // Sort by absolute balance, largest first
+        
+        console.log('📊 Prepared Balance Distribution chart data:', result);
+        return result;
+    }
+
+    /**
+     * Update Assets vs Liabilities chart
+     */
+    updateAssetLiabilityChart() {
+        if (this.chartService && this.chartService.charts.has('assetLiabilityChart')) {
+            this.chartService.destroyChart('assetLiabilityChart');
+        }
+        this.createAssetLiabilityChart();
+    }
+
+    /**
+     * Update Account Type chart
+     */
+    updateAccountTypeChart() {
+        if (this.chartService && this.chartService.charts.has('accountTypeChart')) {
+            this.chartService.destroyChart('accountTypeChart');
+        }
+        this.createAccountTypeChart();
+    }
+
+    /**
+     * Update Balance Distribution chart
+     */
+    updateBalanceDistributionChart() {
+        if (this.chartService && this.chartService.charts.has('balanceDistributionChart')) {
+            this.chartService.destroyChart('balanceDistributionChart');
+        }
+        this.createBalanceDistributionChart();
+    }
+
+    /**
+     * Refresh all account charts (called when account data changes)
+     */
+    refreshAccountCharts() {
+        console.log('🔄 Refreshing all account charts...');
+        if (!this.chartService || !this.accounts || this.accounts.length === 0) {
+            console.log('❌ Cannot refresh charts: missing service or data');
+            return;
+        }
+
+        // Only refresh if charts container is visible
+        const chartsContainer = document.getElementById('accountChartsContainer');
+        if (chartsContainer && !chartsContainer.classList.contains('hidden')) {
+            this.createAccountCharts();
+        }
     }
 
     /**
