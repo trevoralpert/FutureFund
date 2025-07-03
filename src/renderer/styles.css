@@ -4237,4 +4237,273 @@ select:focus {
     .scenario-impact-preview {
         flex-direction: column;
     }
+}
+
+/* ===== PHASE 5.2: PERFORMANCE OPTIMIZATION STYLES ===== */
+
+/* Virtual scrolling container */
+.virtual-transaction-list {
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    overflow: auto;
+    background: var(--bg-primary);
+}
+
+.virtual-transaction-row {
+    transition: background-color 0.15s ease;
+}
+
+.virtual-transaction-row:hover {
+    background-color: var(--bg-secondary) !important;
+}
+
+/* Performance indicators */
+.performance-indicator {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    z-index: 1001;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.performance-indicator.visible {
+    opacity: 1;
+}
+
+.performance-meter {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+}
+
+.performance-bar {
+    width: 40px;
+    height: 4px;
+    background: var(--bg-secondary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.performance-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.performance-fill.good {
+    background: var(--success-color);
+}
+
+.performance-fill.warning {
+    background: var(--warning-color);
+}
+
+.performance-fill.critical {
+    background: var(--error-color);
+}
+
+/* Cache status indicator */
+.cache-status {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success-color);
+}
+
+.cache-status.miss {
+    background: var(--warning-color);
+}
+
+.cache-status.expired {
+    background: var(--error-color);
+}
+
+/* Memory usage visualization */
+.memory-usage {
+    position: relative;
+    height: 20px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+}
+
+.memory-usage-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--success-color), var(--warning-color), var(--error-color));
+    transition: width 0.5s ease;
+    border-radius: 10px;
+}
+
+.memory-usage-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Lazy loading states */
+img[data-src] {
+    background: var(--bg-secondary);
+    background-image: linear-gradient(
+        45deg,
+        transparent 25%,
+        rgba(255, 255, 255, 0.1) 25%,
+        rgba(255, 255, 255, 0.1) 50%,
+        transparent 50%,
+        transparent 75%,
+        rgba(255, 255, 255, 0.1) 75%
+    );
+    background-size: 20px 20px;
+    animation: loading-shimmer 2s linear infinite;
+}
+
+img.loaded {
+    animation: fade-in 0.3s ease;
+}
+
+img.error {
+    background: var(--bg-secondary);
+    opacity: 0.5;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        background-position: -20px 0;
+    }
+    100% {
+        background-position: 20px 0;
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Performance optimization badges */
+.perf-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    background: var(--success-color);
+    color: white;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    border-radius: 9999px;
+    margin-left: 0.5rem;
+}
+
+.perf-badge.cached {
+    background: var(--primary-color);
+}
+
+.perf-badge.virtual {
+    background: var(--warning-color);
+}
+
+.perf-badge.optimized {
+    background: var(--success-color);
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .performance-fill,
+    .memory-usage-bar,
+    img.loaded {
+        transition: none;
+    }
+    
+    .loading-shimmer {
+        animation: none;
+    }
+}
+
+/* Performance debug panel */
+.performance-debug {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    max-height: 400px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    overflow-y: auto;
+    z-index: 1002;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.performance-debug.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.performance-debug h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.performance-metric {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.performance-metric:last-child {
+    border-bottom: none;
+}
+
+.metric-name {
+    color: var(--text-secondary);
+}
+
+.metric-value {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.metric-value.good {
+    color: var(--success-color);
+}
+
+.metric-value.warning {
+    color: var(--warning-color);
+}
+
+.metric-value.critical {
+    color: var(--error-color);
+}
+
+/* Reduced motion support for performance features */
+.reduced-motion .performance-fill,
+.reduced-motion .memory-usage-bar,
+.reduced-motion .virtual-transaction-row {
+    transition: none !important;
 } 

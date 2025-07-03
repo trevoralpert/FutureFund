@@ -56,8 +56,285 @@ class FutureFundApp {
         window.progressManager = new ProgressManager();
         window.onboardingManager = new OnboardingManager();
         window.accessibilityManager = new AccessibilityManager();
+        window.errorManager = new ErrorManager();
+        window.formValidator = new FormValidator();
         
-        console.log('✨ UI Enhancement systems initialized');
+        // Initialize performance optimization systems
+        window.performanceMonitor = new PerformanceMonitor();
+        window.cacheManager = new CacheManager();
+        window.virtualScrollManager = new VirtualScrollManager();
+        window.assetOptimizer = new AssetOptimizer();
+        
+        // Setup performance-optimized methods
+        this.setupPerformanceOptimizations();
+        
+        console.log('✨ UI Enhancement and Performance systems initialized');
+    }
+
+    setupPerformanceOptimizations() {
+        // Cache expensive calculations
+        this.cachedCalculateScenarioEffects = window.cacheManager.memoizeAsync(
+            this.calculateScenarioEffects.bind(this),
+            (scenario) => `scenario_effects_${scenario.id}_${scenario.lastModified || Date.now()}`,
+            5 * 60 * 1000 // 5 minute cache
+        );
+
+        // Cache financial analytics
+        this.cachedAnalyticsGeneration = window.cacheManager.memoizeAsync(
+            this.generateAnalyticsData.bind(this),
+            (dateRange, accountFilter) => `analytics_${dateRange}_${accountFilter}`,
+            2 * 60 * 1000 // 2 minute cache
+        );
+
+        // Setup virtual scrolling for large transaction lists
+        this.setupVirtualScrolling();
+        
+        // Setup performance monitoring for key operations
+        this.setupPerformanceTracking();
+    }
+
+    setupVirtualScrolling() {
+        // Enable virtual scrolling for transaction table when data is large
+        const originalUpdateLedgerTable = this.updateLedgerTable.bind(this);
+        this.updateLedgerTable = () => {
+            const data = this.getFilteredData(
+                document.getElementById('dateRange')?.value || 'all',
+                document.getElementById('accountFilter')?.value || 'all'
+            );
+
+            // Use virtual scrolling for large datasets (>500 items)
+            if (data.length > 500) {
+                this.setupVirtualTransactionTable(data);
+            } else {
+                originalUpdateLedgerTable();
+            }
+        };
+    }
+
+    setupVirtualTransactionTable(data) {
+        const tableContainer = document.querySelector('.ledger-table-container');
+        if (!tableContainer) return;
+
+        // Clear existing table
+        tableContainer.innerHTML = '';
+
+        // Create virtual list container
+        const virtualContainer = document.createElement('div');
+        virtualContainer.className = 'virtual-transaction-list';
+        virtualContainer.style.height = '400px';
+        tableContainer.appendChild(virtualContainer);
+
+        // Setup virtual list
+        const virtualList = window.virtualScrollManager.createVirtualList(virtualContainer, {
+            items: data,
+            itemHeight: 60,
+            renderItem: (transaction, index) => {
+                return this.renderTransactionRow(transaction, index);
+            }
+        });
+
+        console.log(`📊 Virtual scrolling enabled for ${data.length} transactions`);
+    }
+
+    renderTransactionRow(transaction, index) {
+        const row = document.createElement('div');
+        row.className = 'virtual-transaction-row';
+        row.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background: ${index % 2 === 0 ? 'transparent' : 'var(--bg-secondary)'};
+        `;
+
+        const accountName = this.getAccountNameForTransaction(transaction);
+        const formattedDate = this.formatDate(transaction.date);
+        const amount = this.formatCurrency(Math.abs(transaction.amount));
+        const typeClass = transaction.amount >= 0 ? 'income' : 'expense';
+
+        row.innerHTML = `
+            <div style="flex: 1; min-width: 120px;">
+                <div style="font-weight: 500;">${formattedDate}</div>
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">${accountName}</div>
+            </div>
+            <div style="flex: 2; min-width: 200px;">
+                <div style="font-weight: 500;">${transaction.description}</div>
+                <div style="font-size: 0.875rem; color: var(--text-secondary);">${transaction.category}</div>
+            </div>
+            <div style="flex: 1; min-width: 100px; text-align: right;">
+                <div class="amount ${typeClass}" style="font-weight: 600;">${amount}</div>
+            </div>
+        `;
+
+        return row;
+    }
+
+    setupPerformanceTracking() {
+        // Track key operations
+        const originalSendChatMessage = this.sendChatMessage.bind(this);
+        this.sendChatMessage = async () => {
+            const operationId = 'chat_message';
+            window.progressManager.startOperation(operationId, 'Processing chat message...');
+            
+            try {
+                const result = await originalSendChatMessage();
+                window.progressManager.completeOperation(operationId);
+                return result;
+            } catch (error) {
+                window.progressManager.completeOperation(operationId);
+                throw error;
+            }
+        };
+
+        // Track scenario creation
+        const originalCreateScenarioFromModal = this.createScenarioFromModal.bind(this);
+        this.createScenarioFromModal = async () => {
+            const operationId = 'create_scenario';
+            window.progressManager.startOperation(operationId, 'Creating scenario...');
+            
+            try {
+                const result = await originalCreateScenarioFromModal();
+                window.progressManager.completeOperation(operationId);
+                return result;
+            } catch (error) {
+                window.progressManager.completeOperation(operationId);
+                throw error;
+            }
+        };
+
+        // Track analytics generation
+        const originalInitializeAnalytics = this.initializeAnalytics.bind(this);
+        this.initializeAnalytics = async () => {
+            const operationId = 'analytics_generation';
+            window.progressManager.startOperation(operationId, 'Generating analytics...');
+            
+            try {
+                const result = await originalInitializeAnalytics();
+                window.progressManager.completeOperation(operationId);
+                return result;
+            } catch (error) {
+                window.progressManager.completeOperation(operationId);
+                throw error;
+            }
+        };
+    }
+
+    async generateAnalyticsData(dateRange, accountFilter) {
+        // This method can be cached for performance
+        const data = this.getFilteredData(dateRange, accountFilter);
+        
+        // Expensive analytics calculations here
+        const analytics = {
+            spendingHabits: this.analyzeSpendingHabits(data),
+            anomalies: this.detectAnomalies(data),
+            seasonalPatterns: this.analyzeSeasonalPatterns(data),
+            goalProgress: this.calculateGoalProgress(data)
+        };
+
+        return analytics;
+    }
+
+    // Performance-optimized refresh method
+    async refreshCurrentTab() {
+        const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+        
+        if (!activeTab) return;
+
+        // Use cached operations where possible
+        switch (activeTab) {
+            case 'ledger':
+                await this.refreshLedger();
+                break;
+            case 'analytics':
+                await this.refreshAnalyticsWithCache();
+                break;
+            case 'scenarios':
+                await this.refreshScenarios();
+                break;
+            case 'accounts':
+                await this.initializeAccounts();
+                break;
+        }
+    }
+
+    async refreshAnalyticsWithCache() {
+        const dateRange = 'all'; // Could be made dynamic
+        const accountFilter = 'all';
+        
+        try {
+            const analytics = await this.cachedAnalyticsGeneration(dateRange, accountFilter);
+            this.populateAnalyticsDashboard(analytics);
+        } catch (error) {
+            console.error('Failed to refresh analytics:', error);
+            this.showAnalyticsError('Failed to refresh analytics data');
+        }
+    }
+
+    populateAnalyticsDashboard(analytics) {
+        // Populate the analytics dashboard with cached data
+        this.populateSpendingHabits(analytics.spendingHabits);
+        this.populateAnomalies(analytics.anomalies);
+        this.populateSeasonalPatterns(analytics.seasonalPatterns);
+        this.populateGoalProgress(analytics.goalProgress);
+    }
+
+    // Enhanced error handling with performance context
+    handlePerformanceError(error, operation) {
+        const performanceReport = window.performanceMonitor.generatePerformanceReport();
+        
+        console.error(`Performance error in ${operation}:`, error);
+        console.log('Performance context:', performanceReport);
+        
+        // Show user-friendly error with performance context
+        if (performanceReport.memory?.usage && parseFloat(performanceReport.memory.usage) > 80) {
+            window.notificationManager.warning(
+                'High memory usage detected. Consider refreshing the page for optimal performance.',
+                8000
+            );
+        }
+        
+        if (performanceReport.fps < 30) {
+            window.notificationManager.info(
+                'Performance optimization activated to improve responsiveness.',
+                5000
+            );
+        }
+    }
+
+    // Memory cleanup method
+    performMemoryCleanup() {
+        // Clear caches
+        window.cacheManager.clear();
+        
+        // Clean up chart instances
+        if (this.chartService) {
+            this.chartService.cleanup();
+        }
+        
+        // Clear virtual scroll instances
+        window.virtualScrollManager.virtualLists.forEach((list, container) => {
+            window.virtualScrollManager.destroyVirtualList(container);
+        });
+        
+        // Force garbage collection if available
+        if (window.gc) {
+            window.gc();
+        }
+        
+        window.notificationManager.success('Memory cleanup completed', 3000);
+    }
+
+    // Performance report generation
+    generatePerformanceReport() {
+        const report = window.performanceMonitor.generatePerformanceReport();
+        const cacheStats = window.cacheManager.getStats();
+        
+        return {
+            ...report,
+            cache: cacheStats,
+            virtualLists: window.virtualScrollManager.virtualLists.size,
+            timestamp: new Date().toISOString()
+        };
     }
 
     initializeOnboarding() {
@@ -6068,6 +6345,794 @@ class FormValidator {
     }
 }
 
+/**
+ * PerformanceMonitor - Advanced performance tracking and optimization
+ */
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = new Map();
+        this.performanceObserver = null;
+        this.memoryTracker = new Map();
+        this.frameRateMonitor = null;
+        this.initializeMonitoring();
+        this.setupPerformanceOptimizations();
+    }
+
+    initializeMonitoring() {
+        // Setup Performance Observer for detailed metrics
+        if ('PerformanceObserver' in window) {
+            this.performanceObserver = new PerformanceObserver((list) => {
+                this.processPerformanceEntries(list.getEntries());
+            });
+            
+            this.performanceObserver.observe({ 
+                entryTypes: ['measure', 'navigation', 'resource', 'paint'] 
+            });
+        }
+
+        // Memory usage monitoring
+        this.startMemoryMonitoring();
+        
+        // Frame rate monitoring
+        this.startFrameRateMonitoring();
+        
+        // Network performance tracking
+        this.setupNetworkMonitoring();
+    }
+
+    processPerformanceEntries(entries) {
+        entries.forEach(entry => {
+            if (entry.entryType === 'measure') {
+                this.recordMetric(`measure.${entry.name}`, entry.duration);
+            } else if (entry.entryType === 'paint') {
+                this.recordMetric(`paint.${entry.name}`, entry.startTime);
+            } else if (entry.entryType === 'navigation') {
+                this.recordNavigationMetrics(entry);
+            }
+        });
+    }
+
+    recordNavigationMetrics(entry) {
+        const metrics = {
+            'navigation.dns': entry.domainLookupEnd - entry.domainLookupStart,
+            'navigation.connect': entry.connectEnd - entry.connectStart,
+            'navigation.request': entry.responseStart - entry.requestStart,
+            'navigation.response': entry.responseEnd - entry.responseStart,
+            'navigation.dom': entry.domContentLoadedEventStart - entry.responseEnd,
+            'navigation.load': entry.loadEventStart - entry.domContentLoadedEventStart
+        };
+
+        Object.entries(metrics).forEach(([key, value]) => {
+            this.recordMetric(key, value);
+        });
+    }
+
+    startMemoryMonitoring() {
+        if ('memory' in performance) {
+            setInterval(() => {
+                const memory = performance.memory;
+                this.recordMetric('memory.used', memory.usedJSHeapSize);
+                this.recordMetric('memory.total', memory.totalJSHeapSize);
+                this.recordMetric('memory.limit', memory.jsHeapSizeLimit);
+                
+                // Alert if memory usage is high
+                const usagePercent = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
+                if (usagePercent > 80) {
+                    this.triggerMemoryCleanup();
+                }
+            }, 5000);
+        }
+    }
+
+    startFrameRateMonitoring() {
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let fps = 0;
+
+        const calculateFPS = (currentTime) => {
+            frameCount++;
+            if (currentTime - lastTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                this.recordMetric('fps', fps);
+                
+                // Alert if FPS drops below 30
+                if (fps < 30) {
+                    console.warn('⚠️ Low FPS detected:', fps);
+                    this.optimizePerformance();
+                }
+                
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            requestAnimationFrame(calculateFPS);
+        };
+
+        requestAnimationFrame(calculateFPS);
+    }
+
+    setupNetworkMonitoring() {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const startTime = performance.now();
+            const url = args[0];
+            
+            try {
+                const response = await originalFetch(...args);
+                const duration = performance.now() - startTime;
+                
+                this.recordMetric(`network.${this.getUrlKey(url)}`, duration);
+                
+                if (duration > 5000) {
+                    console.warn('🐌 Slow network request:', url, `${duration}ms`);
+                }
+                
+                return response;
+            } catch (error) {
+                const duration = performance.now() - startTime;
+                this.recordMetric(`network.error.${this.getUrlKey(url)}`, duration);
+                throw error;
+            }
+        };
+    }
+
+    getUrlKey(url) {
+        try {
+            const urlObj = new URL(url, window.location.origin);
+            return urlObj.pathname.replace(/[^a-zA-Z0-9]/g, '_');
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    recordMetric(name, value) {
+        if (!this.metrics.has(name)) {
+            this.metrics.set(name, {
+                values: [],
+                total: 0,
+                count: 0,
+                min: Infinity,
+                max: -Infinity
+            });
+        }
+
+        const metric = this.metrics.get(name);
+        metric.values.push({ value, timestamp: Date.now() });
+        metric.total += value;
+        metric.count++;
+        metric.min = Math.min(metric.min, value);
+        metric.max = Math.max(metric.max, value);
+
+        // Keep only last 100 values
+        if (metric.values.length > 100) {
+            const removed = metric.values.shift();
+            metric.total -= removed.value;
+            metric.count--;
+        }
+    }
+
+    triggerMemoryCleanup() {
+        console.log('🧹 Triggering memory cleanup...');
+        
+        // Clear caches
+        if (window.performanceManager) {
+            window.performanceManager.clearCache();
+        }
+        
+        // Force garbage collection (if available)
+        if (window.gc) {
+            window.gc();
+        }
+        
+        // Clean up charts
+        if (window.app?.chartService) {
+            window.app.chartService.cleanup();
+        }
+        
+        // Clean up old DOM elements
+        this.cleanupDOMElements();
+    }
+
+    cleanupDOMElements() {
+        // Remove old error boundaries
+        const oldErrors = document.querySelectorAll('.error-boundary');
+        if (oldErrors.length > 3) {
+            Array.from(oldErrors).slice(3).forEach(el => el.remove());
+        }
+        
+        // Clean up old notifications
+        const oldNotifications = document.querySelectorAll('.notification');
+        if (oldNotifications.length > 5) {
+            Array.from(oldNotifications).slice(5).forEach(el => el.remove());
+        }
+    }
+
+    optimizePerformance() {
+        // Reduce animation complexity
+        document.body.classList.add('reduced-motion');
+        
+        // Defer non-critical operations
+        setTimeout(() => {
+            document.body.classList.remove('reduced-motion');
+        }, 5000);
+        
+        // Throttle expensive operations
+        this.throttleExpensiveOperations();
+    }
+
+    throttleExpensiveOperations() {
+        // Increase debounce delays temporarily
+        if (window.performanceManager) {
+            window.performanceManager.increaseDebounceDelays();
+        }
+    }
+
+    getMetrics() {
+        const summary = {};
+        
+        this.metrics.forEach((metric, name) => {
+            summary[name] = {
+                average: metric.total / metric.count,
+                min: metric.min,
+                max: metric.max,
+                count: metric.count,
+                recent: metric.values.slice(-10).map(v => v.value)
+            };
+        });
+        
+        return summary;
+    }
+
+    generatePerformanceReport() {
+        const metrics = this.getMetrics();
+        const memory = performance.memory;
+        
+        return {
+            timestamp: new Date().toISOString(),
+            memory: memory ? {
+                used: `${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
+                total: `${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
+                usage: `${((memory.usedJSHeapSize / memory.totalJSHeapSize) * 100).toFixed(1)}%`
+            } : null,
+            fps: metrics.fps?.average || 'N/A',
+            networkRequests: Object.keys(metrics).filter(k => k.startsWith('network.')).length,
+            slowOperations: Object.entries(metrics)
+                .filter(([_, m]) => m.average > 1000)
+                .map(([name, m]) => ({ name, averageMs: m.average.toFixed(2) })),
+            recommendations: this.generateRecommendations(metrics)
+        };
+    }
+
+    generateRecommendations(metrics) {
+        const recommendations = [];
+        
+        // Check for slow operations
+        Object.entries(metrics).forEach(([name, metric]) => {
+            if (metric.average > 1000) {
+                recommendations.push(`Optimize ${name} (avg: ${metric.average.toFixed(2)}ms)`);
+            }
+        });
+        
+        // Check memory usage
+        if (performance.memory) {
+            const usage = (performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize) * 100;
+            if (usage > 70) {
+                recommendations.push('Consider implementing data pagination for large datasets');
+            }
+        }
+        
+        // Check FPS
+        if (metrics.fps && metrics.fps.average < 50) {
+            recommendations.push('Reduce animation complexity or enable reduced motion');
+        }
+        
+        return recommendations;
+    }
+}
+
+/**
+ * CacheManager - Intelligent caching system for performance optimization
+ */
+class CacheManager {
+    constructor() {
+        this.cache = new Map();
+        this.accessCount = new Map();
+        this.lastAccess = new Map();
+        this.maxCacheSize = 100;
+        this.cacheTTL = 10 * 60 * 1000; // 10 minutes
+        this.setupCacheCleanup();
+    }
+
+    setupCacheCleanup() {
+        // Clean expired cache entries every 5 minutes
+        setInterval(() => {
+            this.cleanupExpiredEntries();
+        }, 5 * 60 * 1000);
+    }
+
+    set(key, value, ttl = this.cacheTTL) {
+        // Remove oldest entries if cache is full
+        if (this.cache.size >= this.maxCacheSize) {
+            this.evictLeastRecentlyUsed();
+        }
+
+        const entry = {
+            value,
+            timestamp: Date.now(),
+            ttl,
+            size: this.estimateSize(value)
+        };
+
+        this.cache.set(key, entry);
+        this.accessCount.set(key, 0);
+        this.lastAccess.set(key, Date.now());
+    }
+
+    get(key) {
+        const entry = this.cache.get(key);
+        
+        if (!entry) {
+            return null;
+        }
+
+        // Check if expired
+        if (Date.now() - entry.timestamp > entry.ttl) {
+            this.delete(key);
+            return null;
+        }
+
+        // Update access statistics
+        this.accessCount.set(key, (this.accessCount.get(key) || 0) + 1);
+        this.lastAccess.set(key, Date.now());
+
+        return entry.value;
+    }
+
+    delete(key) {
+        this.cache.delete(key);
+        this.accessCount.delete(key);
+        this.lastAccess.delete(key);
+    }
+
+    clear() {
+        this.cache.clear();
+        this.accessCount.clear();
+        this.lastAccess.clear();
+    }
+
+    has(key) {
+        const entry = this.cache.get(key);
+        if (!entry) return false;
+        
+        // Check if expired
+        if (Date.now() - entry.timestamp > entry.ttl) {
+            this.delete(key);
+            return false;
+        }
+        
+        return true;
+    }
+
+    cleanupExpiredEntries() {
+        const now = Date.now();
+        const expiredKeys = [];
+
+        this.cache.forEach((entry, key) => {
+            if (now - entry.timestamp > entry.ttl) {
+                expiredKeys.push(key);
+            }
+        });
+
+        expiredKeys.forEach(key => this.delete(key));
+        
+        if (expiredKeys.length > 0) {
+            console.log(`🧹 Cleaned up ${expiredKeys.length} expired cache entries`);
+        }
+    }
+
+    evictLeastRecentlyUsed() {
+        let oldestKey = null;
+        let oldestTime = Date.now();
+
+        this.lastAccess.forEach((time, key) => {
+            if (time < oldestTime) {
+                oldestTime = time;
+                oldestKey = key;
+            }
+        });
+
+        if (oldestKey) {
+            this.delete(oldestKey);
+        }
+    }
+
+    estimateSize(value) {
+        try {
+            return JSON.stringify(value).length;
+        } catch {
+            return 1; // Fallback for non-serializable objects
+        }
+    }
+
+    getStats() {
+        const totalSize = Array.from(this.cache.values())
+            .reduce((sum, entry) => sum + entry.size, 0);
+
+        const hitRates = new Map();
+        this.accessCount.forEach((count, key) => {
+            hitRates.set(key, count);
+        });
+
+        return {
+            size: this.cache.size,
+            maxSize: this.maxCacheSize,
+            totalSizeKB: (totalSize / 1024).toFixed(2),
+            hitRates: Object.fromEntries(hitRates),
+            oldestEntry: this.getOldestEntry(),
+            newestEntry: this.getNewestEntry()
+        };
+    }
+
+    getOldestEntry() {
+        let oldest = null;
+        let oldestTime = Date.now();
+
+        this.cache.forEach((entry, key) => {
+            if (entry.timestamp < oldestTime) {
+                oldestTime = entry.timestamp;
+                oldest = key;
+            }
+        });
+
+        return oldest;
+    }
+
+    getNewestEntry() {
+        let newest = null;
+        let newestTime = 0;
+
+        this.cache.forEach((entry, key) => {
+            if (entry.timestamp > newestTime) {
+                newestTime = entry.timestamp;
+                newest = key;
+            }
+        });
+
+        return newest;
+    }
+
+    // Convenience methods for common cache patterns
+    memoize(fn, keyGenerator, ttl) {
+        return (...args) => {
+            const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+            
+            if (this.has(key)) {
+                return this.get(key);
+            }
+            
+            const result = fn(...args);
+            this.set(key, result, ttl);
+            return result;
+        };
+    }
+
+    async memoizeAsync(fn, keyGenerator, ttl) {
+        return async (...args) => {
+            const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+            
+            if (this.has(key)) {
+                return this.get(key);
+            }
+            
+            const result = await fn(...args);
+            this.set(key, result, ttl);
+            return result;
+        };
+    }
+}
+
+/**
+ * VirtualScrollManager - Efficient rendering of large lists
+ */
+class VirtualScrollManager {
+    constructor() {
+        this.virtualLists = new Map();
+        this.observerOptions = {
+            root: null,
+            rootMargin: '50px',
+            threshold: 0.1
+        };
+    }
+
+    createVirtualList(container, options = {}) {
+        const config = {
+            itemHeight: 50,
+            buffer: 5,
+            items: [],
+            renderItem: null,
+            ...options
+        };
+
+        const virtualList = new VirtualList(container, config);
+        this.virtualLists.set(container, virtualList);
+        return virtualList;
+    }
+
+    destroyVirtualList(container) {
+        const virtualList = this.virtualLists.get(container);
+        if (virtualList) {
+            virtualList.destroy();
+            this.virtualLists.delete(container);
+        }
+    }
+
+    updateVirtualList(container, items) {
+        const virtualList = this.virtualLists.get(container);
+        if (virtualList) {
+            virtualList.updateItems(items);
+        }
+    }
+}
+
+class VirtualList {
+    constructor(container, config) {
+        this.container = container;
+        this.config = config;
+        this.scrollTop = 0;
+        this.visibleStartIndex = 0;
+        this.visibleEndIndex = 0;
+        this.renderedItems = new Map();
+        
+        this.setupContainer();
+        this.bindEvents();
+        this.render();
+    }
+
+    setupContainer() {
+        this.container.style.overflow = 'auto';
+        this.container.style.position = 'relative';
+        
+        // Create scroll container
+        this.scrollContainer = document.createElement('div');
+        this.scrollContainer.style.height = `${this.config.items.length * this.config.itemHeight}px`;
+        this.scrollContainer.style.position = 'relative';
+        
+        // Create viewport
+        this.viewport = document.createElement('div');
+        this.viewport.style.position = 'absolute';
+        this.viewport.style.top = '0';
+        this.viewport.style.left = '0';
+        this.viewport.style.right = '0';
+        
+        this.scrollContainer.appendChild(this.viewport);
+        this.container.appendChild(this.scrollContainer);
+    }
+
+    bindEvents() {
+        this.container.addEventListener('scroll', () => {
+            this.scrollTop = this.container.scrollTop;
+            this.render();
+        });
+    }
+
+    calculateVisibleRange() {
+        const containerHeight = this.container.clientHeight;
+        const startIndex = Math.floor(this.scrollTop / this.config.itemHeight);
+        const endIndex = Math.min(
+            startIndex + Math.ceil(containerHeight / this.config.itemHeight) + this.config.buffer,
+            this.config.items.length - 1
+        );
+
+        this.visibleStartIndex = Math.max(0, startIndex - this.config.buffer);
+        this.visibleEndIndex = endIndex;
+    }
+
+    render() {
+        this.calculateVisibleRange();
+        
+        // Remove items that are no longer visible
+        this.renderedItems.forEach((element, index) => {
+            if (index < this.visibleStartIndex || index > this.visibleEndIndex) {
+                element.remove();
+                this.renderedItems.delete(index);
+            }
+        });
+
+        // Add items that are now visible
+        for (let i = this.visibleStartIndex; i <= this.visibleEndIndex; i++) {
+            if (!this.renderedItems.has(i) && this.config.items[i]) {
+                const element = this.createItemElement(this.config.items[i], i);
+                this.renderedItems.set(i, element);
+                this.viewport.appendChild(element);
+            }
+        }
+
+        // Update viewport position
+        this.viewport.style.transform = `translateY(${this.visibleStartIndex * this.config.itemHeight}px)`;
+    }
+
+    createItemElement(item, index) {
+        const element = document.createElement('div');
+        element.style.height = `${this.config.itemHeight}px`;
+        element.style.position = 'absolute';
+        element.style.top = `${(index - this.visibleStartIndex) * this.config.itemHeight}px`;
+        element.style.left = '0';
+        element.style.right = '0';
+        
+        if (this.config.renderItem) {
+            const content = this.config.renderItem(item, index);
+            if (typeof content === 'string') {
+                element.innerHTML = content;
+            } else {
+                element.appendChild(content);
+            }
+        } else {
+            element.textContent = item.toString();
+        }
+        
+        return element;
+    }
+
+    updateItems(items) {
+        this.config.items = items;
+        this.scrollContainer.style.height = `${items.length * this.config.itemHeight}px`;
+        
+        // Clear rendered items
+        this.renderedItems.forEach(element => element.remove());
+        this.renderedItems.clear();
+        
+        this.render();
+    }
+
+    destroy() {
+        this.renderedItems.forEach(element => element.remove());
+        this.scrollContainer.remove();
+    }
+}
+
+/**
+ * AssetOptimizer - Lazy loading and resource management
+ */
+class AssetOptimizer {
+    constructor() {
+        this.imageObserver = null;
+        this.loadedAssets = new Set();
+        this.setupLazyLoading();
+        this.setupResourcePreloading();
+    }
+
+    setupLazyLoading() {
+        if ('IntersectionObserver' in window) {
+            this.imageObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        this.loadImage(entry.target);
+                        this.imageObserver.unobserve(entry.target);
+                    }
+                });
+            }, {
+                rootMargin: '50px'
+            });
+
+            // Observe existing images
+            this.observeImages();
+            
+            // Observe new images
+            this.setupMutationObserver();
+        }
+    }
+
+    observeImages() {
+        const images = document.querySelectorAll('img[data-src]');
+        images.forEach(img => this.imageObserver.observe(img));
+    }
+
+    setupMutationObserver() {
+        const mutationObserver = new MutationObserver((mutations) => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) {
+                        const images = node.querySelectorAll ? 
+                            node.querySelectorAll('img[data-src]') : 
+                            (node.matches && node.matches('img[data-src]') ? [node] : []);
+                        
+                        images.forEach(img => this.imageObserver.observe(img));
+                    }
+                });
+            });
+        });
+
+        mutationObserver.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    }
+
+    loadImage(img) {
+        const src = img.dataset.src;
+        if (src && !this.loadedAssets.has(src)) {
+            img.src = src;
+            img.removeAttribute('data-src');
+            this.loadedAssets.add(src);
+            
+            img.addEventListener('load', () => {
+                img.classList.add('loaded');
+            });
+            
+            img.addEventListener('error', () => {
+                img.classList.add('error');
+                console.warn('Failed to load image:', src);
+            });
+        }
+    }
+
+    setupResourcePreloading() {
+        // Preload critical resources on idle
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+                this.preloadCriticalResources();
+            });
+        } else {
+            setTimeout(() => {
+                this.preloadCriticalResources();
+            }, 1000);
+        }
+    }
+
+    preloadCriticalResources() {
+        const criticalResources = [
+            // Add critical resources that should be preloaded
+            '/path/to/critical-font.woff2',
+            '/path/to/critical-icon.svg'
+        ];
+
+        criticalResources.forEach(resource => {
+            if (!this.loadedAssets.has(resource)) {
+                this.preloadResource(resource);
+            }
+        });
+    }
+
+    preloadResource(url) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.href = url;
+        
+        // Determine resource type
+        if (url.includes('.woff') || url.includes('.woff2')) {
+            link.as = 'font';
+            link.crossOrigin = 'anonymous';
+        } else if (url.includes('.css')) {
+            link.as = 'style';
+        } else if (url.includes('.js')) {
+            link.as = 'script';
+        }
+        
+        document.head.appendChild(link);
+        this.loadedAssets.add(url);
+    }
+
+    // Optimize images by adding lazy loading attributes
+    optimizeImage(img, src, options = {}) {
+        const {
+            placeholder = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y0ZjRmNCIvPjwvc3ZnPg==',
+            lazy = true
+        } = options;
+
+        if (lazy && 'loading' in HTMLImageElement.prototype) {
+            img.loading = 'lazy';
+            img.src = src;
+        } else if (lazy && this.imageObserver) {
+            img.src = placeholder;
+            img.dataset.src = src;
+            this.imageObserver.observe(img);
+        } else {
+            img.src = src;
+        }
+
+        return img;
+    }
+}
+
 // Initialize global instances
 window.notificationManager = new NotificationManager();
 window.loadingManager = new LoadingManager();
@@ -6076,6 +7141,10 @@ window.tooltipManager = new TooltipManager();
 window.performanceManager = new PerformanceManager();
 window.errorManager = new ErrorManager();
 window.formValidator = new FormValidator();
+window.performanceMonitor = new PerformanceMonitor();
+window.cacheManager = new CacheManager();
+window.virtualScrollManager = new VirtualScrollManager();
+window.assetOptimizer = new AssetOptimizer();
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
