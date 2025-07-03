@@ -3539,13 +3539,13 @@ ${health.status === 'healthy' ?
             this.openAccountModal();
         });
 
-        // Import/Export buttons
+                // Import/Export buttons
         document.getElementById('importAccountsBtn')?.addEventListener('click', () => {
             this.importAccounts();
         });
-
-        document.getElementById('exportAccountsBtn')?.addEventListener('click', () => {
-            this.exportAccounts();
+        
+        document.getElementById('exportDataBtn')?.addEventListener('click', () => {
+            this.openExportModal();
         });
 
         // Category tabs
@@ -5471,6 +5471,529 @@ ${health.status === 'healthy' ?
             console.error('Error importing accounts:', error);
             window.notificationManager.error('Failed to import accounts');
         }
+    }
+
+    // Comprehensive Export Modal Methods
+    openExportModal() {
+        const modal = document.getElementById('exportModal');
+        modal.classList.remove('hidden');
+        this.initializeExportModal();
+    }
+
+    initializeExportModal() {
+        // Initialize modal event listeners
+        document.getElementById('exportModalClose').onclick = () => this.closeExportModal();
+        document.getElementById('exportModalOverlay').onclick = () => this.closeExportModal();
+        document.getElementById('cancelExportBtn').onclick = () => this.closeExportModal();
+        document.getElementById('startExportBtn').onclick = () => this.startComprehensiveExport();
+
+        // Set default dates
+        const now = new Date();
+        const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+        document.getElementById('exportStartDate').value = oneYearAgo.toISOString().split('T')[0];
+        document.getElementById('exportEndDate').value = now.toISOString().split('T')[0];
+
+        // Add change listeners for dynamic updates
+        this.addExportModalListeners();
+        
+        // Load account list and update preview
+        this.loadExportAccounts();
+        this.updateExportPreview();
+    }
+
+    addExportModalListeners() {
+        // Export type checkboxes
+        ['exportAccounts', 'exportTransactions', 'exportScenarios', 'exportAnalytics'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', () => this.updateExportPreview());
+        });
+
+        // Date range radio buttons
+        document.querySelectorAll('input[name="dateRange"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const customRange = document.getElementById('customDateRange');
+                if (e.target.value === 'custom') {
+                    customRange.classList.remove('hidden');
+                } else {
+                    customRange.classList.add('hidden');
+                    this.setDateRangeFromSelection(e.target.value);
+                }
+                this.updateExportPreview();
+            });
+        });
+
+        // Custom date inputs
+        document.getElementById('exportStartDate')?.addEventListener('change', () => this.updateExportPreview());
+        document.getElementById('exportEndDate')?.addEventListener('change', () => this.updateExportPreview());
+
+        // Account filter radio buttons
+        document.querySelectorAll('input[name="accountFilter"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                const accountSelection = document.getElementById('accountSelection');
+                if (e.target.value === 'select') {
+                    accountSelection.classList.remove('hidden');
+                } else {
+                    accountSelection.classList.add('hidden');
+                }
+                this.updateExportPreview();
+            });
+        });
+
+        // Export format change
+        document.querySelectorAll('input[name="exportFormat"]').forEach(radio => {
+            radio.addEventListener('change', () => this.updateExportPreview());
+        });
+    }
+
+    setDateRangeFromSelection(rangeType) {
+        const now = new Date();
+        const startDateInput = document.getElementById('exportStartDate');
+        const endDateInput = document.getElementById('exportEndDate');
+        
+        let startDate;
+        switch (rangeType) {
+            case 'ytd':
+                startDate = new Date(now.getFullYear(), 0, 1);
+                break;
+            case 'last12':
+                startDate = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                break;
+            default:
+                startDate = new Date(2020, 0, 1); // Default to 2020
+        }
+        
+        startDateInput.value = startDate.toISOString().split('T')[0];
+        endDateInput.value = now.toISOString().split('T')[0];
+    }
+
+    async loadExportAccounts() {
+        try {
+            const accounts = this.accounts || [];
+            const accountList = document.getElementById('exportAccountList');
+            
+            accountList.innerHTML = '';
+            
+            accounts.forEach(account => {
+                const accountItem = document.createElement('div');
+                accountItem.className = 'account-item';
+                accountItem.innerHTML = `
+                    <input type="checkbox" id="account_${account.id}" value="${account.id}" checked>
+                    <label for="account_${account.id}">${account.account_name || account.name} (${this.formatCurrency(account.balance || 0)})</label>
+                `;
+                
+                accountList.appendChild(accountItem);
+                
+                // Add change listener
+                accountItem.querySelector('input').addEventListener('change', () => this.updateExportPreview());
+            });
+        } catch (error) {
+            console.error('Error loading export accounts:', error);
+        }
+    }
+
+    async updateExportPreview() {
+        try {
+            const exportTypes = this.getSelectedExportTypes();
+            const dateRange = this.getSelectedDateRange();
+            const accountFilter = this.getSelectedAccountFilter();
+            const format = document.querySelector('input[name="exportFormat"]:checked')?.value || 'json';
+
+            // Calculate estimated records and size
+            let totalRecords = 0;
+            let estimatedSize = 0;
+
+            if (exportTypes.accounts) {
+                const accountCount = this.getFilteredAccountsCount(accountFilter);
+                totalRecords += accountCount;
+                estimatedSize += accountCount * 200; // ~200 bytes per account
+            }
+
+            if (exportTypes.transactions) {
+                const transactionCount = await this.getTransactionCount(dateRange, accountFilter);
+                totalRecords += transactionCount;
+                estimatedSize += transactionCount * 150; // ~150 bytes per transaction
+            }
+
+            if (exportTypes.scenarios) {
+                // Assume scenarios data
+                totalRecords += 10; // Estimated scenario count
+                estimatedSize += 10 * 300; // ~300 bytes per scenario
+            }
+
+            if (exportTypes.analytics) {
+                totalRecords += 1; // Analytics report
+                estimatedSize += 5000; // ~5KB for analytics
+            }
+
+            // Adjust for format
+            if (format === 'csv') {
+                estimatedSize *= 0.7; // CSV is typically smaller
+            } else if (format === 'excel') {
+                estimatedSize *= 1.5; // Excel files are larger
+            }
+
+            // Update UI
+            document.getElementById('exportRecords').textContent = totalRecords.toLocaleString();
+            document.getElementById('exportSize').textContent = this.formatFileSize(estimatedSize);
+            document.getElementById('exportDateRange').textContent = this.formatDateRangeDisplay(dateRange);
+
+        } catch (error) {
+            console.error('Error updating export preview:', error);
+            document.getElementById('exportRecords').textContent = '0';
+            document.getElementById('exportSize').textContent = 'Unknown';
+        }
+    }
+
+    getSelectedExportTypes() {
+        return {
+            accounts: document.getElementById('exportAccounts')?.checked || false,
+            transactions: document.getElementById('exportTransactions')?.checked || false,
+            scenarios: document.getElementById('exportScenarios')?.checked || false,
+            analytics: document.getElementById('exportAnalytics')?.checked || false
+        };
+    }
+
+    getSelectedDateRange() {
+        const dateRangeType = document.querySelector('input[name="dateRange"]:checked')?.value || 'all';
+        
+        if (dateRangeType === 'custom') {
+            return {
+                start: document.getElementById('exportStartDate')?.value,
+                end: document.getElementById('exportEndDate')?.value,
+                type: 'custom'
+            };
+        }
+        
+        return { type: dateRangeType };
+    }
+
+    getSelectedAccountFilter() {
+        const filterType = document.querySelector('input[name="accountFilter"]:checked')?.value || 'all';
+        
+        if (filterType === 'select') {
+            const selectedAccounts = Array.from(document.querySelectorAll('#exportAccountList input:checked'))
+                .map(input => input.value);
+            return { type: 'select', accounts: selectedAccounts };
+        }
+        
+        return { type: filterType };
+    }
+
+    getFilteredAccountsCount(accountFilter) {
+        const accounts = this.accounts || [];
+        
+        if (accountFilter.type === 'select') {
+            return accountFilter.accounts.length;
+        } else if (accountFilter.type === 'active') {
+            return accounts.filter(acc => acc.is_active !== false).length;
+        }
+        
+        return accounts.length;
+    }
+
+    async getTransactionCount(dateRange, accountFilter) {
+        // This would ideally query the database, but for now we'll estimate
+        // In a real implementation, you'd call the backend to get actual counts
+        const estimatedMonthlyTransactions = 50;
+        
+        if (dateRange.type === 'all') {
+            return estimatedMonthlyTransactions * 12; // Assume 1 year of data
+        } else if (dateRange.type === 'ytd') {
+            const monthsYTD = new Date().getMonth() + 1;
+            return estimatedMonthlyTransactions * monthsYTD;
+        } else if (dateRange.type === 'last12') {
+            return estimatedMonthlyTransactions * 12;
+        } else if (dateRange.type === 'custom') {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            const monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+            return Math.max(1, monthsDiff) * estimatedMonthlyTransactions;
+        }
+        
+        return 0;
+    }
+
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    formatDateRangeDisplay(dateRange) {
+        switch (dateRange.type) {
+            case 'all':
+                return 'All time';
+            case 'ytd':
+                return 'Year to date';
+            case 'last12':
+                return 'Last 12 months';
+            case 'custom':
+                return `${dateRange.start} to ${dateRange.end}`;
+            default:
+                return 'All time';
+        }
+    }
+
+    async startComprehensiveExport() {
+        try {
+            const exportConfig = this.buildExportConfig();
+            
+            // Validate export configuration
+            if (!this.validateExportConfig(exportConfig)) {
+                return;
+            }
+
+            // Close main modal and show progress modal
+            this.closeExportModal();
+            this.showExportProgress();
+
+            // Start the export process
+            await this.executeExport(exportConfig);
+
+        } catch (error) {
+            console.error('Error starting export:', error);
+            window.notificationManager.error('Export failed to start');
+            this.hideExportProgress();
+        }
+    }
+
+    buildExportConfig() {
+        return {
+            types: this.getSelectedExportTypes(),
+            format: document.querySelector('input[name="exportFormat"]:checked')?.value || 'json',
+            dateRange: this.getSelectedDateRange(),
+            accountFilter: this.getSelectedAccountFilter(),
+            userId: this.currentUserId
+        };
+    }
+
+    validateExportConfig(config) {
+        // Check if at least one export type is selected
+        const hasSelectedType = Object.values(config.types).some(selected => selected);
+        if (!hasSelectedType) {
+            window.notificationManager.error('Please select at least one data type to export');
+            return false;
+        }
+
+        // Validate date range for custom selection
+        if (config.dateRange.type === 'custom') {
+            if (!config.dateRange.start || !config.dateRange.end) {
+                window.notificationManager.error('Please specify both start and end dates');
+                return false;
+            }
+            
+            if (new Date(config.dateRange.start) > new Date(config.dateRange.end)) {
+                window.notificationManager.error('Start date must be before end date');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    showExportProgress() {
+        const modal = document.getElementById('exportProgressModal');
+        modal.classList.remove('hidden');
+        
+        // Reset progress
+        this.updateExportProgress(0, 'Preparing export...');
+        this.setExportStep(1, 'active');
+    }
+
+    updateExportProgress(percent, text) {
+        document.getElementById('exportProgressFill').style.width = `${percent}%`;
+        document.getElementById('exportProgressText').textContent = text;
+        document.getElementById('exportProgressPercent').textContent = `${Math.round(percent)}%`;
+    }
+
+    setExportStep(stepNumber, status) {
+        // Reset all steps
+        document.querySelectorAll('.step').forEach(step => {
+            step.classList.remove('active', 'completed');
+        });
+
+        // Set current and completed steps
+        for (let i = 1; i <= 3; i++) {
+            const step = document.getElementById(`step${i}`);
+            if (i < stepNumber) {
+                step.classList.add('completed');
+            } else if (i === stepNumber) {
+                step.classList.add(status);
+            }
+        }
+    }
+
+    async executeExport(config) {
+        try {
+            // Step 1: Gather data
+            this.updateExportProgress(10, 'Gathering data...');
+            this.setExportStep(1, 'active');
+
+            const exportData = {};
+
+            // Export accounts if selected
+            if (config.types.accounts) {
+                this.updateExportProgress(20, 'Exporting accounts...');
+                exportData.accounts = await this.gatherAccountData(config);
+            }
+
+            // Export transactions if selected
+            if (config.types.transactions) {
+                this.updateExportProgress(40, 'Exporting transactions...');
+                exportData.transactions = await this.gatherTransactionData(config);
+            }
+
+            // Export scenarios if selected
+            if (config.types.scenarios) {
+                this.updateExportProgress(60, 'Exporting scenarios...');
+                exportData.scenarios = await this.gatherScenarioData(config);
+            }
+
+            // Export analytics if selected
+            if (config.types.analytics) {
+                this.updateExportProgress(70, 'Exporting analytics...');
+                exportData.analytics = await this.gatherAnalyticsData(config);
+            }
+
+            // Step 2: Process data
+            this.updateExportProgress(80, 'Processing data...');
+            this.setExportStep(2, 'active');
+
+            const processedData = this.processExportData(exportData, config);
+
+            // Step 3: Save file
+            this.updateExportProgress(90, 'Saving file...');
+            this.setExportStep(3, 'active');
+
+            const result = await this.saveExportFile(processedData, config);
+
+            // Complete
+            this.updateExportProgress(100, 'Export complete!');
+            this.setExportStep(3, 'completed');
+
+            // Show success and close after delay
+            setTimeout(() => {
+                this.hideExportProgress();
+                window.notificationManager.success(`Export completed successfully! File saved as ${result.filename}`);
+            }, 1500);
+
+        } catch (error) {
+            console.error('Export execution error:', error);
+            this.hideExportProgress();
+            window.notificationManager.error(`Export failed: ${error.message}`);
+        }
+    }
+
+    async gatherAccountData(config) {
+        const accounts = this.accounts || [];
+        let filteredAccounts = accounts;
+
+        // Apply account filter
+        if (config.accountFilter.type === 'active') {
+            filteredAccounts = accounts.filter(acc => acc.is_active !== false);
+        } else if (config.accountFilter.type === 'select') {
+            filteredAccounts = accounts.filter(acc => config.accountFilter.accounts.includes(acc.id));
+        }
+
+        return filteredAccounts.map(account => ({
+            id: account.id,
+            name: account.account_name || account.name,
+            type: account.account_type || account.type,
+            institution: account.institution_name,
+            balance: account.balance || account.current_balance,
+            is_active: account.is_active,
+            created_at: account.created_at,
+            updated_at: account.updated_at
+        }));
+    }
+
+    async gatherTransactionData(config) {
+        // This would call the backend to get transaction data
+        // For now, return a placeholder
+        try {
+            const response = await electronAPI.exportTransactions('temp', {
+                userId: config.userId,
+                startDate: config.dateRange.start,
+                endDate: config.dateRange.end,
+                accountFilter: config.accountFilter,
+                returnData: true // Flag to return data instead of saving to file
+            });
+            
+            return response.data || [];
+        } catch (error) {
+            console.warn('Transaction export not available, using placeholder');
+            return [];
+        }
+    }
+
+    async gatherScenarioData(config) {
+        // Get scenarios from activeScenarios or database
+        const scenarios = [];
+        
+        if (this.activeScenarios && this.activeScenarios.size > 0) {
+            for (const [id, scenario] of this.activeScenarios) {
+                scenarios.push(scenario);
+            }
+        }
+
+        return scenarios;
+    }
+
+    async gatherAnalyticsData(config) {
+        // This would gather analytics data
+        // For now, return basic info
+        return {
+            generated_at: new Date().toISOString(),
+            user_id: config.userId,
+            accounts_count: this.accounts?.length || 0,
+            net_worth: this.accounts?.reduce((sum, acc) => sum + (acc.balance || 0), 0) || 0
+        };
+    }
+
+    processExportData(data, config) {
+        const processedData = {
+            export_info: {
+                generated_at: new Date().toISOString(),
+                format: config.format,
+                app_version: '1.0.0',
+                user_id: config.userId,
+                date_range: config.dateRange,
+                export_types: config.types
+            },
+            data: data
+        };
+
+        return processedData;
+    }
+
+    async saveExportFile(data, config) {
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        const filename = `futurefund-export-${timestamp}.${config.format}`;
+
+        try {
+            const response = await electronAPI.exportData(config.format, {
+                filename: filename,
+                data: data,
+                userId: config.userId
+            });
+
+            return {
+                success: response.success,
+                filename: filename,
+                path: response.filePath
+            };
+        } catch (error) {
+            throw new Error(`Failed to save export file: ${error.message}`);
+        }
+    }
+
+    hideExportProgress() {
+        document.getElementById('exportProgressModal').classList.add('hidden');
+    }
+
+    closeExportModal() {
+        document.getElementById('exportModal').classList.add('hidden');
     }
 
     // Transaction Management Methods

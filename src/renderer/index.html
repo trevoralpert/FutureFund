@@ -284,7 +284,7 @@
                                 <span class="btn-icon">📥</span>
                                 Import
                             </button>
-                            <button id="exportAccountsBtn" class="btn btn-secondary">
+                            <button id="exportDataBtn" class="btn btn-secondary">
                                 <span class="btn-icon">📤</span>
                                 Export
                             </button>
@@ -1159,6 +1159,203 @@
                         <span class="btn-icon">💾</span>
                         <span id="saveTransactionText">Save Transaction</span>
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comprehensive Export Modal -->
+    <div id="exportModal" class="modal hidden">
+        <div class="modal-overlay" id="exportModalOverlay"></div>
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3 id="exportModalTitle">Export Financial Data</h3>
+                <button class="modal-close" id="exportModalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-options">
+                    <!-- Export Type Selection -->
+                    <div class="export-section">
+                        <h4>📊 What to Export</h4>
+                        <div class="export-type-grid">
+                            <div class="export-type-card">
+                                <input type="checkbox" id="exportAccounts" checked>
+                                <label for="exportAccounts">
+                                    <span class="export-icon">🏦</span>
+                                    <span class="export-title">Accounts</span>
+                                    <span class="export-desc">Account details, balances, and metadata</span>
+                                </label>
+                            </div>
+                            <div class="export-type-card">
+                                <input type="checkbox" id="exportTransactions" checked>
+                                <label for="exportTransactions">
+                                    <span class="export-icon">💰</span>
+                                    <span class="export-title">Transactions</span>
+                                    <span class="export-desc">All transaction history and details</span>
+                                </label>
+                            </div>
+                            <div class="export-type-card">
+                                <input type="checkbox" id="exportScenarios" checked>
+                                <label for="exportScenarios">
+                                    <span class="export-icon">🔮</span>
+                                    <span class="export-title">Scenarios</span>
+                                    <span class="export-desc">Financial scenarios and projections</span>
+                                </label>
+                            </div>
+                            <div class="export-type-card">
+                                <input type="checkbox" id="exportAnalytics">
+                                <label for="exportAnalytics">
+                                    <span class="export-icon">📈</span>
+                                    <span class="export-title">Analytics</span>
+                                    <span class="export-desc">Insights and analysis reports</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Format Selection -->
+                    <div class="export-section">
+                        <h4>📄 Export Format</h4>
+                        <div class="format-options">
+                            <label class="format-option">
+                                <input type="radio" name="exportFormat" value="json" checked>
+                                <span class="format-label">JSON</span>
+                                <span class="format-desc">Machine-readable, preserves all data</span>
+                            </label>
+                            <label class="format-option">
+                                <input type="radio" name="exportFormat" value="csv">
+                                <span class="format-label">CSV</span>
+                                <span class="format-desc">Spreadsheet-compatible, easy to import</span>
+                            </label>
+                            <label class="format-option">
+                                <input type="radio" name="exportFormat" value="excel">
+                                <span class="format-label">Excel</span>
+                                <span class="format-desc">Formatted spreadsheet with charts</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Date Range Filter -->
+                    <div class="export-section">
+                        <h4>📅 Date Range</h4>
+                        <div class="date-range-options">
+                            <label class="date-option">
+                                <input type="radio" name="dateRange" value="all" checked>
+                                <span>All Time</span>
+                            </label>
+                            <label class="date-option">
+                                <input type="radio" name="dateRange" value="ytd">
+                                <span>Year to Date</span>
+                            </label>
+                            <label class="date-option">
+                                <input type="radio" name="dateRange" value="last12">
+                                <span>Last 12 Months</span>
+                            </label>
+                            <label class="date-option">
+                                <input type="radio" name="dateRange" value="custom">
+                                <span>Custom Range</span>
+                            </label>
+                        </div>
+                        <div class="custom-date-range hidden" id="customDateRange">
+                            <div class="date-inputs">
+                                <div class="input-group">
+                                    <label>From:</label>
+                                    <input type="date" id="exportStartDate">
+                                </div>
+                                <div class="input-group">
+                                    <label>To:</label>
+                                    <input type="date" id="exportEndDate">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Filter -->
+                    <div class="export-section">
+                        <h4>🏦 Account Filter</h4>
+                        <div class="account-filter">
+                            <label class="filter-option">
+                                <input type="radio" name="accountFilter" value="all" checked>
+                                <span>All Accounts</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="radio" name="accountFilter" value="active">
+                                <span>Active Accounts Only</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="radio" name="accountFilter" value="select">
+                                <span>Select Specific Accounts</span>
+                            </label>
+                        </div>
+                        <div class="account-selection hidden" id="accountSelection">
+                            <div class="account-list" id="exportAccountList">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Export Preview -->
+                    <div class="export-section">
+                        <h4>📋 Export Preview</h4>
+                        <div class="export-preview">
+                            <div class="preview-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Estimated Size:</span>
+                                    <span class="stat-value" id="exportSize">Calculating...</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Records:</span>
+                                    <span class="stat-value" id="exportRecords">0</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Date Range:</span>
+                                    <span class="stat-value" id="exportDateRange">All time</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelExportBtn">Cancel</button>
+                <button class="btn btn-primary" id="startExportBtn">
+                    <span class="btn-icon">📤</span>
+                    Start Export
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Progress Modal -->
+    <div id="exportProgressModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Exporting Data...</h3>
+            </div>
+            <div class="modal-body">
+                <div class="export-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="exportProgressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="exportProgressText">Preparing export...</span>
+                        <span id="exportProgressPercent">0%</span>
+                    </div>
+                </div>
+                <div class="export-steps">
+                    <div class="step" id="step1">
+                        <span class="step-icon">📊</span>
+                        <span class="step-text">Gathering data...</span>
+                    </div>
+                    <div class="step" id="step2">
+                        <span class="step-icon">🔧</span>
+                        <span class="step-text">Processing...</span>
+                    </div>
+                    <div class="step" id="step3">
+                        <span class="step-icon">💾</span>
+                        <span class="step-text">Saving file...</span>
+                    </div>
                 </div>
             </div>
         </div>
