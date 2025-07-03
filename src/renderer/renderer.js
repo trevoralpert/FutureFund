@@ -3547,6 +3547,16 @@ ${health.status === 'healthy' ?
         document.getElementById('exportDataBtn')?.addEventListener('click', () => {
             this.openExportModal();
         });
+        
+        // Import button
+        document.getElementById('importTransactionsBtn')?.addEventListener('click', () => {
+            this.openImportModal();
+        });
+        
+        // Import button in accounts tab
+        document.getElementById('importAccountsBtn')?.addEventListener('click', () => {
+            this.openImportModal();
+        });
 
         // Category tabs
         document.querySelectorAll('.category-tab').forEach(tab => {
@@ -6746,6 +6756,697 @@ ${health.status === 'healthy' ?
         } catch (error) {
             console.error(`Error previewing scenario ${scenarioId}:`, error);
         }
+    }
+
+    // Transaction Import System
+    openImportModal() {
+        const modal = document.getElementById('importModal');
+        modal.classList.remove('hidden');
+        this.currentImportStep = 1;
+        this.importData = {
+            file: null,
+            csv: null,
+            columns: [],
+            mapping: {},
+            options: {
+                skipDuplicates: true,
+                autoCategories: true,
+                skipHeader: true,
+                detectIncome: true
+            },
+            preview: []
+        };
+        this.initializeImportModal();
+    }
+
+    initializeImportModal() {
+        this.currentImportStep = 1;
+        this.updateImportStep();
+        this.setupImportEventListeners();
+        this.populateDefaultAccountSelect();
+        this.setupFileUpload();
+    }
+
+    setupImportEventListeners() {
+        // Modal close events
+        document.getElementById('importModalClose').onclick = () => this.closeImportModal();
+        document.getElementById('importModalOverlay').onclick = () => this.closeImportModal();
+        document.getElementById('cancelImportBtn').onclick = () => this.closeImportModal();
+
+        // Navigation buttons
+        document.getElementById('importNextBtn').onclick = () => this.nextImportStep();
+        document.getElementById('importBackBtn').onclick = () => this.previousImportStep();
+        document.getElementById('startImportBtn').onclick = () => this.startImport();
+
+        // Bank template selection
+        document.querySelectorAll('.template-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.applyBankTemplate(btn.dataset.template);
+            });
+        });
+
+        // Column mapping listeners
+        document.querySelectorAll('.mapping-select').forEach(select => {
+            select.addEventListener('change', () => {
+                this.updateColumnMapping();
+                this.updateSampleData();
+            });
+        });
+
+        // Import options listeners
+        document.querySelectorAll('.import-options input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.updateImportOptions();
+            });
+        });
+
+        // Preview filter
+        document.getElementById('previewFilter').addEventListener('change', () => {
+            this.updatePreviewTable();
+        });
+    }
+
+    setupFileUpload() {
+        const fileInput = document.getElementById('fileInput');
+        const uploadArea = document.getElementById('fileUploadArea');
+        const browseBtn = document.getElementById('browseFileBtn');
+        const changeFileBtn = document.getElementById('changeFileBtn');
+
+        // Browse button
+        browseBtn.onclick = () => fileInput.click();
+        changeFileBtn.onclick = () => fileInput.click();
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                this.handleFileSelection(e.target.files[0]);
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'text/csv') {
+                this.handleFileSelection(files[0]);
+            }
+        });
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+    }
+
+    async handleFileSelection(file) {
+        if (!file.name.endsWith('.csv')) {
+            alert('Please select a CSV file');
+            return;
+        }
+
+        this.importData.file = file;
+        
+        try {
+            // Read and parse CSV
+            const text = await this.readFileAsText(file);
+            this.importData.csv = this.parseCSV(text);
+            
+            // Update UI
+            this.updateFileInfo(file);
+            this.populateColumnSelectors();
+            this.updateImportNextButton();
+            
+        } catch (error) {
+            console.error('Error reading file:', error);
+            alert('Error reading file. Please try again.');
+        }
+    }
+
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsText(file);
+        });
+    }
+
+    parseCSV(text) {
+        const lines = text.split('\n').filter(line => line.trim());
+        const data = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Simple CSV parsing (handles basic cases)
+            const cells = this.parseCSVLine(line);
+            data.push(cells);
+        }
+        
+        return data;
+    }
+
+    parseCSVLine(line) {
+        const cells = [];
+        let current = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"' && (i === 0 || line[i-1] === ',')) {
+                inQuotes = true;
+            } else if (char === '"' && inQuotes) {
+                inQuotes = false;
+            } else if (char === ',' && !inQuotes) {
+                cells.push(current.trim());
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+        
+        cells.push(current.trim());
+        return cells;
+    }
+
+    updateFileInfo(file) {
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadArea = document.getElementById('fileUploadArea');
+        
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileSize').textContent = this.formatFileSize(file.size);
+        document.getElementById('fileRows').textContent = this.importData.csv.length;
+        
+        uploadArea.classList.add('hidden');
+        fileInfo.classList.remove('hidden');
+    }
+
+    populateColumnSelectors() {
+        if (!this.importData.csv.length) return;
+        
+        const headers = this.importData.csv[0];
+        const selectors = ['mapDate', 'mapDescription', 'mapAmount', 'mapCategory', 'mapAccount'];
+        
+        selectors.forEach(selectorId => {
+            const select = document.getElementById(selectorId);
+            select.innerHTML = '<option value="">-- Select Column --</option>';
+            
+            headers.forEach((header, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = header;
+                select.appendChild(option);
+            });
+        });
+        
+        // Auto-detect common columns
+        this.autoDetectColumns(headers);
+    }
+
+    autoDetectColumns(headers) {
+        const mappings = {
+            date: ['date', 'transaction date', 'posting date', 'trans date'],
+            description: ['description', 'memo', 'transaction', 'desc', 'details'],
+            amount: ['amount', 'transaction amount', 'debit', 'credit'],
+            category: ['category', 'merchant category', 'type'],
+            account: ['account', 'account name', 'account number']
+        };
+        
+        Object.entries(mappings).forEach(([field, keywords]) => {
+            const columnIndex = headers.findIndex(header => 
+                keywords.some(keyword => 
+                    header.toLowerCase().includes(keyword.toLowerCase())
+                )
+            );
+            
+            if (columnIndex !== -1) {
+                const mapId = `map${field.charAt(0).toUpperCase() + field.slice(1)}`;
+                const select = document.getElementById(mapId);
+                if (select) {
+                    select.value = columnIndex;
+                }
+            }
+        });
+        
+        this.updateColumnMapping();
+        this.updateSampleData();
+    }
+
+    updateColumnMapping() {
+        const selectors = ['mapDate', 'mapDescription', 'mapAmount', 'mapCategory', 'mapAccount'];
+        
+        selectors.forEach(selectorId => {
+            const select = document.getElementById(selectorId);
+            const field = selectorId.replace('map', '').toLowerCase();
+            this.importData.mapping[field] = select.value ? parseInt(select.value) : null;
+        });
+    }
+
+    updateSampleData() {
+        if (!this.importData.csv.length || !this.importData.mapping) return;
+        
+        const sampleRow = this.importData.csv[1] || this.importData.csv[0]; // Skip header if exists
+        
+        Object.entries(this.importData.mapping).forEach(([field, columnIndex]) => {
+            const sampleElement = document.getElementById(`sample${field.charAt(0).toUpperCase() + field.slice(1)}`);
+            if (sampleElement && columnIndex !== null) {
+                sampleElement.textContent = sampleRow[columnIndex] || 'N/A';
+            }
+        });
+    }
+
+    applyBankTemplate(template) {
+        const templates = {
+            chase: {
+                date: 'Transaction Date',
+                description: 'Description',
+                amount: 'Amount',
+                category: 'Category',
+                account: 'Account'
+            },
+            bofa: {
+                date: 'Posted Date',
+                description: 'Payee',
+                amount: 'Amount',
+                category: 'Category',
+                account: 'Account'
+            },
+            wells: {
+                date: 'Date',
+                description: 'Description',
+                amount: 'Amount',
+                category: 'Category',
+                account: 'Account'
+            },
+            generic: {
+                date: 'Date',
+                description: 'Description',
+                amount: 'Amount',
+                category: 'Category',
+                account: 'Account'
+            }
+        };
+        
+        const config = templates[template];
+        if (!config) return;
+        
+        // Apply template mapping
+        Object.entries(config).forEach(([field, headerName]) => {
+            const select = document.getElementById(`map${field.charAt(0).toUpperCase() + field.slice(1)}`);
+            if (select) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].textContent.toLowerCase().includes(headerName.toLowerCase())) {
+                        select.value = select.options[i].value;
+                        break;
+                    }
+                }
+            }
+        });
+        
+        this.updateColumnMapping();
+        this.updateSampleData();
+    }
+
+    async populateDefaultAccountSelect() {
+        const select = document.getElementById('defaultAccount');
+        select.innerHTML = '<option value="">-- Select Account --</option>';
+        
+        try {
+            const accounts = await window.electronAPI.getAccounts();
+            accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.id;
+                option.textContent = `${account.name} (${account.account_type})`;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error loading accounts:', error);
+        }
+    }
+
+    updateImportOptions() {
+        this.importData.options = {
+            skipDuplicates: document.getElementById('skipDuplicates').checked,
+            autoCategories: document.getElementById('autoCategories').checked,
+            skipHeader: document.getElementById('skipHeader').checked,
+            detectIncome: document.getElementById('detectIncome').checked
+        };
+    }
+
+    nextImportStep() {
+        if (this.currentImportStep === 1) {
+            // Validate file selection
+            if (!this.importData.file) {
+                alert('Please select a CSV file');
+                return;
+            }
+            this.currentImportStep = 2;
+        } else if (this.currentImportStep === 2) {
+            // Validate mapping
+            if (!this.validateMapping()) {
+                alert('Please map required fields: Date, Description, and Amount');
+                return;
+            }
+            this.currentImportStep = 3;
+            this.generatePreview();
+        }
+        
+        this.updateImportStep();
+    }
+
+    previousImportStep() {
+        if (this.currentImportStep > 1) {
+            this.currentImportStep--;
+            this.updateImportStep();
+        }
+    }
+
+    updateImportStep() {
+        // Hide all steps
+        document.querySelectorAll('.import-step').forEach(step => {
+            step.classList.remove('active');
+        });
+        
+        // Show current step
+        document.getElementById(`importStep${this.currentImportStep}`).classList.add('active');
+        
+        // Update navigation buttons
+        const backBtn = document.getElementById('importBackBtn');
+        const nextBtn = document.getElementById('importNextBtn');
+        const startBtn = document.getElementById('startImportBtn');
+        
+        backBtn.style.display = this.currentImportStep > 1 ? 'inline-block' : 'none';
+        nextBtn.style.display = this.currentImportStep < 3 ? 'inline-block' : 'none';
+        startBtn.style.display = this.currentImportStep === 3 ? 'inline-block' : 'none';
+        
+        // Update button states
+        this.updateImportNextButton();
+    }
+
+    updateImportNextButton() {
+        const nextBtn = document.getElementById('importNextBtn');
+        if (this.currentImportStep === 1) {
+            nextBtn.disabled = !this.importData.file;
+        } else if (this.currentImportStep === 2) {
+            nextBtn.disabled = !this.validateMapping();
+        }
+    }
+
+    validateMapping() {
+        const required = ['date', 'description', 'amount'];
+        return required.every(field => this.importData.mapping[field] !== null);
+    }
+
+    generatePreview() {
+        if (!this.importData.csv || !this.importData.mapping) return;
+        
+        const startRow = this.importData.options.skipHeader ? 1 : 0;
+        const rows = this.importData.csv.slice(startRow);
+        
+        this.importData.preview = rows.map((row, index) => {
+            const transaction = this.mapRowToTransaction(row, index);
+            const validation = this.validateTransaction(transaction);
+            
+            return {
+                ...transaction,
+                validation,
+                originalRow: row
+            };
+        });
+        
+        this.updatePreviewSummary();
+        this.updatePreviewTable();
+    }
+
+    mapRowToTransaction(row, index) {
+        const transaction = {
+            id: `import_${Date.now()}_${index}`,
+            date: this.parseDate(row[this.importData.mapping.date]),
+            description: row[this.importData.mapping.description] || '',
+            amount: this.parseAmount(row[this.importData.mapping.amount]),
+            category: row[this.importData.mapping.category] || 'Uncategorized',
+            account: row[this.importData.mapping.account] || document.getElementById('defaultAccount').value
+        };
+        
+        // Auto-categorize if enabled
+        if (this.importData.options.autoCategories) {
+            transaction.category = this.autoCategorize(transaction.description) || transaction.category;
+        }
+        
+        // Auto-detect income vs expense
+        if (this.importData.options.detectIncome) {
+            transaction.type = transaction.amount > 0 ? 'Income' : 'Expense';
+        } else {
+            transaction.type = 'Expense';
+        }
+        
+        return transaction;
+    }
+
+    parseDate(dateStr) {
+        if (!dateStr) return null;
+        
+        // Try various date formats
+        const formats = [
+            /^\d{4}-\d{2}-\d{2}$/,  // YYYY-MM-DD
+            /^\d{2}\/\d{2}\/\d{4}$/,  // MM/DD/YYYY
+            /^\d{2}\/\d{2}\/\d{2}$/,  // MM/DD/YY
+            /^\d{1,2}\/\d{1,2}\/\d{4}$/  // M/D/YYYY
+        ];
+        
+        const date = new Date(dateStr);
+        return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0];
+    }
+
+    parseAmount(amountStr) {
+        if (!amountStr) return 0;
+        
+        // Remove currency symbols and parse
+        const cleaned = amountStr.replace(/[$,\s]/g, '');
+        const amount = parseFloat(cleaned);
+        
+        return isNaN(amount) ? 0 : amount;
+    }
+
+    autoCategorize(description) {
+        const categories = {
+            'Groceries': ['grocery', 'supermarket', 'food', 'kroger', 'walmart', 'target'],
+            'Gas': ['gas', 'fuel', 'exxon', 'shell', 'bp', 'chevron'],
+            'Dining': ['restaurant', 'cafe', 'mcdonald', 'starbucks', 'pizza'],
+            'Shopping': ['amazon', 'store', 'retail', 'mall'],
+            'Utilities': ['electric', 'water', 'gas bill', 'utility'],
+            'Transportation': ['uber', 'lyft', 'taxi', 'bus', 'train'],
+            'Entertainment': ['movie', 'netflix', 'spotify', 'game'],
+            'Healthcare': ['doctor', 'pharmacy', 'medical', 'hospital'],
+            'Insurance': ['insurance', 'premium'],
+            'Income': ['salary', 'paycheck', 'deposit', 'payment']
+        };
+        
+        const desc = description.toLowerCase();
+        
+        for (const [category, keywords] of Object.entries(categories)) {
+            if (keywords.some(keyword => desc.includes(keyword))) {
+                return category;
+            }
+        }
+        
+        return null;
+    }
+
+    validateTransaction(transaction) {
+        const errors = [];
+        
+        if (!transaction.date) {
+            errors.push('Invalid date');
+        }
+        
+        if (!transaction.description) {
+            errors.push('Missing description');
+        }
+        
+        if (transaction.amount === 0) {
+            errors.push('Invalid amount');
+        }
+        
+        const isDuplicate = this.checkForDuplicate(transaction);
+        
+        return {
+            isValid: errors.length === 0,
+            errors,
+            isDuplicate,
+            status: errors.length > 0 ? 'error' : (isDuplicate ? 'duplicate' : 'valid')
+        };
+    }
+
+    checkForDuplicate(transaction) {
+        // Simple duplicate check based on date, description, and amount
+        // In a real app, this would check against existing transactions
+        return false;
+    }
+
+    updatePreviewSummary() {
+        const total = this.importData.preview.length;
+        const valid = this.importData.preview.filter(t => t.validation.isValid).length;
+        const duplicates = this.importData.preview.filter(t => t.validation.isDuplicate).length;
+        const errors = this.importData.preview.filter(t => t.validation.errors.length > 0).length;
+        
+        document.getElementById('totalTransactions').textContent = total;
+        document.getElementById('newTransactions').textContent = valid;
+        document.getElementById('skippedTransactions').textContent = duplicates;
+        document.getElementById('errorTransactions').textContent = errors;
+    }
+
+    updatePreviewTable() {
+        const filter = document.getElementById('previewFilter').value;
+        let filteredData = this.importData.preview;
+        
+        switch (filter) {
+            case 'valid':
+                filteredData = this.importData.preview.filter(t => t.validation.isValid);
+                break;
+            case 'errors':
+                filteredData = this.importData.preview.filter(t => t.validation.errors.length > 0);
+                break;
+            case 'duplicates':
+                filteredData = this.importData.preview.filter(t => t.validation.isDuplicate);
+                break;
+        }
+        
+        const tbody = document.getElementById('previewTableBody');
+        tbody.innerHTML = '';
+        
+        filteredData.slice(0, 100).forEach(transaction => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>
+                    <div class="status-cell status-${transaction.validation.status}">
+                        ${this.getStatusIcon(transaction.validation.status)}
+                        ${transaction.validation.status}
+                    </div>
+                </td>
+                <td>${transaction.date || 'Invalid'}</td>
+                <td>${transaction.description}</td>
+                <td>${this.formatCurrency(transaction.amount)}</td>
+                <td>${transaction.category}</td>
+                <td>${transaction.account}</td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+        document.getElementById('previewCount').textContent = 
+            `Showing ${Math.min(filteredData.length, 100)} of ${filteredData.length} transactions`;
+    }
+
+    getStatusIcon(status) {
+        const icons = {
+            valid: '✅',
+            error: '❌',
+            duplicate: '⚠️',
+            skipped: '⏭️'
+        };
+        return icons[status] || '❓';
+    }
+
+    async startImport() {
+        const validTransactions = this.importData.preview.filter(t => 
+            t.validation.isValid && (!this.importData.options.skipDuplicates || !t.validation.isDuplicate)
+        );
+        
+        if (validTransactions.length === 0) {
+            alert('No valid transactions to import');
+            return;
+        }
+        
+        // Show progress modal
+        this.showImportProgress();
+        
+        try {
+            let imported = 0;
+            const total = validTransactions.length;
+            
+            for (let i = 0; i < validTransactions.length; i++) {
+                const transaction = validTransactions[i];
+                
+                // Import transaction
+                await this.importTransaction(transaction);
+                imported++;
+                
+                // Update progress
+                const percent = Math.round((imported / total) * 100);
+                this.updateImportProgress(percent, `Imported ${imported} of ${total} transactions`);
+                
+                // Small delay to show progress
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            
+            // Success
+            this.hideImportProgress();
+            alert(`Successfully imported ${imported} transactions!`);
+            this.closeImportModal();
+            
+            // Refresh the ledger
+            await this.loadFinancialData();
+            this.updateLedgerTable();
+            
+        } catch (error) {
+            console.error('Import error:', error);
+            this.hideImportProgress();
+            alert('Error importing transactions. Please try again.');
+        }
+    }
+
+    async importTransaction(transaction) {
+        try {
+            const result = await window.electronAPI.createTransaction({
+                description: transaction.description,
+                amount: transaction.amount,
+                date: transaction.date,
+                category: transaction.category,
+                account_id: transaction.account,
+                type: transaction.type
+            });
+            
+            return result;
+        } catch (error) {
+            console.error('Failed to import transaction:', error);
+            throw error;
+        }
+    }
+
+    showImportProgress() {
+        document.getElementById('importModal').classList.add('hidden');
+        document.getElementById('importProgressModal').classList.remove('hidden');
+    }
+
+    updateImportProgress(percent, text) {
+        document.getElementById('importProgressFill').style.width = `${percent}%`;
+        document.getElementById('importProgressPercent').textContent = `${percent}%`;
+        document.getElementById('importProgressText').textContent = text;
+    }
+
+    hideImportProgress() {
+        document.getElementById('importProgressModal').classList.add('hidden');
+    }
+
+    closeImportModal() {
+        document.getElementById('importModal').classList.add('hidden');
+        document.getElementById('importProgressModal').classList.add('hidden');
+        this.importData = null;
     }
 }
 

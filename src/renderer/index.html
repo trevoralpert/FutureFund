@@ -109,6 +109,10 @@
                                 <span class="btn-icon">➕</span>
                                 Add Transaction
                             </button>
+                            <button class="btn btn-secondary" id="importTransactionsBtn">
+                                <span class="btn-icon">📥</span>
+                                Import CSV
+                            </button>
                         </div>
                         <div class="scenario-controls">
                             <label>Scenarios:</label>
@@ -1355,6 +1359,264 @@
                     <div class="step" id="step3">
                         <span class="step-icon">💾</span>
                         <span class="step-text">Saving file...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Import Modal -->
+    <div id="importModal" class="modal hidden">
+        <div class="modal-overlay" id="importModalOverlay"></div>
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3 id="importModalTitle">Import Transactions</h3>
+                <button class="modal-close" id="importModalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="import-steps">
+                    <!-- Step 1: File Selection -->
+                    <div class="import-step active" id="importStep1">
+                        <div class="step-header">
+                            <h4>📁 Step 1: Select File</h4>
+                            <p>Choose a CSV file containing your transaction data</p>
+                        </div>
+                        
+                        <div class="file-upload-area" id="fileUploadArea">
+                            <div class="upload-content">
+                                <span class="upload-icon">📄</span>
+                                <h4>Drop CSV file here or click to browse</h4>
+                                <p>Supports most bank export formats (.csv files)</p>
+                                <button class="btn btn-primary" id="browseFileBtn">
+                                    <span class="btn-icon">📁</span>
+                                    Browse Files
+                                </button>
+                            </div>
+                            <input type="file" id="fileInput" accept=".csv" hidden>
+                        </div>
+
+                        <div class="file-info hidden" id="fileInfo">
+                            <div class="file-details">
+                                <span class="file-icon">📄</span>
+                                <div class="file-meta">
+                                    <div class="file-name" id="fileName"></div>
+                                    <div class="file-stats">
+                                        <span id="fileSize"></span> • <span id="fileRows"></span> rows
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary btn-sm" id="changeFileBtn">Change File</button>
+                            </div>
+                        </div>
+
+                        <div class="bank-templates">
+                            <h5>💡 Popular Bank Formats</h5>
+                            <div class="template-options">
+                                <button class="template-btn" data-template="chase">
+                                    <span class="bank-icon">🏦</span>
+                                    <span>Chase Bank</span>
+                                </button>
+                                <button class="template-btn" data-template="bofa">
+                                    <span class="bank-icon">🏛️</span>
+                                    <span>Bank of America</span>
+                                </button>
+                                <button class="template-btn" data-template="wells">
+                                    <span class="bank-icon">🏪</span>
+                                    <span>Wells Fargo</span>
+                                </button>
+                                <button class="template-btn" data-template="generic">
+                                    <span class="bank-icon">📊</span>
+                                    <span>Generic CSV</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Column Mapping -->
+                    <div class="import-step hidden" id="importStep2">
+                        <div class="step-header">
+                            <h4>🔗 Step 2: Map Columns</h4>
+                            <p>Match your CSV columns to transaction fields</p>
+                        </div>
+
+                        <div class="column-mapping">
+                            <div class="mapping-grid">
+                                <div class="mapping-row">
+                                    <label class="mapping-label">Date *</label>
+                                    <select class="mapping-select" id="mapDate">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                    <div class="sample-data" id="sampleDate"></div>
+                                </div>
+                                <div class="mapping-row">
+                                    <label class="mapping-label">Description *</label>
+                                    <select class="mapping-select" id="mapDescription">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                    <div class="sample-data" id="sampleDescription"></div>
+                                </div>
+                                <div class="mapping-row">
+                                    <label class="mapping-label">Amount *</label>
+                                    <select class="mapping-select" id="mapAmount">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                    <div class="sample-data" id="sampleAmount"></div>
+                                </div>
+                                <div class="mapping-row">
+                                    <label class="mapping-label">Category</label>
+                                    <select class="mapping-select" id="mapCategory">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                    <div class="sample-data" id="sampleCategory"></div>
+                                </div>
+                                <div class="mapping-row">
+                                    <label class="mapping-label">Account</label>
+                                    <select class="mapping-select" id="mapAccount">
+                                        <option value="">-- Select Column --</option>
+                                    </select>
+                                    <div class="sample-data" id="sampleAccount"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="import-options">
+                            <h5>⚙️ Import Options</h5>
+                            <div class="options-grid">
+                                <label class="option-item">
+                                    <input type="checkbox" id="skipDuplicates" checked>
+                                    <span>Skip potential duplicates</span>
+                                </label>
+                                <label class="option-item">
+                                    <input type="checkbox" id="autoCategories" checked>
+                                    <span>Auto-categorize transactions</span>
+                                </label>
+                                <label class="option-item">
+                                    <input type="checkbox" id="skipHeader" checked>
+                                    <span>Skip header row</span>
+                                </label>
+                                <label class="option-item">
+                                    <input type="checkbox" id="detectIncome" checked>
+                                    <span>Auto-detect income vs expenses</span>
+                                </label>
+                            </div>
+
+                            <div class="account-assignment">
+                                <label for="defaultAccount">Default Account:</label>
+                                <select id="defaultAccount" class="form-select">
+                                    <option value="">-- Select Account --</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Preview & Validation -->
+                    <div class="import-step hidden" id="importStep3">
+                        <div class="step-header">
+                            <h4>👀 Step 3: Preview & Validate</h4>
+                            <p>Review transactions before importing</p>
+                        </div>
+
+                        <div class="import-summary">
+                            <div class="summary-stats">
+                                <div class="summary-stat">
+                                    <span class="stat-number" id="totalTransactions">0</span>
+                                    <span class="stat-label">Total Transactions</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="stat-number" id="newTransactions">0</span>
+                                    <span class="stat-label">New Transactions</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="stat-number" id="skippedTransactions">0</span>
+                                    <span class="stat-label">Duplicates Skipped</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="stat-number" id="errorTransactions">0</span>
+                                    <span class="stat-label">Errors</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="preview-controls">
+                            <div class="preview-filters">
+                                <select id="previewFilter" class="form-select">
+                                    <option value="all">All Transactions</option>
+                                    <option value="valid">Valid Only</option>
+                                    <option value="errors">Errors Only</option>
+                                    <option value="duplicates">Duplicates Only</option>
+                                </select>
+                                <span class="preview-count" id="previewCount">Showing 0 transactions</span>
+                            </div>
+                        </div>
+
+                        <div class="transaction-preview">
+                            <div class="preview-table-container">
+                                <table class="preview-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Status</th>
+                                            <th>Date</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th>Category</th>
+                                            <th>Account</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="previewTableBody">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="importBackBtn" style="display: none;">
+                    <span class="btn-icon">←</span>
+                    Back
+                </button>
+                <button class="btn btn-secondary" id="cancelImportBtn">Cancel</button>
+                <button class="btn btn-primary" id="importNextBtn">
+                    <span class="btn-icon">→</span>
+                    Next
+                </button>
+                <button class="btn btn-success" id="startImportBtn" style="display: none;">
+                    <span class="btn-icon">📥</span>
+                    Import Transactions
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Progress Modal -->
+    <div id="importProgressModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Importing Transactions...</h3>
+            </div>
+            <div class="modal-body">
+                <div class="import-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="importProgressFill"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span id="importProgressText">Processing transactions...</span>
+                        <span id="importProgressPercent">0%</span>
+                    </div>
+                    <div class="progress-details">
+                        <div class="progress-detail">
+                            <span>Processed:</span>
+                            <span id="processedCount">0</span>
+                        </div>
+                        <div class="progress-detail">
+                            <span>Imported:</span>
+                            <span id="importedCount">0</span>
+                        </div>
+                        <div class="progress-detail">
+                            <span>Skipped:</span>
+                            <span id="skippedCount">0</span>
+                        </div>
                     </div>
                 </div>
             </div>
