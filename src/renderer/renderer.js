@@ -7133,14 +7133,461 @@ class AssetOptimizer {
     }
 }
 
+/**
+ * PerformanceManager - Unified performance utilities and caching
+ */
+class PerformanceManager {
+    constructor() {
+        this.responseCache = new Map();
+        this.debounceTimers = new Map();
+        this.throttleTimers = new Map();
+        this.componentTrackers = new Map();
+        this.performanceMetrics = new Map();
+        this.cacheTTL = 5 * 60 * 1000; // 5 minutes
+        this.debounceDelays = {
+            default: 300,
+            search: 150,
+            filter: 200,
+            chart: 400
+        };
+    }
+
+    // Debounce utility
+    debounce(key, callback, delay = this.debounceDelays.default) {
+        if (this.debounceTimers.has(key)) {
+            clearTimeout(this.debounceTimers.get(key));
+        }
+        
+        const timerId = setTimeout(() => {
+            callback();
+            this.debounceTimers.delete(key);
+        }, delay);
+        
+        this.debounceTimers.set(key, timerId);
+    }
+
+    // Throttle utility
+    throttle(key, callback, delay = 1000) {
+        if (this.throttleTimers.has(key)) {
+            return;
+        }
+        
+        callback();
+        
+        const timerId = setTimeout(() => {
+            this.throttleTimers.delete(key);
+        }, delay);
+        
+        this.throttleTimers.set(key, timerId);
+    }
+
+    // Performance measurement
+    async measurePerformance(name, operation) {
+        const startTime = performance.now();
+        
+        try {
+            const result = await operation();
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            
+            this.performanceMetrics.set(name, {
+                duration,
+                timestamp: Date.now(),
+                success: true
+            });
+            
+            if (duration > 1000) {
+                console.warn(`⚠️ Slow operation detected: ${name} took ${duration.toFixed(2)}ms`);
+            }
+            
+            return result;
+        } catch (error) {
+            const endTime = performance.now();
+            const duration = endTime - startTime;
+            
+            this.performanceMetrics.set(name, {
+                duration,
+                timestamp: Date.now(),
+                success: false,
+                error: error.message
+            });
+            
+            throw error;
+        }
+    }
+
+    // Cache management
+    setCache(key, value, ttl = this.cacheTTL) {
+        this.responseCache.set(key, {
+            value,
+            timestamp: Date.now(),
+            ttl
+        });
+    }
+
+    getCache(key) {
+        const cached = this.responseCache.get(key);
+        if (!cached) return null;
+        
+        const now = Date.now();
+        if (now - cached.timestamp > cached.ttl) {
+            this.responseCache.delete(key);
+            return null;
+        }
+        
+        return cached.value;
+    }
+
+    clearCache() {
+        this.responseCache.clear();
+    }
+
+    // Component tracking
+    trackComponent(element, options = {}) {
+        const id = this.generateComponentId(element);
+        
+        this.componentTrackers.set(id, {
+            element,
+            created: Date.now(),
+            interactions: 0,
+            ...options
+        });
+    }
+
+    generateComponentId(element) {
+        return `${element.tagName.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Performance optimization
+    increaseDebounceDelays() {
+        Object.keys(this.debounceDelays).forEach(key => {
+            this.debounceDelays[key] = Math.min(this.debounceDelays[key] * 1.5, 1000);
+        });
+    }
+
+    resetDebounceDelays() {
+        this.debounceDelays = {
+            default: 300,
+            search: 150,
+            filter: 200,
+            chart: 400
+        };
+    }
+
+    // Clean up resources
+    cleanup() {
+        this.debounceTimers.forEach(timer => clearTimeout(timer));
+        this.throttleTimers.forEach(timer => clearTimeout(timer));
+        this.debounceTimers.clear();
+        this.throttleTimers.clear();
+        this.responseCache.clear();
+        this.componentTrackers.clear();
+    }
+
+    // Get performance stats
+    getStats() {
+        return {
+            cacheSize: this.responseCache.size,
+            activeDebounces: this.debounceTimers.size,
+            activeThrottles: this.throttleTimers.size,
+            trackedComponents: this.componentTrackers.size,
+            performanceMetrics: Array.from(this.performanceMetrics.entries())
+        };
+    }
+}
+
+/**
+ * PerformanceMonitor - Real-time performance monitoring
+ */
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = new Map();
+        this.performanceObserver = null;
+        this.memoryTracker = new Map();
+        this.frameRateMonitor = null;
+        this.initializeMonitoring();
+        this.setupPerformanceOptimizations();
+    }
+
+    initializeMonitoring() {
+        // Setup Performance Observer for detailed metrics
+        if ('PerformanceObserver' in window) {
+            this.performanceObserver = new PerformanceObserver((list) => {
+                this.processPerformanceEntries(list.getEntries());
+            });
+            
+            this.performanceObserver.observe({ 
+                entryTypes: ['measure', 'navigation', 'resource', 'paint'] 
+            });
+        }
+
+        // Memory usage monitoring
+        this.startMemoryMonitoring();
+        
+        // Frame rate monitoring
+        this.startFrameRateMonitoring();
+        
+        // Network performance tracking
+        this.setupNetworkMonitoring();
+    }
+
+    processPerformanceEntries(entries) {
+        entries.forEach(entry => {
+            if (entry.entryType === 'measure') {
+                this.recordMetric(`measure.${entry.name}`, entry.duration);
+            } else if (entry.entryType === 'paint') {
+                this.recordMetric(`paint.${entry.name}`, entry.startTime);
+            } else if (entry.entryType === 'navigation') {
+                this.recordNavigationMetrics(entry);
+            }
+        });
+    }
+
+    recordNavigationMetrics(entry) {
+        const metrics = {
+            'navigation.dns': entry.domainLookupEnd - entry.domainLookupStart,
+            'navigation.connect': entry.connectEnd - entry.connectStart,
+            'navigation.request': entry.responseStart - entry.requestStart,
+            'navigation.response': entry.responseEnd - entry.responseStart,
+            'navigation.dom': entry.domContentLoadedEventStart - entry.responseEnd,
+            'navigation.load': entry.loadEventStart - entry.domContentLoadedEventStart
+        };
+
+        Object.entries(metrics).forEach(([key, value]) => {
+            this.recordMetric(key, value);
+        });
+    }
+
+    startMemoryMonitoring() {
+        if ('memory' in performance) {
+            setInterval(() => {
+                const memory = performance.memory;
+                this.recordMetric('memory.used', memory.usedJSHeapSize);
+                this.recordMetric('memory.total', memory.totalJSHeapSize);
+                this.recordMetric('memory.limit', memory.jsHeapSizeLimit);
+                
+                // Alert if memory usage is high
+                const usagePercent = (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100;
+                if (usagePercent > 80) {
+                    this.triggerMemoryCleanup();
+                }
+            }, 5000);
+        }
+    }
+
+    startFrameRateMonitoring() {
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let fps = 0;
+
+        const calculateFPS = (currentTime) => {
+            frameCount++;
+            if (currentTime - lastTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                this.recordMetric('fps', fps);
+                
+                // Alert if FPS drops below 30
+                if (fps < 30) {
+                    console.warn('⚠️ Low FPS detected:', fps);
+                    this.optimizePerformance();
+                }
+                
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            requestAnimationFrame(calculateFPS);
+        };
+
+        requestAnimationFrame(calculateFPS);
+    }
+
+    setupNetworkMonitoring() {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const startTime = performance.now();
+            const url = args[0];
+            
+            try {
+                const response = await originalFetch(...args);
+                const duration = performance.now() - startTime;
+                
+                this.recordMetric(`network.${this.getUrlKey(url)}`, duration);
+                
+                if (duration > 5000) {
+                    console.warn('🐌 Slow network request:', url, `${duration}ms`);
+                }
+                
+                return response;
+            } catch (error) {
+                const duration = performance.now() - startTime;
+                this.recordMetric(`network.error.${this.getUrlKey(url)}`, duration);
+                throw error;
+            }
+        };
+    }
+
+    getUrlKey(url) {
+        try {
+            const urlObj = new URL(url, window.location.origin);
+            return urlObj.pathname.replace(/[^a-zA-Z0-9]/g, '_');
+        } catch {
+            return 'unknown';
+        }
+    }
+
+    recordMetric(name, value) {
+        if (!this.metrics.has(name)) {
+            this.metrics.set(name, {
+                values: [],
+                total: 0,
+                count: 0,
+                min: Infinity,
+                max: -Infinity
+            });
+        }
+
+        const metric = this.metrics.get(name);
+        metric.values.push({ value, timestamp: Date.now() });
+        metric.total += value;
+        metric.count++;
+        metric.min = Math.min(metric.min, value);
+        metric.max = Math.max(metric.max, value);
+
+        // Keep only last 100 values
+        if (metric.values.length > 100) {
+            const removed = metric.values.shift();
+            metric.total -= removed.value;
+            metric.count--;
+        }
+    }
+
+    triggerMemoryCleanup() {
+        console.log('🧹 Triggering memory cleanup...');
+        
+        // Clear caches
+        if (window.performanceManager) {
+            window.performanceManager.clearCache();
+        }
+        
+        // Force garbage collection (if available)
+        if (window.gc) {
+            window.gc();
+        }
+        
+        // Clean up charts
+        if (window.app?.chartService) {
+            window.app.chartService.cleanup();
+        }
+        
+        // Clean up old DOM elements
+        this.cleanupDOMElements();
+    }
+
+    cleanupDOMElements() {
+        // Remove old error boundaries
+        const oldErrors = document.querySelectorAll('.error-boundary');
+        if (oldErrors.length > 3) {
+            Array.from(oldErrors).slice(3).forEach(el => el.remove());
+        }
+        
+        // Clean up old notifications
+        const oldNotifications = document.querySelectorAll('.notification');
+        if (oldNotifications.length > 5) {
+            Array.from(oldNotifications).slice(5).forEach(el => el.remove());
+        }
+    }
+
+    optimizePerformance() {
+        // Reduce animation complexity
+        document.body.classList.add('reduced-motion');
+        
+        // Defer non-critical operations
+        setTimeout(() => {
+            document.body.classList.remove('reduced-motion');
+        }, 5000);
+        
+        // Throttle expensive operations
+        this.throttleExpensiveOperations();
+    }
+
+    throttleExpensiveOperations() {
+        // Increase debounce delays temporarily
+        if (window.performanceManager) {
+            window.performanceManager.increaseDebounceDelays();
+        }
+    }
+
+    getMetrics() {
+        const summary = {};
+        
+        this.metrics.forEach((metric, name) => {
+            summary[name] = {
+                average: metric.total / metric.count,
+                min: metric.min,
+                max: metric.max,
+                count: metric.count,
+                recent: metric.values.slice(-10).map(v => v.value)
+            };
+        });
+        
+        return summary;
+    }
+
+    generatePerformanceReport() {
+        const metrics = this.getMetrics();
+        const memory = performance.memory;
+        
+        return {
+            timestamp: new Date().toISOString(),
+            memory: memory ? {
+                used: `${(memory.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
+                total: `${(memory.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
+                usage: `${((memory.usedJSHeapSize / memory.totalJSHeapSize) * 100).toFixed(1)}%`
+            } : null,
+            fps: metrics.fps?.average || 'N/A',
+            networkRequests: Object.keys(metrics).filter(k => k.startsWith('network.')).length,
+            slowOperations: Object.entries(metrics)
+                .filter(([_, m]) => m.average > 1000)
+                .map(([name, m]) => ({ name, averageMs: m.average.toFixed(2) })),
+            recommendations: this.generateRecommendations(metrics)
+        };
+    }
+
+    generateRecommendations(metrics) {
+        const recommendations = [];
+        
+        // Check for slow operations
+        Object.entries(metrics).forEach(([name, metric]) => {
+            if (metric.average > 1000) {
+                recommendations.push(`Optimize ${name} (avg: ${metric.average.toFixed(2)}ms)`);
+            }
+        });
+        
+        // Check memory usage
+        if (performance.memory) {
+            const usage = (performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize) * 100;
+            if (usage > 70) {
+                recommendations.push('Consider implementing data pagination for large datasets');
+            }
+        }
+        
+        // Check FPS
+        if (metrics.fps && metrics.fps.average < 50) {
+            recommendations.push('Reduce animation complexity or enable reduced motion');
+        }
+        
+        return recommendations;
+    }
+}
+
 // Initialize global instances
 window.notificationManager = new NotificationManager();
 window.loadingManager = new LoadingManager();
 window.keyboardShortcuts = new KeyboardShortcuts();
 window.tooltipManager = new TooltipManager();
-window.performanceManager = new PerformanceManager();
 window.errorManager = new ErrorManager();
 window.formValidator = new FormValidator();
+window.performanceManager = new PerformanceManager();
 window.performanceMonitor = new PerformanceMonitor();
 window.cacheManager = new CacheManager();
 window.virtualScrollManager = new VirtualScrollManager();
