@@ -39,6 +39,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getChatSummary: () => ipcRenderer.invoke('chat-get-summary'),
   chatHealthCheck: () => ipcRenderer.invoke('chat-health-check'),
   
+  // Workflow-specific Chat Methods
+  chatWithWorkflow: (workflowType, question, context, options) => ipcRenderer.invoke('chat-with-workflow', workflowType, question, context, options),
+  chatRouteQuery: (question, context) => ipcRenderer.invoke('chat-route-query', question, context),
+  setChatProgressCallback: (workflowId) => ipcRenderer.invoke('chat-set-progress-callback', workflowId),
+  
   // Debug logging
   logDebug: (title, data) => ipcRenderer.invoke('log-debug', title, data),
   
@@ -117,6 +122,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onForecastProgress: (callback) => {
     ipcRenderer.on('forecast-progress', callback);
     return () => ipcRenderer.removeListener('forecast-progress', callback);
+  },
+  
+  onChatWorkflowProgress: (callback) => {
+    ipcRenderer.on('chat-workflow-progress', callback);
+    return () => ipcRenderer.removeListener('chat-workflow-progress', callback);
   }
 });
 

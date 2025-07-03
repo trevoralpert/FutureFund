@@ -773,12 +773,12 @@ ipcMain.handle('clear-workflow-cache', async () => {
   }
 });
 
-// Import enhanced chat service
-const { chatService } = require('./ai/chat-service');
+// Import enhanced chat service with workflow integration
+const { enhancedChatService } = require('./ai/enhanced-chat-service');
 
 ipcMain.handle('ask-chatbot', async (event, question, context) => {
   try {
-    console.log('Enhanced chatbot question:', question);
+    console.log('🤖 Enhanced chatbot question:', question);
     
     if (!config.isAIEnabled) {
       return {
@@ -788,23 +788,25 @@ ipcMain.handle('ask-chatbot', async (event, question, context) => {
       };
     }
 
-    // Use enhanced chat service with financial context
-    const result = await chatService.sendMessage(question, context);
+    // Use enhanced chat service with workflow routing
+    const result = await enhancedChatService.sendMessage(question, context);
     
     if (result.success) {
       return {
         success: true,
         response: result.response,
+        workflow: result.workflow,
         sessionId: result.sessionId,
-        parsedQuery: result.parsedQuery,
         confidence: result.confidence,
-        usage: result.usage,
+        workflowData: result.workflowData,
+        metadata: result.metadata,
         model: config.openai.model
       };
     } else {
       return {
         success: false,
         error: result.error,
+        fallback: result.fallback,
         code: result.code || 'CHATBOT_ERROR'
       };
     }
@@ -819,10 +821,10 @@ ipcMain.handle('ask-chatbot', async (event, question, context) => {
   }
 });
 
-// Add new chat management handlers
+// Enhanced chat management handlers
 ipcMain.handle('chat-clear-conversation', async () => {
   try {
-    chatService.clearConversation();
+    enhancedChatService.clearConversation();
     return { success: true };
   } catch (error) {
     console.error('Error clearing conversation:', error);
@@ -832,7 +834,7 @@ ipcMain.handle('chat-clear-conversation', async () => {
 
 ipcMain.handle('chat-get-summary', async () => {
   try {
-    const summary = chatService.getConversationSummary();
+    const summary = enhancedChatService.getConversationSummary();
     return { success: true, summary };
   } catch (error) {
     console.error('Error getting conversation summary:', error);
@@ -842,10 +844,67 @@ ipcMain.handle('chat-get-summary', async () => {
 
 ipcMain.handle('chat-health-check', async () => {
   try {
-    const health = await chatService.healthCheck();
+    const health = await enhancedChatService.healthCheck();
     return { success: true, health };
   } catch (error) {
     console.error('Error checking chat health:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Enhanced workflow-specific chat handlers
+ipcMain.handle('chat-with-workflow', async (event, workflowType, question, context, options = {}) => {
+  try {
+    console.log(`🚀 Chat with ${workflowType} workflow:`, question);
+    
+    if (!config.isAIEnabled) {
+      return {
+        success: false,
+        error: 'AI features not configured. Please set up your OpenAI API key.',
+        setup: true
+      };
+    }
+
+    // Force specific workflow execution
+    const routing = { primaryWorkflow: workflowType, confidence: 1.0 };
+    const result = await enhancedChatService.executeWorkflow(routing, question, context, options);
+    
+    return {
+      success: true,
+      response: result.response,
+      workflow: workflowType,
+      workflowData: result.workflowData,
+      metadata: result.metadata
+    };
+    
+  } catch (error) {
+    console.error(`Error with ${workflowType} workflow:`, error);
+    return { 
+      success: false, 
+      error: error.message,
+      workflow: workflowType
+    };
+  }
+});
+
+ipcMain.handle('chat-route-query', async (event, question, context) => {
+  try {
+    const routing = enhancedChatService.routeQuery(question, context);
+    return { success: true, routing };
+  } catch (error) {
+    console.error('Error routing query:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('chat-set-progress-callback', async (event, workflowId) => {
+  try {
+    enhancedChatService.setProgressCallback(workflowId, (progress) => {
+      event.sender.send('chat-workflow-progress', { workflowId, progress });
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error setting progress callback:', error);
     return { success: false, error: error.message };
   }
 });

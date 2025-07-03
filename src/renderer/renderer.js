@@ -1110,8 +1110,18 @@ class FutureFundApp {
         this.showChatLoading();
         
         try {
-            const response = await this.generateChatResponse(message);
-            this.addChatMessage(response, 'bot');
+            const responseData = await this.generateChatResponse(message);
+            
+            // Extract workflow information if available
+            let workflow = null;
+            let response = responseData;
+            
+            if (typeof responseData === 'object' && responseData.response) {
+                response = responseData.response;
+                workflow = responseData.workflow;
+            }
+            
+            this.addChatMessage(response, 'bot', workflow);
         } catch (error) {
             console.error('Error sending chat message:', error);
             this.addChatMessage('Sorry, I encountered an error. Please try again.', 'bot');
@@ -1124,50 +1134,74 @@ class FutureFundApp {
         console.log('🤖 Generating AI response for:', message);
 
         try {
-            // Generate AI response
-            const result = await (async () => {
-                    // Prepare financial context from current data
-                    const context = this.buildFinancialContext();
-                    
-                    // Debug: Log the context being sent to AI
-                    console.log('🔍 Financial context being sent to AI:', {
-                        hasData: context.hasData,
-                        totalTransactions: context.totalTransactions,
-                        totalProjectedTransactions: context.totalProjectedTransactions,
-                        dateRange: context.dateRange,
-                        allTransactionsCount: context.allTransactions?.length,
-                        allTransactionDates: context.allTransactions?.map(t => t.date)
-                    });
-                    
-                    // Send debug info to main process (visible in terminal)
-                    electronAPI.logDebug('Financial Context Debug', {
-                        message: `Sending ALL ${context.allTransactions?.length || 0} transactions to AI`,
-                        dateRange: context.dateRange,
-                        sampleDates: context.allTransactions?.slice(0, 10).map(t => t.date) || []
-                    });
-                    
-                    // Use enhanced chat service
-                    return await electronAPI.askChatbot(message, context);
-                })();
+            // Prepare financial context from current data
+            const context = this.buildFinancialContext();
+            
+            // Debug: Log the context being sent to AI
+            console.log('🔍 Financial context being sent to AI:', {
+                hasData: context.hasData,
+                totalTransactions: context.totalTransactions,
+                totalProjectedTransactions: context.totalProjectedTransactions,
+                dateRange: context.dateRange,
+                allTransactionsCount: context.allTransactions?.length,
+                allTransactionDates: context.allTransactions?.map(t => t.date)
+            });
+            
+            // Send debug info to main process (visible in terminal)
+            electronAPI.logDebug('Financial Context Debug', {
+                message: `Sending ALL ${context.allTransactions?.length || 0} transactions to AI`,
+                dateRange: context.dateRange,
+                sampleDates: context.allTransactions?.slice(0, 10).map(t => t.date) || []
+            });
+            
+            // Show workflow routing information
+            const routingResult = await electronAPI.chatRouteQuery(message, context);
+            if (routingResult.success) {
+                const routing = routingResult.routing;
+                console.log(`🧠 Query will be routed to: ${routing.primaryWorkflow} (confidence: ${routing.confidence.toFixed(2)})`);
+                
+                // Show routing info in chat temporarily
+                this.showRoutingInfo(routing.primaryWorkflow, routing.confidence);
+            }
+            
+            // Use enhanced chat service with workflow routing
+            const result = await electronAPI.askChatbot(message, context);
             
             if (result.success) {
                 // Store additional response data for debugging
-                if (result.parsedQuery && result.confidence) {
-                    console.log('Chat response metadata:', {
-                        intent: result.parsedQuery.intent,
-                        confidence: result.confidence,
-                        sessionId: result.sessionId
-                    });
+                console.log('Enhanced chat response metadata:', {
+                    workflow: result.workflow,
+                    confidence: result.confidence,
+                    sessionId: result.sessionId,
+                    workflowData: result.workflowData ? 'Present' : 'None',
+                    metadata: result.metadata
+                });
+                
+                // Show workflow information in response
+                let enhancedResponse = result.response;
+                if (result.workflow && result.confidence) {
+                    enhancedResponse += `\n\n*Processed by ${this.getWorkflowDisplayName(result.workflow)} workflow (${(result.confidence * 100).toFixed(0)}% confidence)*`;
                 }
                 
                 // Cache the successful response (simplified)
-                console.log('✅ Chat response cached');
+                console.log('✅ Enhanced chat response cached');
                 
-                return result.response;
+                return {
+                    response: enhancedResponse,
+                    workflow: result.workflow,
+                    confidence: result.confidence,
+                    metadata: result.metadata
+                };
             } else {
                 if (result.setup) {
                     return '🔧 To enable AI chat features, please set up your OpenAI API key in the .env file. See the README for instructions.';
                 }
+                
+                // Try fallback response if available
+                if (result.fallback) {
+                    return `⚠️ Primary analysis failed, but here's a general response:\n\n${result.fallback}`;
+                }
+                
                 return `❌ Sorry, I encountered an error: ${result.error}`;
             }
         } catch (error) {
@@ -1268,10 +1302,15 @@ class FutureFundApp {
         };
     }
 
-    addChatMessage(message, sender) {
+    addChatMessage(message, sender, workflow = null) {
         const chatMessages = document.getElementById('chatMessages');
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message`;
+        
+        // Add workflow-specific styling for bot messages
+        if (sender === 'bot' && workflow) {
+            messageDiv.classList.add(`workflow-${workflow}`);
+        }
         
         const avatar = sender === 'user' ? '👤' : '🤖';
         
@@ -1341,6 +1380,44 @@ class FutureFundApp {
         setTimeout(() => {
             document.getElementById('chatInput').focus();
         }, 100);
+    }
+    
+    showRoutingInfo(workflow, confidence) {
+        const workflowName = this.getWorkflowDisplayName(workflow);
+        const confidencePercent = (confidence * 100).toFixed(0);
+        
+        // Create temporary routing info message
+        const chatMessages = document.getElementById('chatMessages');
+        const routingDiv = document.createElement('div');
+        routingDiv.className = 'message bot-message routing-info';
+        routingDiv.innerHTML = `
+            <div class="message-avatar">🧠</div>
+            <div class="message-content">
+                <p><em>Routing to ${workflowName} workflow (${confidencePercent}% confidence)...</em></p>
+            </div>
+        `;
+        chatMessages.appendChild(routingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Remove routing info after a short delay
+        setTimeout(() => {
+            if (routingDiv.parentNode) {
+                routingDiv.remove();
+            }
+        }, 2000);
+    }
+    
+    getWorkflowDisplayName(workflow) {
+        const workflowNames = {
+            'intelligence': 'Financial Intelligence',
+            'forecast': 'Financial Forecast',
+            'scenario': 'Scenario Analysis',
+            'health': 'Health Monitoring',
+            'multiAccount': 'Multi-Account Intelligence',
+            'predictive': 'Predictive Analytics'
+        };
+        
+        return workflowNames[workflow] || 'General Intelligence';
     }
 
     updateScenarioSelector() {

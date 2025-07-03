@@ -563,6 +563,48 @@ body {
     border-color: var(--primary-color);
 }
 
+/* Routing info message */
+.routing-info {
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.routing-info .message-content {
+    background-color: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    font-style: italic;
+    color: var(--primary-color);
+}
+
+.routing-info .message-avatar {
+    background-color: rgba(37, 99, 235, 0.2);
+}
+
+/* Workflow-specific message styling */
+.workflow-intelligence .message-content {
+    border-left: 4px solid #10b981;
+}
+
+.workflow-forecast .message-content {
+    border-left: 4px solid #3b82f6;
+}
+
+.workflow-scenario .message-content {
+    border-left: 4px solid #f59e0b;
+}
+
+.workflow-health .message-content {
+    border-left: 4px solid #ef4444;
+}
+
+.workflow-multiAccount .message-content {
+    border-left: 4px solid #8b5cf6;
+}
+
+.workflow-predictive .message-content {
+    border-left: 4px solid #06b6d4;
+}
+
 /* Scenarios Tab */
 .scenarios-container {
     background-color: var(--bg-primary);
