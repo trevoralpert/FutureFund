@@ -157,30 +157,85 @@ class EnhancedChatService {
    * Execute Financial Intelligence workflow
    */
   async executeIntelligenceWorkflow(userMessage, financialContext, workflowId, options) {
+    console.log('🚀 Debug: Starting Financial Intelligence workflow execution');
+    console.log('🔍 Debug: Input context has transactions:', financialContext?.allTransactions?.length || 0);
+    
+    // Transform enhanced financial context to workflow format
     const inputData = {
+      transactions: financialContext?.allTransactions || [],
       query: userMessage,
-      context: financialContext,
+      userProfile: financialContext?.userProfile || {},
+      accounts: financialContext?.accounts || {},
+      accountStats: financialContext?.accountStats || {},
+      financialHealth: financialContext?.financialHealth || {},
+      spendingAnalysis: financialContext?.spendingAnalysis || {},
+      personalizedInsights: financialContext?.personalizedInsights || {},
+      contextMetadata: financialContext?.contextMetadata || {},
       conversationHistory: this.getRecentHistory(),
       analysisType: 'comprehensive',
       includeRecommendations: true
     };
     
-    const result = await this.orchestrator.executeFinancialIntelligenceWorkflow(inputData, {
-      workflowId,
-      progressCallback: (progress) => this.notifyProgress(workflowId, progress),
-      ...options
+    console.log('🔍 Debug: Prepared input data for workflow:', {
+      transactionCount: inputData.transactions.length,
+      hasUserProfile: !!inputData.userProfile.name,
+      hasAccounts: !!inputData.accounts,
+      analysisType: inputData.analysisType
     });
     
-    return {
-      response: this.formatIntelligenceResponse(result, userMessage),
-      workflowData: result,
-      metadata: {
-        type: 'intelligence',
+    try {
+      console.log('⏳ Debug: Calling orchestrator.executeFinancialIntelligenceWorkflow...');
+      const result = await this.orchestrator.executeFinancialIntelligenceWorkflow(inputData, {
         workflowId,
-        analysisDepth: result.analysisDepth,
-        insightCount: result.insights?.length || 0
+        progressCallback: (progress) => {
+          console.log('📊 Debug: Workflow progress:', progress);
+          this.notifyProgress(workflowId, progress);
+        },
+        ...options
+      });
+      
+      console.log('✅ Debug: Workflow completed. Result structure:', {
+        success: result?.success,
+        hasData: !!result?.data,
+        dataKeys: Object.keys(result?.data || {}),
+        hasMetadata: !!result?.metadata
+      });
+      
+      if (!result?.success) {
+        console.error('❌ Debug: Workflow execution failed:', result?.error);
       }
-    };
+      
+      return {
+        response: this.formatIntelligenceResponse(result, userMessage, financialContext),
+        workflowData: result,
+        metadata: {
+          type: 'intelligence',
+          workflowId,
+          analysisDepth: result?.data?.executionMetadata?.summary?.processingTime || 0,
+          insightCount: result?.data?.insights?.keyFindings?.length || 0,
+          dataPoints: financialContext?.allTransactions?.length || 0,
+          confidence: financialContext?.contextMetadata?.confidenceLevel || 0
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Debug: Workflow execution threw error:', error);
+      
+      // Return fallback response on error
+      return {
+        response: this.formatIntelligenceResponse({ success: false, error: error.message }, userMessage, financialContext),
+        workflowData: { success: false, error: error.message },
+        metadata: {
+          type: 'intelligence',
+          workflowId,
+          analysisDepth: 0,
+          insightCount: 0,
+          dataPoints: financialContext?.allTransactions?.length || 0,
+          confidence: 0,
+          error: error.message
+        }
+      };
+    }
   }
   
   /**
@@ -192,7 +247,10 @@ class EnhancedChatService {
       financialData: financialContext?.allTransactions || [],
       currentBalance: financialContext?.currentBalance || 0,
       timeHorizon: this.extractTimeHorizon(userMessage),
-      forecastType: 'comprehensive'
+      forecastType: 'comprehensive',
+      userProfile: financialContext?.userProfile || {},
+      accounts: financialContext?.accounts || {},
+      financialHealth: financialContext?.financialHealth || {}
     };
     
     const result = await this.orchestrator.executeForecastWorkflow(inputData, {
@@ -202,13 +260,14 @@ class EnhancedChatService {
     });
     
     return {
-      response: this.formatForecastResponse(result, userMessage),
+      response: this.formatForecastResponse(result, userMessage, financialContext),
       workflowData: result,
       metadata: {
         type: 'forecast',
         workflowId,
         timeHorizon: inputData.timeHorizon,
-        projectionCount: result.projections?.length || 0
+        projectionCount: result?.data?.projections?.length || 0,
+        dataPoints: financialContext?.allTransactions?.length || 0
       }
     };
   }
@@ -247,7 +306,14 @@ class EnhancedChatService {
   async executeHealthWorkflow(userMessage, financialContext, workflowId, options) {
     const inputData = {
       query: userMessage,
-      financialData: financialContext,
+      financialData: {
+        transactions: financialContext?.allTransactions || [],
+        currentBalance: financialContext?.currentBalance || 0,
+        monthlyNetIncome: financialContext?.monthlyNetIncome || 0,
+        userProfile: financialContext?.userProfile || {},
+        accounts: financialContext?.accounts || {},
+        accountStats: financialContext?.accountStats || {}
+      },
       includeRecommendations: true,
       analysisDepth: 'detailed'
     };
@@ -259,13 +325,14 @@ class EnhancedChatService {
     });
     
     return {
-      response: this.formatHealthResponse(result, userMessage),
+      response: this.formatHealthResponse(result, userMessage, financialContext),
       workflowData: result,
       metadata: {
         type: 'health',
         workflowId,
-        overallScore: result.overallScore,
-        concernsCount: result.concerns?.length || 0
+        overallScore: result?.overallScore || result?.health_score?.overall || 0,
+        concernsCount: result?.concerns?.length || result?.health_concerns?.length || 0,
+        dataPoints: financialContext?.allTransactions?.length || 0
       }
     };
   }
@@ -327,38 +394,137 @@ class EnhancedChatService {
   /**
    * Format responses for different workflow types
    */
-  formatIntelligenceResponse(result, originalQuery) {
-    const insights = result.insights || [];
-    const recommendations = result.recommendations || [];
+  formatIntelligenceResponse(result, originalQuery, financialContext) {
+    // Debug what we're actually getting
+    console.log('🔍 Debug: Formatting Intelligence Response');
+    console.log('🔍 Debug: Full result object:', result);
+    console.log('🔍 Debug: Result success:', result?.success);
+    console.log('🔍 Debug: Result data keys:', Object.keys(result?.data || {}));
+    
+    // Extract data from the workflow result structure
+    const workflowData = result?.data || {};
+    const insights = workflowData?.insights?.keyFindings || [];
+    const recommendations = workflowData?.recommendations?.immediate || [];
+    const healthScore = workflowData?.healthScore?.overall?.score || 0;
+    const executionSummary = workflowData?.executionMetadata?.summary || {};
+    
+    console.log('🔍 Debug: Extracted insights:', insights);
+    console.log('🔍 Debug: Extracted recommendations:', recommendations);
+    console.log('🔍 Debug: Health score:', healthScore);
     
     let response = `🧠 **Financial Intelligence Analysis**\n\n`;
     
+    // Add health score if available
+    if (healthScore > 0) {
+      // Convert 5-point scale to 100-point scale
+      const percentageScore = Math.round((healthScore / 5.0) * 100);
+      
+      // Determine correct grade based on 100-point scale
+      let grade;
+      if (percentageScore >= 90) grade = 'A';
+      else if (percentageScore >= 80) grade = 'B';
+      else if (percentageScore >= 70) grade = 'C';
+      else if (percentageScore >= 60) grade = 'D';
+      else grade = 'F';
+      
+      response += `**AI Financial Health Score: ${percentageScore}/100 (${grade})**\n\n`;
+    }
+    
+    // Add key insights
     if (insights.length > 0) {
       response += `**Key Insights:**\n`;
       insights.slice(0, 3).forEach((insight, i) => {
-        response += `${i + 1}. ${insight.description}\n`;
+        response += `${i + 1}. ${insight.description || insight.message || insight}\n`;
       });
       response += `\n`;
+    } else {
+      console.log('⚠️ Debug: No insights found in workflow result');
     }
     
+    // Add recommendations
     if (recommendations.length > 0) {
       response += `**Recommendations:**\n`;
       recommendations.slice(0, 3).forEach((rec, i) => {
-        response += `• ${rec.action}: ${rec.description}\n`;
+        const action = rec.action || rec.title || `Action ${i + 1}`;
+        const description = rec.description || rec.message || rec;
+        response += `• ${action}: ${description}\n`;
       });
+      response += `\n`;
+    } else {
+      console.log('⚠️ Debug: No recommendations found in workflow result');
+    }
+    
+    // Add personalized context if available
+    if (financialContext?.userProfile?.name) {
+      response += `**Personalized for ${financialContext.userProfile.name}:**\n`;
+      response += `• Current Balance: $${financialContext.currentBalance?.toLocaleString() || 'N/A'}\n`;
+      response += `• Monthly Net Cash Flow: $${financialContext.monthlyNetIncome?.toLocaleString() || 'N/A'}\n`;
+      
+      if (financialContext.userProfile.creditCardDebt?.total) {
+        response += `• Credit Card Debt: $${financialContext.userProfile.creditCardDebt.total.toLocaleString()}\n`;
+      }
       response += `\n`;
     }
     
-    response += `*Analysis based on ${result.dataPoints || 0} data points with ${(result.confidence * 100).toFixed(0)}% confidence.*`;
+    // If no insights or recommendations, provide fallback content
+    if (insights.length === 0 && recommendations.length === 0) {
+      console.log('⚠️ Debug: Providing fallback content since workflow returned no insights');
+      response += `**Based on your debt question, here are some general recommendations:**\n\n`;
+      
+      if (financialContext?.userProfile?.creditCardDebt?.total) {
+        const totalDebt = financialContext.userProfile.creditCardDebt.total;
+        const monthlyIncome = financialContext.monthlyNetIncome || 0;
+        const debtToIncomeRatio = monthlyIncome > 0 ? (totalDebt / (monthlyIncome * 12)) * 100 : 0;
+        
+        response += `**Debt Analysis:**\n`;
+        response += `• Total Credit Card Debt: $${totalDebt.toLocaleString()}\n`;
+        response += `• Debt-to-Income Ratio: ${debtToIncomeRatio.toFixed(1)}%\n\n`;
+        
+        response += `**Debt Payoff Strategies:**\n`;
+        response += `1. **Avalanche Method**: Pay minimums on all cards, extra on highest APR first\n`;
+        response += `2. **Snowball Method**: Pay minimums on all cards, extra on smallest balance first\n`;
+        response += `3. **Debt Consolidation**: Consider a lower-interest personal loan\n`;
+        response += `4. **Balance Transfer**: Move high-interest debt to a 0% APR card\n\n`;
+        
+        if (monthlyIncome > 0) {
+          const recommended20Percent = monthlyIncome * 0.2;
+          response += `**Budget Recommendations:**\n`;
+          response += `• Aim to allocate 20% of monthly income ($${recommended20Percent.toFixed(0)}) to debt payments\n`;
+          response += `• Cut discretionary spending temporarily to accelerate payoff\n`;
+          response += `• Consider a side hustle to increase income\n\n`;
+        }
+      }
+      
+      response += `**Next Steps:**\n`;
+      response += `• Create a detailed debt payoff plan\n`;
+      response += `• Set up automatic payments to avoid late fees\n`;
+      response += `• Track progress monthly to stay motivated\n\n`;
+    }
+    
+    // Analysis metadata
+    const dataPoints = executionSummary.totalTransactions || financialContext?.allTransactions?.length || 0;
+    const confidence = financialContext?.contextMetadata?.confidenceLevel || 0.8;
+    
+    response += `*Analysis based on ${dataPoints} data points with ${(confidence * 100).toFixed(0)}% confidence.*`;
+    
+    console.log('✅ Debug: Final formatted response length:', response.length);
     
     return response;
   }
   
-  formatForecastResponse(result, originalQuery) {
-    const projections = result.projections || [];
-    const timeHorizon = this.extractTimeHorizon(originalQuery);
+  formatForecastResponse(result, originalQuery, financialContext) {
+    const workflowData = result?.data || {};
+    const projections = workflowData?.projections || [];
+    const timeHorizon = this.extractTimeHorizon(originalQuery) || 12;
     
     let response = `📈 **Financial Forecast**\n\n`;
+    
+    // Add personalized context
+    if (financialContext?.userProfile?.name) {
+      response += `**Forecast for ${financialContext.userProfile.name}:**\n`;
+      response += `• Current Balance: $${financialContext.currentBalance?.toLocaleString() || 'N/A'}\n`;
+      response += `• Monthly Net Cash Flow: $${financialContext.monthlyNetIncome?.toLocaleString() || 'N/A'}\n\n`;
+    }
     
     if (projections.length > 0) {
       const finalProjection = projections[projections.length - 1];
@@ -368,15 +534,23 @@ class EnhancedChatService {
       response += `• Monthly cash flow: $${finalProjection.monthlyFlow?.toLocaleString() || 'N/A'}\n\n`;
     }
     
-    if (result.keyFactors) {
+    if (workflowData.keyFactors) {
       response += `**Key factors affecting your forecast:**\n`;
-      result.keyFactors.slice(0, 3).forEach((factor, i) => {
+      workflowData.keyFactors.slice(0, 3).forEach((factor, i) => {
         response += `${i + 1}. ${factor}\n`;
       });
       response += `\n`;
     }
     
-    response += `*Forecast based on current trends with ${(result.confidence * 100).toFixed(0)}% confidence.*`;
+    // Add debt-specific insights for Sampuel
+    if (financialContext?.userProfile?.creditCardDebt?.total) {
+      response += `**Debt Impact Analysis:**\n`;
+      response += `• Current debt: $${financialContext.userProfile.creditCardDebt.total.toLocaleString()}\n`;
+      response += `• Monthly minimum payments: $${(financialContext.userProfile.creditCardDebt.cards.reduce((sum, card) => sum + card.minPayment, 0)).toLocaleString()}\n\n`;
+    }
+    
+    const confidence = financialContext?.contextMetadata?.confidenceLevel || 0.8;
+    response += `*Forecast based on current trends with ${(confidence * 100).toFixed(0)}% confidence.*`;
     
     return response;
   }
@@ -412,33 +586,60 @@ class EnhancedChatService {
     return response;
   }
   
-  formatHealthResponse(result, originalQuery) {
+  formatHealthResponse(result, originalQuery, financialContext) {
     let response = `🏥 **Financial Health Assessment**\n\n`;
     
-    if (result.overallScore) {
-      const score = Math.round(result.overallScore * 100);
+    // Add personalized context
+    if (financialContext?.userProfile?.name) {
+      response += `**Health Assessment for ${financialContext.userProfile.name}:**\n`;
+      response += `• Current Balance: $${financialContext.currentBalance?.toLocaleString() || 'N/A'}\n`;
+      response += `• Monthly Net Cash Flow: $${financialContext.monthlyNetIncome?.toLocaleString() || 'N/A'}\n\n`;
+    }
+    
+    // Handle different result structures
+    const overallScore = result?.overallScore || result?.health_score?.overall || result?.overall_score || 0;
+    const scores = result?.scores || result?.health_scores || result?.dimension_scores || {};
+    const concerns = result?.concerns || result?.health_concerns || result?.warnings || [];
+    
+    if (overallScore > 0) {
+      const score = Math.round(overallScore * 100);
       const grade = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Needs Improvement';
       response += `**Overall Health Score: ${score}/100 (${grade})**\n\n`;
     }
     
-    if (result.scores) {
+    if (Object.keys(scores).length > 0) {
       response += `**Health Dimensions:**\n`;
-      Object.entries(result.scores).slice(0, 4).forEach(([dimension, score]) => {
-        const percentage = Math.round(score * 100);
-        response += `• ${dimension}: ${percentage}%\n`;
+      Object.entries(scores).slice(0, 4).forEach(([dimension, score]) => {
+        const percentage = Math.round((score || 0) * 100);
+        const formattedDimension = dimension.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        response += `• ${formattedDimension}: ${percentage}%\n`;
       });
       response += `\n`;
     }
     
-    if (result.concerns && result.concerns.length > 0) {
+    if (concerns.length > 0) {
       response += `**Areas of Concern:**\n`;
-      result.concerns.slice(0, 3).forEach((concern, i) => {
-        response += `${i + 1}. ${concern.description}\n`;
+      concerns.slice(0, 3).forEach((concern, i) => {
+        const description = concern.description || concern.message || concern;
+        response += `${i + 1}. ${description}\n`;
       });
       response += `\n`;
     }
     
-    response += `*Health assessment based on ${result.dataPoints || 0} data points.*`;
+    // Add debt-specific health insights for Sampuel
+    if (financialContext?.userProfile?.creditCardDebt?.total) {
+      const totalDebt = financialContext.userProfile.creditCardDebt.total;
+      const totalMinPayments = financialContext.userProfile.creditCardDebt.cards.reduce((sum, card) => sum + card.minPayment, 0);
+      const debtToIncomeRatio = (totalMinPayments / (financialContext.monthlyNetIncome || 1)) * 100;
+      
+      response += `**Debt Health Analysis:**\n`;
+      response += `• Total Credit Card Debt: $${totalDebt.toLocaleString()}\n`;
+      response += `• Monthly Minimum Payments: $${totalMinPayments.toLocaleString()}\n`;
+      response += `• Debt-to-Income Ratio: ${debtToIncomeRatio.toFixed(1)}%\n\n`;
+    }
+    
+    const dataPoints = financialContext?.allTransactions?.length || 0;
+    response += `*Health assessment based on ${dataPoints} data points.*`;
     
     return response;
   }

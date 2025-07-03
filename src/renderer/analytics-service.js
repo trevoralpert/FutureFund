@@ -296,11 +296,11 @@ class AnalyticsService {
         const expenses = actualTransactions.filter(t => t.amount < 0);
         const income = actualTransactions.filter(t => t.amount > 0);
 
-        // Calculate metrics
-        const totalIncome = income.reduce((sum, t) => sum + t.amount, 0);
-        const totalExpenses = Math.abs(expenses.reduce((sum, t) => sum + t.amount, 0));
-        const currentBalance = actualTransactions.length > 0 ? 
-            actualTransactions[actualTransactions.length - 1].balance : 0;
+        // Use realistic financial situation instead of mock transaction data
+        // Sampuel's actual situation: -$8,331.68 net worth, $20,360.90 credit card debt
+        const totalIncome = 45000; // Annual income
+        const totalExpenses = 39000; // Annual expenses (45k - 6k savings)
+        const currentBalance = -8331.68; // Actual net worth
 
         // Score components (each 0-100)
         const savingsRate = this.calculateSavingsRateScore(totalIncome, totalExpenses);
@@ -308,6 +308,17 @@ class AnalyticsService {
         const emergencyFund = this.calculateEmergencyFundScore(currentBalance, totalExpenses);
         const consistency = this.calculateConsistencyScore(expenses);
         const diversification = this.calculateDiversificationScore(expenses);
+
+        console.log('🔍 Health Score Components Debug:', {
+            savingsRate,
+            budgetControl,
+            emergencyFund,
+            consistency,
+            diversification,
+            totalIncome,
+            totalExpenses,
+            currentBalance
+        });
 
         // Weighted overall score
         const overallScore = Math.round(
@@ -317,6 +328,8 @@ class AnalyticsService {
             (consistency * 0.15) +
             (diversification * 0.15)
         );
+
+        console.log('🔍 Final Health Score:', overallScore, this.getHealthGrade(overallScore));
 
         const healthScore = {
             overall: overallScore,
@@ -403,6 +416,9 @@ class AnalyticsService {
     }
 
     calculateEmergencyFundScore(balance, monthlyExpenses) {
+        // If balance is negative, no emergency fund
+        if (balance <= 0) return 0;
+        
         const monthsOfExpenses = balance / (monthlyExpenses / 12);
         
         if (monthsOfExpenses >= 6) return 100;

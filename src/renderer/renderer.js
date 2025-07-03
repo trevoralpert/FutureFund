@@ -874,21 +874,70 @@ class FutureFundApp {
         oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
         const oneYearDate = oneYearFromNow.toISOString().split('T')[0];
 
-        const currentData = this.financialData.find(d => d.date <= today && !d.isProjected);
-        const projectedData = this.financialData.find(d => d.date <= oneYearDate && d.isProjected);
+        // Use REAL account balances instead of transaction history
+        let currentBalance = 0;
+        if (this.accounts && this.accounts.length > 0) {
+            this.accounts.forEach(account => {
+                const balance = parseFloat(account.currentBalance || account.balance || 0);
+                if (this.isAssetAccount(account.type)) {
+                    currentBalance += balance;
+                } else if (this.isLiabilityAccount(account.type)) {
+                    currentBalance -= Math.abs(balance); // Debt reduces net worth
+                }
+            });
+        }
         
-        const currentBalance = currentData ? currentData.balance : 0;
+        
+
+        const projectedData = this.financialData.find(d => d.date <= oneYearDate && d.isProjected);
         const projectedBalance = projectedData ? projectedData.balance : 0;
 
-        const monthlyIncome = this.financialData
-            .filter(d => d.type === 'Income' && d.isProjected)
-            .reduce((sum, d) => sum + d.amount, 0) / 12;
+        // Calculate ACTUAL monthly cash flow from real transaction data
+        const actualTransactions = this.financialData.filter(d => !d.isProjected);
         
-        const monthlyExpenses = this.financialData
-            .filter(d => d.type === 'Expense' && d.isProjected)
-            .reduce((sum, d) => sum + Math.abs(d.amount), 0) / 12;
-
-        const monthlyCashFlow = monthlyIncome - monthlyExpenses;
+        // Calculate total income and expenses from actual transactions
+        const totalIncome = actualTransactions
+            .filter(d => d.amount > 0)
+            .reduce((sum, d) => sum + d.amount, 0);
+            
+        const totalExpenses = Math.abs(actualTransactions
+            .filter(d => d.amount < 0)
+            .reduce((sum, d) => sum + d.amount, 0));
+        
+        // Get date range to calculate monthly averages
+        const dateRange = actualTransactions.length > 0 ? {
+            start: new Date(actualTransactions[0].date),
+            end: new Date(actualTransactions[actualTransactions.length - 1].date)
+        } : null;
+        
+        let monthlyIncome = 0;
+        let monthlyExpenses = 0;
+        let monthlyCashFlow = 0;
+        
+        if (dateRange) {
+            const monthsDiff = Math.max(1, (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+            monthlyIncome = totalIncome / monthsDiff;
+            monthlyExpenses = totalExpenses / monthsDiff;
+            monthlyCashFlow = monthlyIncome - monthlyExpenses;
+        }
+        
+        console.log('🔍 DEBUG: Ledger Current Balance calculation:', {
+            accountsCount: this.accounts?.length || 0,
+            realCurrentBalance: currentBalance,
+            totalTransactions: actualTransactions.length,
+            totalIncome,
+            totalExpenses,
+            monthlyIncome: monthlyIncome.toFixed(2),
+            monthlyExpenses: monthlyExpenses.toFixed(2),
+            monthlyCashFlow: monthlyCashFlow.toFixed(2),
+            accountBreakdown: this.accounts?.map(a => ({
+                name: a.name,
+                type: a.type,
+                balance: a.currentBalance || a.balance,
+                isAsset: this.isAssetAccount(a.type),
+                isLiability: this.isLiabilityAccount(a.type)
+            }))
+        });
 
         document.getElementById('currentBalance').textContent = this.formatCurrency(currentBalance);
         document.getElementById('projectedBalance').textContent = this.formatCurrency(projectedBalance);
@@ -1135,7 +1184,7 @@ class FutureFundApp {
 
         try {
             // Prepare financial context from current data
-            const context = this.buildFinancialContext();
+            const context = await this.buildFinancialContext();
             
             // Debug: Log the context being sent to AI
             console.log('🔍 Financial context being sent to AI:', {
@@ -1210,96 +1259,607 @@ class FutureFundApp {
         }
     }
     
-    buildFinancialContext() {
-        if (!this.financialData || this.financialData.length === 0) {
+    async buildFinancialContext() {
+        try {
+            // Start with basic data validation
+            if (!this.financialData || this.financialData.length === 0) {
+                return {
+                    hasData: false,
+                    currentBalance: 0,
+                    monthlyNetIncome: 0,
+                    totalTransactions: 0,
+                    message: "No financial data available"
+                };
+            }
+            
+            // Get REAL account balances instead of transaction history balances
+            const [userProfile, accounts, accountStats, financialHealth] = await Promise.all([
+                this.fetchUserProfile(),
+                this.fetchUserAccounts(),
+                this.fetchAccountStatistics(),
+                this.calculateFinancialHealth()
+            ]);
+            
+            // Calculate ACTUAL current balance from real accounts
+            let currentBalance = 0;
+            if (accounts && accounts.length > 0) {
+                console.log('🔍 DEBUG: Building financial context with real accounts:', accounts.length);
+                // Sum up all account balances (assets positive, liabilities negative)
+                accounts.forEach(account => {
+                    const balance = parseFloat(account.currentBalance || account.balance || 0);
+                    console.log(`🔍 DEBUG: Account ${account.name}: ${account.type} = $${balance}`, {
+                        isAsset: this.isAssetAccount(account.type),
+                        isLiability: this.isLiabilityAccount(account.type)
+                    });
+                    if (this.isAssetAccount(account.type)) {
+                        currentBalance += balance;
+                    } else if (this.isLiabilityAccount(account.type)) {
+                        currentBalance -= Math.abs(balance); // Debt reduces net worth
+                    }
+                });
+                console.log('🔍 DEBUG: Final calculated currentBalance:', currentBalance);
+            }
+            
+            // Calculate ACTUAL monthly cash flow from real transaction data
+            const transactionsForCashFlow = this.financialData.filter(d => !d.isProjected);
+            
+            // Calculate total income and expenses from actual transactions
+            const totalIncomeAmount = transactionsForCashFlow
+                .filter(d => d.amount > 0)
+                .reduce((sum, d) => sum + d.amount, 0);
+                
+            const totalExpenseAmount = Math.abs(transactionsForCashFlow
+                .filter(d => d.amount < 0)
+                .reduce((sum, d) => sum + d.amount, 0));
+            
+            // Get date range to calculate monthly averages
+            const dateRange = transactionsForCashFlow.length > 0 ? {
+                start: new Date(transactionsForCashFlow[0].date),
+                end: new Date(transactionsForCashFlow[transactionsForCashFlow.length - 1].date)
+            } : null;
+            
+            let monthlyIncome = 0;
+            let monthlyExpenses = 0;
+            let monthlyNetIncome = 0;
+            
+            if (dateRange) {
+                const monthsDiff = Math.max(1, (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+                monthlyIncome = totalIncomeAmount / monthsDiff;
+                monthlyExpenses = totalExpenseAmount / monthsDiff;
+                monthlyNetIncome = monthlyIncome - monthlyExpenses;
+            }
+            
+            console.log('🔍 DEBUG: Monthly cash flow calculation from actual transactions:', {
+                totalTransactions: transactionsForCashFlow.length,
+                totalIncome: totalIncomeAmount,
+                totalExpenses: totalExpenseAmount,
+                monthsDiff: dateRange ? (dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24 * 30.44) : 0,
+                monthlyIncome: monthlyIncome.toFixed(2),
+                monthlyExpenses: monthlyExpenses.toFixed(2),
+                monthlyNetIncome: monthlyNetIncome.toFixed(2),
+                dateRange: dateRange ? {
+                    start: dateRange.start.toISOString().split('T')[0],
+                    end: dateRange.end.toISOString().split('T')[0]
+                } : null
+            });
+            
+            // Calculate transaction metrics for AI analysis
+            const actualTransactions = this.financialData.filter(d => !d.isProjected);
+            const totalIncome = actualTransactions
+                .filter(d => d.amount > 0)
+                .reduce((sum, d) => sum + d.amount, 0);
+                
+            const totalExpenses = Math.abs(actualTransactions
+                .filter(d => d.amount < 0)
+                .reduce((sum, d) => sum + d.amount, 0));
+            
+            // Get ALL transactions for comprehensive analysis
+            const allTransactions = [...this.financialData].sort((a, b) => new Date(a.date) - new Date(b.date));
+            const allTransactionsForAI = allTransactions.map(t => ({
+                date: t.date,
+                description: t.description,
+                amount: t.amount,
+                category: t.category,
+                balance: t.balance,
+                type: t.type,
+                isProjected: t.isProjected || false
+            }));
+            
+            // Analyze spending patterns
+            const spendingAnalysis = this.analyzeSpendingPatterns(actualTransactions);
+            
+            // Calculate debt-to-income ratio
+            const debtToIncomeRatio = accountStats ? (accountStats.totalLiabilities / (userProfile?.annualIncome || 45000)) : 0;
+            
+            // Build comprehensive financial context
             return {
-                hasData: false,
-                currentBalance: 0,
+                hasData: true,
+                currentBalance,
+                monthlyNetIncome,
+                totalTransactions: actualTransactions.length,
+                totalProjectedTransactions: this.financialData.filter(d => d.isProjected).length,
+                totalIncome,
+                totalExpenses,
+                allTransactions: allTransactionsForAI,
+                dateRange: {
+                    start: allTransactions[0]?.date,
+                    end: allTransactions[allTransactions.length - 1]?.date
+                },
+                
+                // Real user profile data
+                userProfile: {
+                    id: userProfile?.id,
+                    name: userProfile?.fullName || "Sampuel Profileman",
+                    firstName: userProfile?.firstName || "Sampuel",
+                    lastName: userProfile?.lastName || "Profileman",
+                    age: this.calculateAge(userProfile?.dateOfBirth),
+                    location: userProfile?.address?.city || "Los Angeles, CA",
+                    employer: userProfile?.employer || "Coffee Bean & Tea Leaf",
+                    jobTitle: userProfile?.jobTitle || "Barista",
+                    employmentStatus: userProfile?.employmentStatus || "employed",
+                    annualIncome: userProfile?.annualIncome || 45000,
+                    incomeGrowthRate: userProfile?.incomeGrowthRate || 0.03,
+                    riskCategory: userProfile?.riskCategory || "moderate",
+                    riskToleranceScore: userProfile?.riskToleranceScore,
+                    onboardingCompleted: userProfile?.onboardingCompleted || false,
+                    aiRecommendationsEnabled: userProfile?.aiRecommendationsEnabled || true
+                },
+                
+                // Real account data
+                accounts: {
+                    total: accounts?.length || 0,
+                    checking: accounts?.filter(acc => acc.type === 'checking') || [],
+                    savings: accounts?.filter(acc => acc.type === 'savings') || [],
+                    creditCards: accounts?.filter(acc => acc.type === 'credit_card') || [],
+                    investments: accounts?.filter(acc => acc.type === 'investment') || [],
+                    assets: accounts?.filter(acc => ['investment', 'asset'].includes(acc.type)) || []
+                },
+                
+                // Account statistics
+                accountStats: {
+                    totalAccounts: accountStats?.totalAccounts || 0,
+                    totalAssets: accountStats?.totalAssets || 0,
+                    totalLiabilities: accountStats?.totalLiabilities || 0,
+                    netWorth: accountStats?.netWorth || 0,
+                    activeAccounts: accountStats?.activeAccounts || 0,
+                    debtToIncomeRatio: debtToIncomeRatio,
+                    monthlyDebtPayments: this.calculateMonthlyDebtPayments(accounts)
+                },
+                
+                // Financial health assessment
+                financialHealth: {
+                    overallScore: financialHealth?.overall || 65,
+                    grade: financialHealth?.grade || 'Good',
+                    components: financialHealth?.components || {},
+                    insights: financialHealth?.insights || [],
+                    recommendations: financialHealth?.recommendations || [],
+                    riskFactors: this.identifyRiskFactors(accounts, userProfile, accountStats)
+                },
+                
+                // Spending pattern analysis
+                spendingAnalysis: {
+                    categoricalSpending: spendingAnalysis.categoryBreakdown,
+                    monthlyAverages: spendingAnalysis.monthlyAverages,
+                    trends: spendingAnalysis.trends,
+                    anomalies: spendingAnalysis.anomalies,
+                    topCategories: spendingAnalysis.topCategories
+                },
+                
+                // Personalized insights
+                personalizedInsights: {
+                    keyFinancialGoals: this.identifyKeyGoals(userProfile, accounts, accountStats),
+                    urgentActions: this.identifyUrgentActions(accounts, financialHealth),
+                    opportunities: this.identifyOpportunities(userProfile, accounts, spendingAnalysis),
+                    cashFlowOptimization: this.analyzeCashFlowOptimization(accounts, actualTransactions),
+                    scenarioRecommendations: this.generateScenarioRecommendations(userProfile, accounts)
+                },
+                
+                // Context metadata
+                contextMetadata: {
+                    generatedAt: new Date().toISOString(),
+                    dataPoints: actualTransactions.length + (accounts?.length || 0),
+                    analysisDepth: 'comprehensive',
+                    confidenceLevel: this.calculateContextConfidence(userProfile, accounts, actualTransactions)
+                }
+            };
+            
+        } catch (error) {
+            console.error('❌ Error building financial context:', error);
+            
+            // Return fallback context with available data
+            return {
+                hasData: true,
+                currentBalance: this.financialData?.[this.financialData.length - 1]?.balance || 0,
                 monthlyNetIncome: 0,
-                totalTransactions: 0
+                totalTransactions: this.financialData?.length || 0,
+                allTransactions: this.financialData || [],
+                error: error.message,
+                fallback: true
             };
         }
-        
-        // Calculate current balance and metrics using actual transactions
-        const actualTransactions = this.financialData.filter(d => !d.isProjected);
-        const currentBalance = actualTransactions.length > 0 ? 
-            actualTransactions[actualTransactions.length - 1].balance : 0;
-        
-        const totalIncome = actualTransactions
-            .filter(d => d.amount > 0)
-            .reduce((sum, d) => sum + d.amount, 0);
-            
-        const totalExpenses = Math.abs(actualTransactions
-            .filter(d => d.amount < 0)
-            .reduce((sum, d) => sum + d.amount, 0));
-        
-        const monthlyNetIncome = (totalIncome - totalExpenses) / 12;
-        
-        // Get ALL transactions (actual and projected) for comprehensive context
-        const allTransactions = [...this.financialData].sort((a, b) => new Date(a.date) - new Date(b.date));
-        
-        // Send ALL transactions to AI - let it analyze the complete dataset
-        // Modern LLMs like GPT-4 can handle thousands of transactions easily
-        const allTransactionsForAI = allTransactions.map(t => ({
-            date: t.date,
-            description: t.description,
-            amount: t.amount,
-            category: t.category,
-            balance: t.balance,
-            type: t.type,
-            isProjected: t.isProjected || false
-        }));
-        
-        return {
-            hasData: true,
-            currentBalance,
-            monthlyNetIncome,
-            totalTransactions: actualTransactions.length,
-            totalProjectedTransactions: this.financialData.filter(d => d.isProjected).length,
-            totalIncome,
-            totalExpenses,
-            allTransactions: allTransactionsForAI,  // Send ALL data to AI
-            dateRange: {
-                start: allTransactions[0]?.date,
-                end: allTransactions[allTransactions.length - 1]?.date
-            },
-            // Sampuel Profileman's specific context
-            userProfile: {
-                name: "Sampuel Profileman",
-                age: 31,
-                location: "Los Angeles, CA",
-                currentJob: "Barista at Coffee Bean & Tea Leaf",
-                weeklyIncome: "$700-900 (variable hours)",
-                monthlyRent: 1200,
-                carInsurance: 200,
-                creditCardDebt: {
-                    total: 20360.90,
-                    cards: [
-                        { name: "Chase Freedom", balance: 5420.33, apr: 22.99, minPayment: 125 },
-                        { name: "Capital One Quicksilver", balance: 7891.12, apr: 24.49, minPayment: 185 },
-                        { name: "Discover it", balance: 4233.67, apr: 19.99, minPayment: 98 },
-                        { name: "Citi Double Cash", balance: 2815.78, apr: 21.99, minPayment: 65 }
-                    ]
-                },
-                assets: {
-                    car: { value: 12000, status: "paid off" }
-                },
-                futureOpportunity: {
-                    job: "AI Engineering Position",
-                    salary: 200000,
-                    location: "Austin, TX",
-                    startDate: "September 2025",
-                    benefits: "Lower cost of living, no state income tax in Texas"
-                },
-                keyDecisions: [
-                    "Should I sell my car to pay down debt?",
-                    "How to manage the career transition period?",
-                    "Debt payoff strategy vs. emergency fund building?",
-                    "LA vs Austin cost of living analysis?",
-                    "Optimal timing for the move to Austin?"
-                ]
+    }
+
+    // 🔧 Helper methods for enhanced financial context building
+    
+    async fetchUserProfile() {
+        try {
+            const userId = this.currentUser?.id || await this.getDefaultUserId();
+            const profile = await electronAPI.getUserProfile(userId);
+            return profile;
+        } catch (error) {
+            console.error('❌ Error fetching user profile:', error);
+            return null;
+        }
+    }
+
+    async fetchUserAccounts() {
+        try {
+            return this.accounts || [];
+        } catch (error) {
+            console.error('❌ Error fetching user accounts:', error);
+            return [];
+        }
+    }
+
+    async fetchAccountStatistics() {
+        try {
+            return this.accountStats || null;
+        } catch (error) {
+            console.error('❌ Error fetching account statistics:', error);
+            return null;
+        }
+    }
+
+    async calculateFinancialHealth() {
+        try {
+            if (this.analyticsService) {
+                return this.analyticsService.calculateFinancialHealthScore(this.financialData);
             }
+            return null;
+        } catch (error) {
+            console.error('❌ Error calculating financial health:', error);
+            return null;
+        }
+    }
+
+    analyzeSpendingPatterns(transactions) {
+        try {
+            const expenses = transactions.filter(t => t.amount < 0);
+            
+            // Category breakdown
+            const categoryBreakdown = {};
+            expenses.forEach(t => {
+                const category = t.category || 'Other';
+                categoryBreakdown[category] = (categoryBreakdown[category] || 0) + Math.abs(t.amount);
+            });
+            
+            // Monthly averages
+            const monthlyData = {};
+            expenses.forEach(t => {
+                const month = t.date.substring(0, 7); // YYYY-MM
+                monthlyData[month] = (monthlyData[month] || 0) + Math.abs(t.amount);
+            });
+            
+            const months = Object.keys(monthlyData);
+            const monthlyAverages = months.length > 0 ? 
+                Object.values(monthlyData).reduce((sum, val) => sum + val, 0) / months.length : 0;
+            
+            // Trends
+            const trends = this.calculateSpendingTrends(monthlyData);
+            
+            // Anomalies
+            const anomalies = this.detectSpendingAnomalies(expenses);
+            
+            // Top categories
+            const topCategories = Object.entries(categoryBreakdown)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5)
+                .map(([category, amount]) => ({ category, amount }));
+            
+            return {
+                categoryBreakdown,
+                monthlyAverages,
+                trends,
+                anomalies,
+                topCategories
+            };
+            
+        } catch (error) {
+            console.error('❌ Error analyzing spending patterns:', error);
+            return {
+                categoryBreakdown: {},
+                monthlyAverages: 0,
+                trends: [],
+                anomalies: [],
+                topCategories: []
+            };
+        }
+    }
+
+    calculateSpendingTrends(monthlyData) {
+        const months = Object.keys(monthlyData).sort();
+        if (months.length < 2) return [];
+        
+        const trends = [];
+        for (let i = 1; i < months.length; i++) {
+            const prev = monthlyData[months[i-1]];
+            const curr = monthlyData[months[i]];
+            const change = ((curr - prev) / prev) * 100;
+            
+            if (Math.abs(change) > 10) {
+                trends.push({
+                    month: months[i],
+                    change: change,
+                    direction: change > 0 ? 'increase' : 'decrease'
+                });
+            }
+        }
+        
+        return trends;
+    }
+
+    detectSpendingAnomalies(expenses) {
+        const amounts = expenses.map(t => Math.abs(t.amount));
+        const average = amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length;
+        const stdDev = Math.sqrt(amounts.reduce((sum, amt) => sum + Math.pow(amt - average, 2), 0) / amounts.length);
+        
+        const anomalies = [];
+        expenses.forEach(t => {
+            const amount = Math.abs(t.amount);
+            if (amount > average + (2 * stdDev)) {
+                anomalies.push({
+                    transaction: t,
+                    amount: amount,
+                    deviationFromAverage: amount - average,
+                    severity: amount > average + (3 * stdDev) ? 'high' : 'medium'
+                });
+            }
+        });
+        
+        return anomalies.slice(0, 5); // Top 5 anomalies
+    }
+
+    calculateAge(dateOfBirth) {
+        if (!dateOfBirth) return null;
+        
+        const today = new Date();
+        const birth = new Date(dateOfBirth);
+        let age = today.getFullYear() - birth.getFullYear();
+        
+        if (today.getMonth() < birth.getMonth() || 
+            (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())) {
+            age--;
+        }
+        
+        return age;
+    }
+
+    calculateMonthlyDebtPayments(accounts) {
+        if (!accounts) return 0;
+        
+        const creditCards = accounts.filter(acc => acc.type === 'credit_card');
+        let totalMinPayments = 0;
+        
+        creditCards.forEach(card => {
+            const balance = Math.abs(card.currentBalance || 0);
+            const minPayment = Math.max(25, balance * 0.02); // 2% or $25 minimum
+            totalMinPayments += minPayment;
+        });
+        
+        return totalMinPayments;
+    }
+
+    identifyRiskFactors(accounts, userProfile, accountStats) {
+        const riskFactors = [];
+        
+        if (accountStats?.debtToIncomeRatio > 0.4) {
+            riskFactors.push({
+                type: 'debt_to_income',
+                severity: 'high',
+                description: 'Debt-to-income ratio exceeds 40%',
+                recommendation: 'Focus on debt reduction strategies'
+            });
+        }
+        
+        if (accountStats?.netWorth < 0) {
+            riskFactors.push({
+                type: 'negative_net_worth',
+                severity: 'high',
+                description: 'Net worth is negative',
+                recommendation: 'Prioritize debt payoff and asset building'
+            });
+        }
+        
+        const emergencyFund = accounts?.find(acc => acc.type === 'savings')?.currentBalance || 0;
+        const monthlyExpenses = (userProfile?.annualIncome || 45000) * 0.7 / 12; // Assume 70% of income for expenses
+        
+        if (emergencyFund < monthlyExpenses * 3) {
+            riskFactors.push({
+                type: 'insufficient_emergency_fund',
+                severity: 'medium',
+                description: 'Emergency fund less than 3 months expenses',
+                recommendation: 'Build emergency fund to 3-6 months expenses'
+            });
+        }
+        
+        return riskFactors;
+    }
+
+    identifyKeyGoals(userProfile, accounts, accountStats) {
+        const goals = [];
+        
+        if (accountStats?.netWorth < 0) {
+            goals.push({
+                type: 'debt_elimination',
+                priority: 'high',
+                description: 'Eliminate debt and achieve positive net worth',
+                timeline: '12-24 months'
+            });
+        }
+        
+        if (userProfile?.age && userProfile.age < 35) {
+            goals.push({
+                type: 'retirement_savings',
+                priority: 'medium',
+                description: 'Start retirement savings early for compound growth',
+                timeline: 'ongoing'
+            });
+        }
+        
+        const emergencyFund = accounts?.find(acc => acc.type === 'savings')?.currentBalance || 0;
+        if (emergencyFund < 10000) {
+            goals.push({
+                type: 'emergency_fund',
+                priority: 'high',
+                description: 'Build emergency fund to 3-6 months expenses',
+                timeline: '6-12 months'
+            });
+        }
+        
+        return goals;
+    }
+
+    identifyUrgentActions(accounts, financialHealth) {
+        const urgentActions = [];
+        
+        if (financialHealth?.overall < 50) {
+            urgentActions.push({
+                type: 'financial_health_critical',
+                urgency: 'immediate',
+                description: 'Financial health score indicates immediate attention needed',
+                action: 'Review budget and reduce expenses'
+            });
+        }
+        
+        const creditCards = accounts?.filter(acc => acc.type === 'credit_card') || [];
+        const highBalanceCards = creditCards.filter(card => {
+            const balance = Math.abs(card.currentBalance || 0);
+            const limit = card.creditLimit || 1000;
+            return balance / limit > 0.8;
+        });
+        
+        if (highBalanceCards.length > 0) {
+            urgentActions.push({
+                type: 'high_credit_utilization',
+                urgency: 'high',
+                description: 'Credit utilization above 80% on some cards',
+                action: 'Pay down high-balance credit cards immediately'
+            });
+        }
+        
+        return urgentActions;
+    }
+
+    identifyOpportunities(userProfile, accounts, spendingAnalysis) {
+        const opportunities = [];
+        
+        if (spendingAnalysis?.topCategories?.length > 0) {
+            const topCategory = spendingAnalysis.topCategories[0];
+            if (topCategory.amount > 500) {
+                opportunities.push({
+                    type: 'spending_optimization',
+                    category: topCategory.category,
+                    description: `Optimize spending in ${topCategory.category} category`,
+                    potentialSavings: topCategory.amount * 0.2,
+                    action: 'Review and reduce expenses in this category'
+                });
+            }
+        }
+        
+        if (userProfile?.annualIncome && userProfile.annualIncome > 50000) {
+            const hasRetirement = accounts?.some(acc => acc.type === 'retirement_401k' || acc.type === 'ira');
+            if (!hasRetirement) {
+                opportunities.push({
+                    type: 'retirement_planning',
+                    description: 'Start retirement account to reduce taxes and build wealth',
+                    potentialSavings: userProfile.annualIncome * 0.15,
+                    action: 'Open IRA or increase 401k contribution'
+                });
+            }
+        }
+        
+        return opportunities;
+    }
+
+    analyzeCashFlowOptimization(accounts, transactions) {
+        const analysis = {
+            monthlyIncome: 0,
+            monthlyExpenses: 0,
+            cashFlowGap: 0,
+            optimizationSuggestions: []
         };
+        
+        const income = transactions.filter(t => t.amount > 0);
+        const expenses = transactions.filter(t => t.amount < 0);
+        
+        analysis.monthlyIncome = income.reduce((sum, t) => sum + t.amount, 0) / 12;
+        analysis.monthlyExpenses = Math.abs(expenses.reduce((sum, t) => sum + t.amount, 0)) / 12;
+        analysis.cashFlowGap = analysis.monthlyIncome - analysis.monthlyExpenses;
+        
+        if (analysis.cashFlowGap < 0) {
+            analysis.optimizationSuggestions.push({
+                type: 'increase_income',
+                description: 'Monthly expenses exceed income - focus on income increase',
+                impact: 'high'
+            });
+        }
+        
+        if (analysis.cashFlowGap > 1000) {
+            analysis.optimizationSuggestions.push({
+                type: 'investment_opportunity',
+                description: 'Strong cash flow - consider investment opportunities',
+                impact: 'medium'
+            });
+        }
+        
+        return analysis;
+    }
+
+    generateScenarioRecommendations(userProfile, accounts) {
+        const recommendations = [];
+        
+        const netWorth = accounts?.reduce((sum, acc) => {
+            const balance = acc.currentBalance || 0;
+            return sum + (acc.type === 'credit_card' ? -Math.abs(balance) : balance);
+        }, 0) || 0;
+        
+        if (netWorth < 0) {
+            recommendations.push({
+                type: 'debt_payoff_scenario',
+                title: 'Debt Elimination Strategy',
+                description: 'Model aggressive debt payoff timeline',
+                priority: 'high'
+            });
+        }
+        
+        if (userProfile?.annualIncome && userProfile.annualIncome < 60000) {
+            recommendations.push({
+                type: 'income_increase_scenario',
+                title: 'Career Advancement Impact',
+                description: 'Model salary increase or career change effects',
+                priority: 'high'
+            });
+        }
+        
+        recommendations.push({
+            type: 'emergency_fund_scenario',
+            title: 'Emergency Fund Building',
+            description: 'Model systematic emergency fund accumulation',
+            priority: 'medium'
+        });
+        
+        return recommendations;
+    }
+
+    calculateContextConfidence(userProfile, accounts, transactions) {
+        let confidence = 0;
+        
+        if (userProfile) confidence += 0.3;
+        if (accounts && accounts.length > 0) confidence += 0.3;
+        if (transactions && transactions.length > 10) confidence += 0.25;
+        if (transactions && transactions.length > 50) confidence += 0.15;
+        
+        return Math.min(confidence, 1.0);
     }
 
     addChatMessage(message, sender, workflow = null) {
@@ -8875,16 +9435,29 @@ class FormValidator {
     }
 
     setupGlobalValidation() {
-        // Real-time validation on input
+        // Debounce validation to prevent conflicts
+        let validationTimeout;
+        
+        // Real-time validation on input (exclude chat input completely)
         document.addEventListener('input', (e) => {
-            if (e.target.matches('input, select, textarea')) {
-                this.validateField(e.target);
+            if (e.target.matches('input, select, textarea') && 
+                e.target.id !== 'chat-input' && 
+                !e.target.closest('#chat-input') &&
+                !e.target.closest('.chat-container')) {
+                clearTimeout(validationTimeout);
+                validationTimeout = setTimeout(() => {
+                    this.validateField(e.target);
+                }, 100); // Small delay to prevent excessive validation
             }
         });
 
-        // Validation on blur
+        // Validation on blur (exclude chat input completely)
         document.addEventListener('blur', (e) => {
-            if (e.target.matches('input, select, textarea')) {
+            if (e.target.matches('input, select, textarea') && 
+                e.target.id !== 'chat-input' && 
+                !e.target.closest('#chat-input') &&
+                !e.target.closest('.chat-container')) {
+                clearTimeout(validationTimeout); // Cancel any pending input validation
                 this.validateField(e.target, true);
             }
         }, true);
@@ -8902,7 +9475,20 @@ class FormValidator {
     }
 
     validateField(field, showSuccess = false) {
+        // Safety check - ensure field is still in DOM
+        if (!field || !field.parentNode || !document.contains(field)) {
+            console.warn('FormValidator: Field not in DOM, skipping validation');
+            return true;
+        }
+        
         const fieldContainer = field.closest('.form-field') || this.wrapField(field);
+        
+        // If we can't get a container, skip validation
+        if (!fieldContainer) {
+            console.warn('FormValidator: Cannot validate field without container');
+            return true;
+        }
+        
         const rules = this.getFieldRules(field);
         
         if (!rules || rules.length === 0) return true;
@@ -8915,21 +9501,38 @@ class FormValidator {
     }
 
     wrapField(field) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'form-field';
-        field.parentNode.insertBefore(wrapper, field);
-        wrapper.appendChild(field);
+        // Check if field is already wrapped
+        const existingWrapper = field.closest('.form-field');
+        if (existingWrapper) {
+            return existingWrapper;
+        }
         
-        // Add validation elements
-        const icon = document.createElement('span');
-        icon.className = 'validation-icon';
-        wrapper.appendChild(icon);
+        // Ensure the field still has a parent (hasn't been moved)
+        if (!field.parentNode) {
+            console.warn('FormValidator: Field has no parent node, cannot wrap');
+            return null;
+        }
         
-        const message = document.createElement('div');
-        message.className = 'validation-message';
-        wrapper.appendChild(message);
-        
-        return wrapper;
+        try {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'form-field';
+            field.parentNode.insertBefore(wrapper, field);
+            wrapper.appendChild(field);
+            
+            // Add validation elements
+            const icon = document.createElement('span');
+            icon.className = 'validation-icon';
+            wrapper.appendChild(icon);
+            
+            const message = document.createElement('div');
+            message.className = 'validation-message';
+            wrapper.appendChild(message);
+            
+            return wrapper;
+        } catch (error) {
+            console.error('FormValidator: Error wrapping field:', error);
+            return field.parentNode; // Return original parent as fallback
+        }
     }
 
     getFieldRules(field) {
@@ -9029,6 +9632,12 @@ class FormValidator {
         const field = container.querySelector('input, select, textarea');
         const icon = container.querySelector('.validation-icon');
         const message = container.querySelector('.validation-message');
+        
+        // Safety check - if elements don't exist, skip UI updates
+        if (!field || !icon || !message) {
+            console.warn('FormValidator: Missing validation elements, skipping UI update');
+            return;
+        }
         
         // Remove existing classes
         container.classList.remove('has-error', 'has-success');
@@ -9853,9 +10462,8 @@ class AssetOptimizer {
 
     preloadCriticalResources() {
         const criticalResources = [
-            // Add critical resources that should be preloaded
-            '/path/to/critical-font.woff2',
-            '/path/to/critical-icon.svg'
+            // Add actual critical resources that should be preloaded
+            // Note: Only add resources that actually exist to avoid 404 errors
         ];
 
         criticalResources.forEach(resource => {
