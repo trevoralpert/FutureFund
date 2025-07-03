@@ -3906,7 +3906,10 @@ ${health.status === 'healthy' ?
         document.getElementById('liabilityAccountCount').textContent = `${liabilityCount} accounts`;
         
         // Active Accounts
-        const activeAccounts = this.accounts.filter(a => a.is_active).length;
+        const activeAccounts = this.accounts.filter(a => {
+            const isActive = a.is_active !== undefined ? a.is_active : a.isActive;
+            return isActive;
+        }).length;
         document.getElementById('activeAccountCount').textContent = activeAccounts.toString();
         document.getElementById('totalAccountCount').textContent = `of ${this.accounts.length} total`;
         
