@@ -372,6 +372,23 @@ class ChartService {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: {
+                    // Disable animation to prevent infinite loops
+                    duration: 0
+                },
+                transitions: {
+                    // Disable all transitions to prevent animation issues
+                    active: {
+                        animation: {
+                            duration: 0
+                        }
+                    },
+                    resize: {
+                        animation: {
+                            duration: 0
+                        }
+                    }
+                },
                 interaction: {
                     intersect: false,
                     mode: 'index'

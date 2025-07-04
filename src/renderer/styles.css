@@ -1303,26 +1303,32 @@ body {
 /* Scenario Cards */
 .scenario-card {
     background-color: var(--bg-primary);
-    border: 1px solid var(--border-color);
+    border: 2px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: var(--spacing-lg);
-    cursor: pointer;
     transition: all 0.2s ease;
     position: relative;
+    cursor: default;
 }
 
 .scenario-card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    border-color: var(--primary-color);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
 }
 
 .scenario-card.active {
-    border-color: var(--primary-color);
-    background-color: rgb(37 99 235 / 0.05);
+    border-color: var(--success-color);
+    background-color: rgba(16, 185, 129, 0.05);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.scenario-card.active:hover {
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.2);
 }
 
 .scenario-card.inactive {
-    opacity: 0.6;
+    border-color: var(--border-color);
+    background-color: var(--bg-primary);
 }
 
 .scenario-card-header {
@@ -1332,11 +1338,32 @@ body {
     margin-bottom: var(--spacing-md);
 }
 
+.scenario-info {
+    flex: 1;
+}
+
+.scenario-title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
 .scenario-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0 0 var(--spacing-xs) 0;
+    margin: 0;
+    flex: 1;
+}
+
+.scenario-status-indicator {
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.scenario-status-indicator.active {
+    filter: drop-shadow(0 0 4px rgba(16, 185, 129, 0.5));
 }
 
 .scenario-type {
@@ -1349,22 +1376,69 @@ body {
 .scenario-actions {
     display: flex;
     gap: var(--spacing-xs);
+    flex-shrink: 0;
 }
 
 .scenario-action {
     background: none;
-    border: none;
-    padding: var(--spacing-xs);
+    border: 1px solid transparent;
+    padding: var(--spacing-xs) var(--spacing-sm);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
 }
 
 .scenario-action:hover {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
+    transform: translateY(-1px);
+}
+
+.scenario-action.activate-btn.active {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.scenario-action.activate-btn.active:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.scenario-action.activate-btn.active:hover .btn-text::after {
+    content: " (Click to Deactivate)";
+    font-size: 0.7rem;
+}
+
+.scenario-action.activate-btn.inactive {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.scenario-action.activate-btn.inactive:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.scenario-action.secondary-btn:hover {
+    background-color: rgba(37, 99, 235, 0.1);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.scenario-action.danger-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: var(--danger-color);
+    color: var(--danger-color);
 }
 
 .scenario-description {
@@ -1389,37 +1463,54 @@ body {
     font-size: 0.75rem;
 }
 
-.scenario-status {
+.scenario-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-top: var(--spacing-md);
     padding-top: var(--spacing-md);
     border-top: 1px solid var(--border-color);
+    gap: var(--spacing-sm);
 }
 
-.status-badge {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    border-radius: var(--radius-sm);
+.scenario-impact {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
     font-size: 0.75rem;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.025em;
+    transition: all 0.3s ease;
 }
 
-.status-badge.active {
-    background-color: var(--success-color);
-    color: var(--text-light);
+.scenario-impact.visible {
+    opacity: 1;
 }
 
-.status-badge.inactive {
-    background-color: var(--bg-secondary);
+.scenario-impact.hidden {
+    opacity: 0;
+}
+
+.impact-label {
     color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.impact-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.impact-value.positive {
+    color: var(--success-color);
+}
+
+.impact-value.negative {
+    color: var(--danger-color);
 }
 
 .scenario-date {
     font-size: 0.75rem;
     color: var(--text-secondary);
+    flex-shrink: 0;
 }
 
 /* Chart View Styles */

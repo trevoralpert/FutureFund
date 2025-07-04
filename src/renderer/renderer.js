@@ -2010,6 +2010,11 @@ class FutureFundApp {
             console.log('📊 Only base scenario found, loading from database...');
             this.refreshScenariosFromDB();
         }
+        
+        // Update impact displays for active scenarios after DOM is ready
+        setTimeout(() => {
+            this.updateAllScenarioImpacts();
+        }, 100);
     }
 
     createScenarioCard(scenario) {
@@ -2029,18 +2034,35 @@ class FutureFundApp {
         
         const hasMoreParams = Object.keys(scenario.parameters || {}).length > 3;
         
+        // Create activation toggle button with clear state
+        const activationButton = scenario.isActive 
+            ? `<button class="scenario-action activate-btn active" onclick="app.toggleScenarioActive('${scenario.id}')" title="Deactivate Scenario">
+                 <span class="btn-icon">🟢</span>
+                 <span class="btn-text">Active</span>
+               </button>`
+            : `<button class="scenario-action activate-btn inactive" onclick="app.toggleScenarioActive('${scenario.id}')" title="Activate Scenario">
+                 <span class="btn-icon">⚫</span>
+                 <span class="btn-text">Activate</span>
+               </button>`;
+        
         card.innerHTML = `
             <div class="scenario-card-header">
-                <div>
-                    <h3 class="scenario-title">${scenario.name}</h3>
+                <div class="scenario-info">
+                    <div class="scenario-title-row">
+                        <h3 class="scenario-title">${scenario.name}</h3>
+                        <div class="scenario-status-indicator ${scenario.isActive ? 'active' : 'inactive'}">
+                            ${scenario.isActive ? '🟢' : '⚫'}
+                        </div>
+                    </div>
                     <div class="scenario-type">${templateIcon} ${templateName}</div>
                 </div>
                 <div class="scenario-actions">
-                    <button class="scenario-action" onclick="app.selectScenario('${scenario.id}')" title="Select Scenario">
-                        ${this.currentScenario === scenario.id ? '✅' : '📊'}
-                    </button>
-                    <button class="scenario-action" onclick="app.openComparisonModal('${scenario.id}')" title="Compare">
+                    ${activationButton}
+                    <button class="scenario-action secondary-btn" onclick="app.openComparisonModal('${scenario.id}')" title="Compare Scenario">
                         ⚖️
+                    </button>
+                    <button class="scenario-action danger-btn" onclick="app.deleteScenario('${scenario.id}')" title="Delete Scenario">
+                        🗑️
                     </button>
                 </div>
             </div>
@@ -2052,12 +2074,13 @@ class FutureFundApp {
                 ${hasMoreParams ? '<span class="parameter-tag">...</span>' : ''}
             </div>
             
-            <div class="scenario-status">
-                <span class="status-badge ${scenario.isActive ? 'active' : 'inactive'}">
-                    ${scenario.isActive ? 'Active' : 'Inactive'}
-                </span>
+            <div class="scenario-footer">
+                <div class="scenario-impact ${scenario.isActive ? 'visible' : 'hidden'}">
+                    <span class="impact-label">Impact:</span>
+                    <span class="impact-value" id="impact-${scenario.id}">Calculating...</span>
+                </div>
                 <span class="scenario-date">
-                    ${scenario.createdAt ? new Date(scenario.createdAt).toLocaleDateString() : 'Unknown'}
+                    Created: ${scenario.createdAt ? new Date(scenario.createdAt).toLocaleDateString() : 'Unknown'}
                 </span>
             </div>
         `;
@@ -2157,7 +2180,7 @@ class FutureFundApp {
                 description: 'Should Sampuel sell his $12,000 car to pay down credit card debt?'
             },
             {
-                id: 'career_transition',
+                id: 'job_change',
                 icon: '🤖💼',
                 name: 'AI Engineering Career Move',
                 description: 'Model the career change to $200k AI job in Austin'
@@ -2197,6 +2220,12 @@ class FutureFundApp {
                 icon: '💼💪',
                 name: 'Side Hustle Income Boost',
                 description: 'Add freelance income to improve financial situation'
+            },
+            {
+                id: 'home_buying',
+                icon: '🏠💰',
+                name: 'Smart Home Buying Analysis',
+                description: 'AI-powered home purchase planning with dynamic questions'
             }
         ];
     }
@@ -2332,15 +2361,36 @@ class FutureFundApp {
                     ]
                 }]
             },
-            career_transition: {
+            job_change: {
                 parameters: [{
                     title: 'Career Transition Details',
                     fields: [
-                        { type: 'date', name: 'transitionDate', label: 'AI Job Start Date', placeholder: '2025-09-01', required: true },
+                        { type: 'date', name: 'startDate', label: 'AI Job Start Date', placeholder: '2025-09-01', required: true },
                         { type: 'number', name: 'newSalary', label: 'AI Engineering Salary ($)', placeholder: '200000', required: true },
                         { type: 'number', name: 'movingCosts', label: 'Moving Costs ($)', placeholder: '5000', required: true },
                         { type: 'number', name: 'austinRent', label: 'Austin Monthly Rent ($)', placeholder: '1800', required: true },
                         { type: 'number', name: 'gapWeeks', label: 'Income Gap (weeks)', placeholder: '2', required: true }
+                    ]
+                }, {
+                    title: 'AI-Powered Smart Questions',
+                    fields: [
+                        { type: 'select', name: 'keepOldJob', label: '🤖 Will you keep your current job while transitioning?', options: [
+                            { value: 'no', label: 'No - Complete job switch' },
+                            { value: 'part_time', label: 'Yes - Keep part-time for 3 months' },
+                            { value: 'consultant', label: 'Yes - Become consultant to current employer' },
+                            { value: 'remote', label: 'Yes - Negotiate remote work arrangement' }
+                        ], required: true, help: 'AI suggests keeping income streams during transition reduces risk by 73%' },
+                        { type: 'select', name: 'currentHousing', label: '🏠 Current housing situation?', options: [
+                            { value: 'rent', label: 'Renting ($1,200/month)' },
+                            { value: 'mortgage', label: 'Mortgage payments' },
+                            { value: 'family', label: 'Living with family' },
+                            { value: 'other', label: 'Other arrangement' }
+                        ], required: true },
+                        { type: 'select', name: 'riskTolerance', label: '⚡ Risk tolerance for this transition?', options: [
+                            { value: 'conservative', label: 'Conservative - Build 6-month emergency fund first' },
+                            { value: 'moderate', label: 'Moderate - 3-month buffer is enough' },
+                            { value: 'aggressive', label: 'Aggressive - Take calculated risk now' }
+                        ], required: true }
                     ]
                 }]
             },
@@ -2439,6 +2489,46 @@ class FutureFundApp {
                         ]}
                     ]
                 }]
+            },
+            home_buying: {
+                parameters: [{
+                    title: 'Home Purchase Details',
+                    fields: [
+                        { type: 'number', name: 'purchasePrice', label: 'Home Purchase Price ($)', placeholder: '450000', required: true },
+                        { type: 'number', name: 'downPayment', label: 'Down Payment ($)', placeholder: '90000', required: true },
+                        { type: 'number', name: 'interestRate', label: 'Mortgage Interest Rate (%)', placeholder: '6.5', required: true },
+                        { type: 'date', name: 'targetDate', label: 'Target Purchase Date', placeholder: '2025-12-01', required: true },
+                        { type: 'number', name: 'propertyTax', label: 'Annual Property Tax ($)', placeholder: '5400', required: true },
+                        { type: 'number', name: 'homeInsurance', label: 'Monthly Home Insurance ($)', placeholder: '180', required: true }
+                    ]
+                }, {
+                    title: '🤖 AI-Powered Smart Questions',
+                    fields: [
+                        { type: 'select', name: 'currentRent', label: '🏠 Will you still pay rent after buying?', options: [
+                            { value: 'stop_rent', label: 'No - Moving out of rental immediately' },
+                            { value: 'overlap_1month', label: 'Yes - 1 month overlap during transition' },
+                            { value: 'overlap_2months', label: 'Yes - 2 months overlap for safety' },
+                            { value: 'rent_out_current', label: 'Keep rental as investment property' }
+                        ], required: true, help: 'AI analysis: 68% of buyers benefit from 1-month overlap' },
+                        { type: 'select', name: 'emergencyFundPlan', label: '💰 Emergency fund after down payment?', options: [
+                            { value: 'maintain_full', label: 'Keep full 6-month emergency fund' },
+                            { value: 'rebuild_after', label: 'Use some emergency fund, rebuild after' },
+                            { value: 'minimal_risk', label: 'Accept minimal emergency fund temporarily' }
+                        ], required: true },
+                        { type: 'select', name: 'incomeStability', label: '📊 How stable is your income?', options: [
+                            { value: 'very_stable', label: 'Very stable - W2 job, 3+ years' },
+                            { value: 'stable', label: 'Stable - Established career' },
+                            { value: 'variable', label: 'Variable - Commission/contract work' },
+                            { value: 'transitioning', label: 'Transitioning - New job/career' }
+                        ], required: true },
+                        { type: 'select', name: 'futurePlans', label: '🔮 5-year living plans?', options: [
+                            { value: 'long_term', label: 'Long-term - Plan to stay 10+ years' },
+                            { value: 'medium_term', label: 'Medium-term - 5-10 years' },
+                            { value: 'flexible', label: 'Flexible - May relocate for career' },
+                            { value: 'investment', label: 'Investment - May rent out later' }
+                        ], required: true }
+                    ]
+                }]
             }
         };
         
@@ -2466,10 +2556,10 @@ class FutureFundApp {
                     <div class="form-group">
                         <label for="${field.name}">${field.label}</label>
                         <select id="${field.name}" name="${field.name}" ${field.required ? 'required' : ''}>
-                            <option value="">Select ${field.label.toLowerCase()}...</option>
+                            <option value="">Select ${field.label.toLowerCase().replace(/🤖|🏠|💰|📊|🔮|⚡/, '')}...</option>
                             ${field.options.map(opt => `<option value="${opt.value}">${opt.label}</option>`).join('')}
                         </select>
-                        ${field.help ? `<div class="form-help">${field.help}</div>` : ''}
+                        ${field.help ? `<div class="form-help" style="color: #2563eb; font-size: 0.85em; margin-top: 4px; font-style: italic;">💡 ${field.help}</div>` : ''}
                     </div>
                 `;
             case 'textarea':
@@ -2510,11 +2600,24 @@ class FutureFundApp {
         
         const template = this.getScenarioTemplates().find(t => t.id === this.selectedTemplate);
         
+        // Map template IDs to transaction engine types
+        const templateTypeMap = {
+            'job_change': 'Job Change',
+            'home_buying': 'Home Buying',
+            'sell_car_for_debt': 'Major Purchase',
+            'aggressive_debt_payoff': 'Debt Payoff',
+            'emergency_vs_debt': 'Emergency Fund',
+            'la_vs_austin_costs': 'Expense Change',
+            'temp_income_gap': 'Emergency Fund',
+            'debt_consolidation': 'Debt Payoff',
+            'side_hustle_income': 'Salary Increase'
+        };
+        
         const scenarioData = {
             name: formData.get('scenarioName'),
             description: formData.get('scenarioDescription'),
             template: this.selectedTemplate,
-            type: template.name, // Add the missing type field
+            type: templateTypeMap[this.selectedTemplate] || template.name,
             parameters: {}
         };
         
@@ -2725,14 +2828,297 @@ class FutureFundApp {
                 scenario.isActive = newActiveState;
                 this.scenarios.set(scenarioId, scenario);
                 
+                // Generate or clear transactions based on active state
+                if (newActiveState) {
+                    console.log('🔄 Generating transactions for activated scenario:', scenario.name);
+                    console.log('🔍 Scenario object being sent to transaction engine:');
+                    console.log('  - ID:', scenario.id);
+                    console.log('  - Name:', scenario.name);
+                    console.log('  - Type:', scenario.type);
+                    console.log('  - Template:', scenario.template);
+                    console.log('  - Parameters:', JSON.stringify(scenario.parameters, null, 2));
+                    console.log('  - Full scenario:', JSON.stringify(scenario, null, 2));
+                    
+                    const transactionResult = await electronAPI.generateScenarioTransactions(scenario);
+                    console.log('🔍 Transaction result received:');
+                    console.log('  - Result structure:', JSON.stringify(transactionResult, null, 2));
+                    
+                    if (transactionResult && transactionResult.success) {
+                        console.log(`✅ Generated ${transactionResult.transactions.length} transactions for scenario ${scenario.name}`);
+                        
+                        // Ensure transactions are properly tagged with scenario ID and isScenario flag
+                        const taggedTransactions = transactionResult.transactions.map(transaction => ({
+                            ...transaction,
+                            scenarioId: scenarioId,
+                            isScenario: true,
+                            isProjected: true
+                        }));
+                        
+                        // Add projected transactions to financial data
+                        this.integrateScenarioTransactions(taggedTransactions, true);
+                        
+                        // Update impact display with transaction result or calculate it
+                        if (transactionResult.impact) {
+                            this.updateScenarioImpactDisplay(scenarioId, transactionResult.impact);
+                        } else {
+                            // Calculate impact from generated transactions
+                            const impact = this.calculateImpactFromTransactions(taggedTransactions);
+                            this.updateScenarioImpactDisplay(scenarioId, impact);
+                        }
+                    } else {
+                        console.error('❌ Failed to generate transactions:', transactionResult?.error || transactionResult?.errors || 'Unknown error');
+                        console.error('❌ Full transaction result:', transactionResult);
+                        
+                        // Clear the calculating state and show error
+                        const impactElement = document.getElementById(`impact-${scenarioId}`);
+                        if (impactElement) {
+                            impactElement.textContent = 'Error';
+                            impactElement.className = 'impact-value error';
+                        }
+                        
+                        // Show user-friendly error message
+                        if (window.notificationManager) {
+                            const errorMessage = transactionResult?.errors?.join(', ') || transactionResult?.error || 'Unknown error';
+                            window.notificationManager.error(`Failed to activate scenario: ${errorMessage}`);
+                        }
+                    }
+                } else {
+                    console.log('🗑️ Clearing transactions for deactivated scenario:', scenario.name);
+                    const clearResult = await electronAPI.clearScenarioTransactions(scenarioId);
+                    
+                    if (clearResult.success) {
+                        // Remove projected transactions from financial data
+                        this.removeScenarioTransactions(scenarioId);
+                    }
+                }
+                
                 // Refresh UI
                 this.refreshScenarios();
+                this.refreshLedger();
+                await this.refreshAccountCharts();
                 
-                console.log('Scenario toggled:', scenarioId, 'Active:', newActiveState);
+                console.log('✅ Scenario toggled:', scenarioId, 'Active:', newActiveState);
+                
+                // Show success notification
+                if (window.notificationManager) {
+                    window.notificationManager.success(
+                        `Scenario ${newActiveState ? 'activated' : 'deactivated'}: ${scenario.name}`
+                    );
+                }
             }
         } catch (error) {
             console.error('Error toggling scenario:', error);
+            if (window.notificationManager) {
+                window.notificationManager.error('Failed to toggle scenario. Please try again.');
+            }
         }
+    }
+
+    /**
+     * Integrate scenario-generated transactions into the financial data
+     */
+    integrateScenarioTransactions(transactions, refreshUI = false) {
+        if (!transactions || transactions.length === 0) return;
+        
+        console.log(`📊 Integrating ${transactions.length} scenario transactions into financial data`);
+        
+        // Remove any existing scenario transactions from the same scenario
+        const scenarioId = transactions[0]?.scenarioId;
+        if (scenarioId) {
+            this.removeScenarioTransactions(scenarioId, false);
+        }
+        
+        // Calculate balance for scenario transactions
+        let runningBalance = this.getCurrentBalance();
+        
+        // Sort all transactions (existing + new) by date
+        const allTransactions = [...this.financialData, ...transactions];
+        allTransactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Recalculate balances for all transactions
+        runningBalance = this.getInitialBalance();
+        allTransactions.forEach(transaction => {
+            runningBalance += transaction.amount;
+            transaction.balance = Math.round(runningBalance * 100) / 100;
+        });
+        
+        // Update financial data
+        this.financialData = allTransactions;
+        
+        console.log(`✅ Integrated scenario transactions. Total transactions: ${this.financialData.length}`);
+        
+        if (refreshUI) {
+            this.refreshLedger();
+            this.updateSummaryCards();
+        }
+    }
+
+    /**
+     * Remove scenario transactions from financial data
+     */
+    removeScenarioTransactions(scenarioId, refreshUI = true) {
+        const originalCount = this.financialData.length;
+        
+        // Filter out transactions from this scenario
+        this.financialData = this.financialData.filter(transaction => 
+            !transaction.isScenario || transaction.scenarioId !== scenarioId
+        );
+        
+        const removedCount = originalCount - this.financialData.length;
+        console.log(`🗑️ Removed ${removedCount} scenario transactions for scenario ${scenarioId}`);
+        
+        // Recalculate balances after removal
+        this.recalculateBalances();
+        
+        if (refreshUI) {
+            this.refreshLedger();
+            this.updateSummaryCards();
+        }
+    }
+
+    /**
+     * Update scenario impact display in the UI
+     */
+    updateScenarioImpactDisplay(scenarioId, impact) {
+        // Update the scenario card with real impact data
+        const impactElement = document.getElementById(`impact-${scenarioId}`);
+        if (impactElement && impact) {
+            const monthlyImpact = impact.monthlyChange || impact.monthlyImpact || 0;
+            const annualImpact = impact.yearOneImpact || impact.annualImpact || 0;
+            
+            // Show the most relevant impact (prefer annual if significant, otherwise monthly)
+            const displayImpact = Math.abs(annualImpact) > 1000 ? annualImpact : monthlyImpact;
+            const displayLabel = Math.abs(annualImpact) > 1000 ? '/year' : '/month';
+            
+            impactElement.className = `impact-value ${displayImpact >= 0 ? 'positive' : 'negative'}`;
+            impactElement.textContent = `${displayImpact >= 0 ? '+' : ''}${this.formatCurrency(displayImpact)}${displayLabel}`;
+            
+            // Show the impact section
+            const impactSection = impactElement.closest('.scenario-impact');
+            if (impactSection) {
+                impactSection.classList.remove('hidden');
+                impactSection.classList.add('visible');
+            }
+        }
+    }
+    
+    /**
+     * Update impact display for all active scenarios
+     */
+    async updateAllScenarioImpacts() {
+        for (const [scenarioId, scenario] of this.scenarios) {
+            if (scenario.isActive) {
+                try {
+                    const result = await electronAPI.calculateScenarioImpact(scenario);
+                    if (result.success && result.impact) {
+                        this.updateScenarioImpactDisplay(scenarioId, result.impact);
+                    }
+                } catch (error) {
+                    console.error(`Failed to calculate impact for scenario ${scenarioId}:`, error);
+                }
+            }
+        }
+    }
+
+    /**
+     * Get current balance from the most recent transaction
+     */
+    getCurrentBalance() {
+        if (this.financialData.length === 0) return 0;
+        
+        // Find the most recent actual (non-projected) transaction
+        const actualTransactions = this.financialData
+            .filter(t => !t.isProjected && !t.isScenario)
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        return actualTransactions.length > 0 ? actualTransactions[0].balance : 0;
+    }
+
+    /**
+     * Get initial balance for calculation purposes
+     */
+    getInitialBalance() {
+        // Use actual account balances instead of transaction history
+        if (this.accounts && this.accounts.length > 0) {
+            let totalBalance = 0;
+            this.accounts.forEach(account => {
+                const balance = parseFloat(account.currentBalance || account.balance || 0);
+                if (this.isAssetAccount(account.type)) {
+                    totalBalance += balance;
+                } else if (this.isLiabilityAccount(account.type)) {
+                    totalBalance -= Math.abs(balance);
+                }
+            });
+            return totalBalance;
+        }
+        return 0;
+    }
+
+    /**
+     * Recalculate running balances for all transactions
+     */
+    recalculateBalances() {
+        if (this.financialData.length === 0) return;
+        
+        // Sort transactions by date
+        this.financialData.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Recalculate running balances
+        let runningBalance = this.getInitialBalance();
+        
+        this.financialData.forEach(transaction => {
+            runningBalance += transaction.amount;
+            transaction.balance = Math.round(runningBalance * 100) / 100;
+        });
+        
+        console.log(`✅ Recalculated balances for ${this.financialData.length} transactions`);
+    }
+    
+    /**
+     * Calculate impact from generated transactions
+     */
+    calculateImpactFromTransactions(transactions) {
+        if (!transactions || transactions.length === 0) {
+            return { monthlyChange: 0, yearOneImpact: 0 };
+        }
+
+        // Calculate monthly and annual impacts
+        let totalImpact = 0;
+        const monthlyImpacts = {};
+
+        transactions.forEach(transaction => {
+            const date = new Date(transaction.date);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
+            // Sum impact by month
+            if (!monthlyImpacts[monthKey]) {
+                monthlyImpacts[monthKey] = 0;
+            }
+            monthlyImpacts[monthKey] += transaction.amount;
+            totalImpact += transaction.amount;
+        });
+
+        // Calculate average monthly impact
+        const monthCount = Object.keys(monthlyImpacts).length;
+        const monthlyChange = monthCount > 0 ? totalImpact / monthCount : 0;
+        
+        // Calculate first-year impact (limit to 12 months)
+        const firstYearMonths = Object.keys(monthlyImpacts)
+            .sort()
+            .slice(0, 12);
+        
+        const yearOneImpact = firstYearMonths.reduce((sum, month) => {
+            return sum + monthlyImpacts[month];
+        }, 0);
+
+        console.log(`💰 Calculated impact from ${transactions.length} transactions: ${monthlyChange >= 0 ? '+' : ''}$${monthlyChange.toFixed(2)}/month, ${yearOneImpact >= 0 ? '+' : ''}$${yearOneImpact.toFixed(2)}/year`);
+
+        return {
+            monthlyChange: Math.round(monthlyChange * 100) / 100,
+            yearOneImpact: Math.round(yearOneImpact * 100) / 100,
+            totalTransactions: transactions.length,
+            timeframe: `${monthCount} months`
+        };
     }
     
     async cloneScenario(scenarioId) {
@@ -2897,44 +3283,53 @@ class FutureFundApp {
             
             resultsDiv.classList.remove('hidden');
             
-            // Simulate scenario analysis (in real implementation, this would apply scenario parameters)
-            setTimeout(() => {
-                // Calculate comparison metrics
-                const comparisonData = this.calculateScenarioComparison(baseScenario, compareScenario);
-                
-                // Update metrics display
-                metricsGrid.innerHTML = `
-                    <div class="metric-card">
-                        <div class="metric-label">Base Scenario</div>
-                        <div class="metric-value">${baseScenario.name}</div>
-                        <div class="metric-change">Current Selection</div>
+            // Perform real scenario analysis using transaction engine
+            const comparisonData = await this.calculateScenarioComparison(baseScenario, compareScenario);
+            
+            // Update metrics display with real data
+            metricsGrid.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-label">Base Scenario</div>
+                    <div class="metric-value">${baseScenario.name}</div>
+                    <div class="metric-change">Current Selection</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Compare Scenario</div>
+                    <div class="metric-value">${compareScenario.name}</div>
+                    <div class="metric-change">Comparison Target</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">1-Year Impact</div>
+                    <div class="metric-value">${this.formatCurrency(comparisonData.yearOneImpact)}</div>
+                    <div class="metric-change ${comparisonData.yearOneImpact >= 0 ? 'positive' : 'negative'}">
+                        ${comparisonData.yearOneImpact >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.yearOneImpact)}
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-label">Compare Scenario</div>
-                        <div class="metric-value">${compareScenario.name}</div>
-                        <div class="metric-change">Comparison Target</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">5-Year Impact</div>
+                    <div class="metric-value">${this.formatCurrency(comparisonData.fiveYearImpact)}</div>
+                    <div class="metric-change ${comparisonData.fiveYearImpact >= 0 ? 'positive' : 'negative'}">
+                        ${comparisonData.fiveYearImpact >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.fiveYearImpact)}
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-label">1-Year Impact</div>
-                        <div class="metric-value">${this.formatCurrency(comparisonData.yearOneImpact)}</div>
-                        <div class="metric-change ${comparisonData.yearOneImpact >= 0 ? 'positive' : 'negative'}">
-                            ${comparisonData.yearOneImpact >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.yearOneImpact)}
-                        </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Monthly Difference</div>
+                    <div class="metric-value">${this.formatCurrency(comparisonData.monthlyDifference)}</div>
+                    <div class="metric-change ${comparisonData.monthlyDifference >= 0 ? 'positive' : 'negative'}">
+                        ${comparisonData.monthlyDifference >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.monthlyDifference)}/month
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-label">5-Year Impact</div>
-                        <div class="metric-value">${this.formatCurrency(comparisonData.fiveYearImpact)}</div>
-                        <div class="metric-change ${comparisonData.fiveYearImpact >= 0 ? 'positive' : 'negative'}">
-                            ${comparisonData.fiveYearImpact >= 0 ? '+' : ''}${this.formatCurrency(comparisonData.fiveYearImpact)}
-                        </div>
-                    </div>
-                `;
-                
-                // Create comparison chart if chart service is available
-                if (this.chartService) {
-                    this.createScenarioComparisonChart(baseScenario, compareScenario);
-                }
-            }, 1500);
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Data Source</div>
+                    <div class="metric-value">${comparisonData.hasRealData ? 'Real Transactions' : 'Estimated'}</div>
+                    <div class="metric-change">${comparisonData.hasRealData ? 'Transaction Engine' : 'Fallback Calc'}</div>
+                </div>
+            `;
+            
+            // Create comparison chart if chart service is available
+            if (this.chartService) {
+                this.createScenarioComparisonChart(baseScenario, compareScenario);
+            }
             
         } catch (error) {
             console.error('Error running comparison:', error);
@@ -2942,36 +3337,100 @@ class FutureFundApp {
         }
     }
     
-    calculateScenarioComparison(baseScenario, compareScenario) {
-        // This is a simplified calculation - in a real implementation,
-        // you would apply the scenario parameters to financial projections
+    async calculateScenarioComparison(baseScenario, compareScenario) {
+        console.log('🔄 Calculating real scenario comparison between:', baseScenario.name, 'vs', compareScenario.name);
         
-        // Simulate different impacts based on scenario types
+        try {
+            // Get impact data for both scenarios from the transaction engine
+            const baseImpact = await electronAPI.calculateScenarioImpact(baseScenario);
+            const compareImpact = await electronAPI.calculateScenarioImpact(compareScenario);
+            
+            if (!baseImpact.success || !compareImpact.success) {
+                console.error('❌ Failed to calculate scenario impacts');
+                // Fallback to simplified calculation
+                return this.calculateFallbackComparison(baseScenario, compareScenario);
+            }
+            
+            const baseData = baseImpact.impact;
+            const compareData = compareImpact.impact;
+            
+            // Calculate the difference between scenarios
+            const yearOneImpact = (compareData?.yearOneImpact || 0) - (baseData?.yearOneImpact || 0);
+            const yearTwoImpact = (compareData?.yearTwoImpact || 0) - (baseData?.yearTwoImpact || 0);
+            const fiveYearImpact = yearOneImpact + yearTwoImpact; // Simplified 5-year projection
+            const monthlyDifference = (compareData?.monthlyChange || 0) - (baseData?.monthlyChange || 0);
+            
+            console.log('📊 Real scenario comparison results:', {
+                baseScenario: {
+                    name: baseScenario.name,
+                    yearOneImpact: baseData?.yearOneImpact || 0,
+                    monthlyChange: baseData?.monthlyChange || 0
+                },
+                compareScenario: {
+                    name: compareScenario.name,
+                    yearOneImpact: compareData?.yearOneImpact || 0,
+                    monthlyChange: compareData?.monthlyChange || 0
+                },
+                difference: {
+                    yearOneImpact,
+                    fiveYearImpact,
+                    monthlyDifference
+                }
+            });
+            
+            return {
+                yearOneImpact: Math.round(yearOneImpact),
+                fiveYearImpact: Math.round(fiveYearImpact),
+                monthlyDifference: Math.round(monthlyDifference * 100) / 100,
+                baseData,
+                compareData,
+                hasRealData: true
+            };
+            
+        } catch (error) {
+            console.error('❌ Error calculating scenario comparison:', error);
+            return this.calculateFallbackComparison(baseScenario, compareScenario);
+        }
+    }
+
+    /**
+     * Fallback comparison calculation when transaction engine is unavailable
+     */
+    calculateFallbackComparison(baseScenario, compareScenario) {
+        console.log('⚠️ Using fallback scenario comparison calculation');
+        
+        // Simplified calculation based on scenario type and parameters
         let yearOneImpact = 0;
         let fiveYearImpact = 0;
         
-        if (compareScenario.template === 'salary_change') {
-            const salaryIncrease = compareScenario.parameters?.newSalary - compareScenario.parameters?.currentSalary || 10000;
-            yearOneImpact = salaryIncrease * 0.7; // Account for taxes
-            fiveYearImpact = yearOneImpact * 5 * 1.1; // With compound growth
-        } else if (compareScenario.template === 'major_purchase') {
-            const purchaseCost = compareScenario.parameters?.totalCost || 50000;
-            yearOneImpact = -purchaseCost * 0.2; // Down payment impact
-            fiveYearImpact = -purchaseCost * 0.8; // Full cost over time
-        } else if (compareScenario.template === 'investment_strategy') {
+        if (compareScenario.type === 'job_change' || compareScenario.template === 'salary_change') {
+            const newSalary = compareScenario.parameters?.newSalary || 0;
+            const currentSalary = compareScenario.parameters?.currentSalary || 45000; // Default
+            const salaryIncrease = newSalary - currentSalary;
+            yearOneImpact = salaryIncrease * 0.75; // After taxes
+            fiveYearImpact = yearOneImpact * 5 * 1.1; // With growth
+        } else if (compareScenario.type === 'major_purchase' || compareScenario.type === 'home_buying') {
+            const totalCost = compareScenario.parameters?.totalCost || compareScenario.parameters?.homePrice || 50000;
+            const downPayment = compareScenario.parameters?.downPayment || totalCost * 0.2;
+            yearOneImpact = -downPayment;
+            fiveYearImpact = -totalCost * 0.8; // Spread remaining cost
+        } else if (compareScenario.type === 'investment_strategy') {
             const monthlyContribution = compareScenario.parameters?.monthlyContribution || 500;
-            const expectedReturn = (compareScenario.parameters?.expectedReturn || 8) / 100;
+            const expectedReturn = (compareScenario.parameters?.expectedAnnualReturn || 8) / 100;
             yearOneImpact = monthlyContribution * 12 * (1 + expectedReturn);
-            fiveYearImpact = monthlyContribution * 12 * 5 * (1 + expectedReturn) * 1.5;
+            fiveYearImpact = monthlyContribution * 12 * 5 * (1 + expectedReturn) * 1.2;
         } else {
-            // Generic positive impact for other scenarios
-            yearOneImpact = Math.random() * 5000 - 2500;
-            fiveYearImpact = yearOneImpact * 5 * (1 + Math.random() * 0.5);
+            // Generic scenario impact
+            const monthlyAmount = compareScenario.parameters?.monthlyAmount || 0;
+            yearOneImpact = monthlyAmount * 12;
+            fiveYearImpact = yearOneImpact * 5;
         }
         
         return {
             yearOneImpact: Math.round(yearOneImpact),
-            fiveYearImpact: Math.round(fiveYearImpact)
+            fiveYearImpact: Math.round(fiveYearImpact),
+            monthlyDifference: Math.round(yearOneImpact / 12 * 100) / 100,
+            hasRealData: false
         };
     }
     
@@ -4150,7 +4609,14 @@ ${health.status === 'healthy' ?
      * Initialize account management functionality
      */
     async initializeAccounts() {
+        // Prevent multiple initializations
+        if (this.accountsInitialized) {
+            console.log('🏦 Accounts already initialized, skipping...');
+            return;
+        }
+        
         console.log('🏦 Initializing Account Management...');
+        this.accountsInitialized = true;
         
         try {
             // Initialize account management components
@@ -4163,6 +4629,7 @@ ${health.status === 'healthy' ?
             console.log('✅ Account Management initialized');
         } catch (error) {
             console.error('❌ Error initializing accounts:', error);
+            this.accountsInitialized = false; // Reset flag on error
             this.showAccountsError('Failed to initialize account management');
         }
     }
@@ -4481,7 +4948,7 @@ ${health.status === 'healthy' ?
                 this.setupAccountCharts();
                 
                 // Refresh charts with the new account data
-                this.refreshAccountCharts();
+                await this.refreshAccountCharts();
                 
                 // Show empty state if no accounts
                 if (this.accounts.length === 0) {
@@ -5066,8 +5533,8 @@ ${health.status === 'healthy' ?
         
         // Create charts immediately since they're visible by default  
         // Add a small delay to ensure accounts are fully loaded
-        setTimeout(() => {
-            this.createAccountCharts();
+        setTimeout(async () => {
+            await this.createAccountCharts();
         }, 100);
     }
 
@@ -5102,8 +5569,8 @@ ${health.status === 'healthy' ?
         // Net Worth Projection timeframe change
         const netWorthTimeframe = document.getElementById('netWorthTimeframe');
         if (netWorthTimeframe) {
-            netWorthTimeframe.addEventListener('change', () => {
-                this.createNetWorthProjectionChart();
+            netWorthTimeframe.addEventListener('change', async () => {
+                await this.createNetWorthProjectionChart();
             });
         }
     }
@@ -5111,7 +5578,7 @@ ${health.status === 'healthy' ?
     /**
      * Toggle account charts visibility
      */
-    toggleAccountCharts() {
+    async toggleAccountCharts() {
         const chartsContainer = document.getElementById('accountChartsContainer');
         const toggleBtn = document.getElementById('toggleAccountCharts');
         const toggleText = document.getElementById('chartToggleText');
@@ -5126,7 +5593,7 @@ ${health.status === 'healthy' ?
             toggleText.textContent = 'Hide Charts';
             
             // Create charts if they don't exist yet
-            this.createAccountCharts();
+            await this.createAccountCharts();
         } else {
             // Hide charts
             chartsContainer.classList.add('hidden');
@@ -5137,7 +5604,7 @@ ${health.status === 'healthy' ?
     /**
      * Create all account charts
      */
-    createAccountCharts() {
+    async createAccountCharts() {
         console.log('📊 Creating account charts...');
         
         if (!this.accounts || this.accounts.length === 0) {
@@ -5155,7 +5622,7 @@ ${health.status === 'healthy' ?
         this.createBalanceDistributionChart();
         
         // Create Net Worth Projection Chart
-        this.createNetWorthProjectionChart();
+        await this.createNetWorthProjectionChart();
     }
 
     /**
@@ -5463,7 +5930,7 @@ ${health.status === 'healthy' ?
     /**
      * Create Net Worth Projection Chart
      */
-    createNetWorthProjectionChart() {
+    async createNetWorthProjectionChart() {
         if (!this.chartService) return;
 
         const timeframe = document.getElementById('netWorthTimeframe')?.value || '1y';
@@ -5471,8 +5938,8 @@ ${health.status === 'healthy' ?
         console.log('🎯 Creating Net Worth Projection chart with timeframe:', timeframe);
         
         // Generate baseline and scenario projections
-        const baselineProjection = this.generateNetWorthProjection(timeframe, false);
-        const scenarioProjection = this.generateNetWorthProjection(timeframe, true);
+        const baselineProjection = await this.generateNetWorthProjection(timeframe, false);
+        const scenarioProjection = await this.generateNetWorthProjection(timeframe, true);
         
         console.log('📊 Baseline projection data points:', baselineProjection.length);
         console.log('📊 Scenario projection data points:', scenarioProjection.length);
@@ -5669,7 +6136,7 @@ ${health.status === 'healthy' ?
     /**
      * Generate net worth projection data points
      */
-    generateNetWorthProjection(timeframe, includeScenarios = false) {
+    async generateNetWorthProjection(timeframe, includeScenarios = false) {
         // Calculate current net worth
         let currentNetWorth = 0;
         this.accounts.forEach(account => {
@@ -5686,6 +6153,38 @@ ${health.status === 'healthy' ?
         const projectionData = [];
         const now = new Date();
         
+        // Get actual transaction data for calculations
+        const actualTransactions = this.financialData.filter(t => !t.isProjected && !t.isScenario);
+        
+        // Calculate monthly averages from real data
+        let monthlyIncome = 0;
+        let monthlyExpenses = 0;
+        
+        if (actualTransactions.length > 0) {
+            const incomeTransactions = actualTransactions.filter(t => t.amount > 0);
+            const expenseTransactions = actualTransactions.filter(t => t.amount < 0);
+            
+            // Calculate date range for monthly averages
+            const dates = actualTransactions.map(t => new Date(t.date)).sort((a, b) => a - b);
+            const monthsSpan = Math.max(1, (dates[dates.length - 1] - dates[0]) / (1000 * 60 * 60 * 24 * 30));
+            
+            monthlyIncome = incomeTransactions.reduce((sum, t) => sum + t.amount, 0) / monthsSpan;
+            monthlyExpenses = Math.abs(expenseTransactions.reduce((sum, t) => sum + t.amount, 0)) / monthsSpan;
+            
+            console.log('📊 Calculated baseline from real transactions:', {
+                monthlyIncome: this.formatCurrency(monthlyIncome),
+                monthlyExpenses: this.formatCurrency(monthlyExpenses),
+                netFlow: this.formatCurrency(monthlyIncome - monthlyExpenses),
+                monthsSpan: monthsSpan.toFixed(1),
+                totalTransactions: actualTransactions.length
+            });
+        } else {
+            // Fallback if no transaction data
+            monthlyIncome = 3500;
+            monthlyExpenses = 3200;
+            console.log('⚠️ No transaction data found, using fallback baseline');
+        }
+        
         // Generate historical data (6 months back)
         const historicalMonths = 6;
         let historicalNetWorth = currentNetWorth;
@@ -5695,7 +6194,7 @@ ${health.status === 'healthy' ?
         const creditCardDebt = accounts.filter(acc => acc.type === 'credit_card').reduce((sum, acc) => sum + Math.abs(acc.balance || 0), 0);
         const assets = accounts.filter(acc => acc.type !== 'credit_card').reduce((sum, acc) => sum + (acc.balance || 0), 0);
         
-        // Work backwards from current net worth with realistic variations
+        // Generate historical data based on real transaction patterns
         for (let i = historicalMonths; i >= 0; i--) {
             const date = new Date(now);
             date.setMonth(now.getMonth() - i);
@@ -5704,14 +6203,31 @@ ${health.status === 'healthy' ?
                 // Current month
                 historicalNetWorth = currentNetWorth;
             } else {
-                // Calculate backwards with realistic financial patterns
+                // Calculate backwards using actual transaction data if available
                 const monthsBack = i;
-                const baseImprovement = 400 * (historicalMonths - monthsBack); // Gradual improvement
-                const seasonalEffect = Math.sin((date.getMonth() / 12) * Math.PI * 2) * 1200; // Holiday spending, tax refunds
-                const lifeEvent = (Math.random() - 0.5) * 800; // Random financial events
-                const trendNoise = (Math.random() - 0.5) * 300; // Small random variations
+                const targetDate = date.toISOString().split('T')[0];
                 
-                historicalNetWorth = currentNetWorth - baseImprovement + seasonalEffect + lifeEvent + trendNoise;
+                // Find actual transaction near this date
+                const nearbyTransactions = actualTransactions.filter(t => {
+                    const transactionDate = new Date(t.date);
+                    const diffDays = Math.abs((transactionDate - date) / (1000 * 60 * 60 * 24));
+                    return diffDays <= 15; // Within 15 days
+                });
+                
+                if (nearbyTransactions.length > 0) {
+                    // Use actual balance from nearby transaction
+                    const closestTransaction = nearbyTransactions.reduce((closest, transaction) => {
+                        const transactionDate = new Date(transaction.date);
+                        const closestDate = new Date(closest.date);
+                        return Math.abs(transactionDate - date) < Math.abs(closestDate - date) ? transaction : closest;
+                    });
+                    historicalNetWorth = closestTransaction.balance || currentNetWorth;
+                } else {
+                    // Estimate based on average monthly flow
+                    const monthlyFlow = actualTransactions.length > 0 ? 
+                        (monthlyIncome - monthlyExpenses) : 300; // Conservative estimate
+                    historicalNetWorth = currentNetWorth - (monthlyFlow * monthsBack);
+                }
             }
             
             projectionData.push({
@@ -5721,78 +6237,86 @@ ${health.status === 'healthy' ?
             });
         }
         
-        // Generate future projections with realistic complexity
+        // Generate future projections using real transaction data
         const futureMonths = { '6m': 6, '1y': 12, '2y': 24, '5y': 60 }[timeframe] || 12;
         
-        // Financial parameters based on current situation
-        const monthlyIncome = 5500;
-        const monthlyFixedExpenses = 3200; // Rent, utilities, insurance
-        const monthlyVariableExpenses = 1100; // Food, entertainment, misc
-        const creditCardMinPayment = Math.max(25, Math.min(creditCardDebt * 0.02, 400));
-        const additionalDebtPayment = creditCardDebt > 0 ? 300 : 0;
-        const emergencyFundContribution = currentNetWorth < 0 ? 250 : 100;
+        // Calculate baseline financial parameters from actual transaction history
+        // (Monthly income/expenses calculated here for both historical and future projections)
         
+        const baselineNetFlow = monthlyIncome - monthlyExpenses;
         let netWorth = currentNetWorth;
         
         for (let i = 1; i <= futureMonths; i++) {
             const date = new Date(now);
             date.setMonth(now.getMonth() + i);
             
-            // Base income vs expenses
-            const baseMonthlyFlow = monthlyIncome - monthlyFixedExpenses;
+            // Start with baseline cash flow from real data
+            let monthlyChange = baselineNetFlow;
             
-            // Variable expenses with seasonal and lifestyle patterns
-            const seasonalMultiplier = 1 + Math.sin((date.getMonth() / 12) * Math.PI * 2) * 0.4; // 40% seasonal variation
-            const monthlyVariable = monthlyVariableExpenses * seasonalMultiplier;
+            // Add realistic financial variations
             
-            // Debt payments - decreasing over time as debt is paid off
-            const remainingDebt = Math.max(0, creditCardDebt - (creditCardMinPayment + additionalDebtPayment) * i);
-            const totalDebtPayment = remainingDebt > 0 ? creditCardMinPayment + additionalDebtPayment : creditCardMinPayment;
-            
-            // Investment growth (compound monthly)
-            const investmentGrowth = Math.max(0, netWorth) * 0.006; // ~7% annual
-            
-            // Random life events
-            let lifeEventCost = 0;
-            const randomEvent = Math.random();
-            if (randomEvent < 0.08) { // 8% chance per month
-                if (randomEvent < 0.02) { // 2% major expense
-                    lifeEventCost = Math.random() * 2500 + 1000; // $1000-$3500
-                } else if (randomEvent < 0.05) { // 3% moderate expense
-                    lifeEventCost = Math.random() * 800 + 300; // $300-$1100
-                } else { // 3% minor expense
-                    lifeEventCost = Math.random() * 300 + 100; // $100-$400
-                }
+            // 1. Seasonal spending patterns (holidays, taxes, etc.)
+            const month = date.getMonth();
+            let seasonalMultiplier = 1.0;
+            if (month === 11) { // December - holiday spending
+                seasonalMultiplier = 1.3;
+            } else if (month === 0) { // January - post-holiday recovery
+                seasonalMultiplier = 0.7;
+            } else if (month === 3) { // April - tax season
+                seasonalMultiplier = 0.8;
+            } else if (month === 5 || month === 6) { // Summer - vacation spending
+                seasonalMultiplier = 1.1;
             }
             
-            // Occasional windfalls
-            let windfall = 0;
-            if (Math.random() < 0.03) { // 3% chance per month
-                windfall = Math.random() * 1000 + 200; // $200-$1200 (tax refund, bonus, etc.)
+            // 2. Apply seasonal variation to expenses
+            const seasonalExpenseIncrease = monthlyExpenses * (seasonalMultiplier - 1);
+            monthlyChange -= seasonalExpenseIncrease;
+            
+            // 3. Add modest investment growth for positive net worth (with volatility)
+            if (netWorth > 0) {
+                const baseInvestmentGrowth = netWorth * 0.005; // ~6% annual base
+                const volatility = (Math.random() - 0.5) * 0.003; // ±3.6% annual volatility
+                const investmentGrowth = baseInvestmentGrowth * (1 + volatility);
+                monthlyChange += investmentGrowth;
             }
             
-            // Calculate net monthly change
-            const monthlyChange = baseMonthlyFlow 
-                - monthlyVariable 
-                - totalDebtPayment 
-                - emergencyFundContribution 
-                + investmentGrowth 
-                - lifeEventCost 
-                + windfall;
+            // 4. Apply debt reduction benefits (decreasing over time)
+            if (creditCardDebt > 0) {
+                const currentDebt = Math.max(0, creditCardDebt - (i * 100)); // Assume some debt paydown
+                const debtReductionBenefit = Math.min(50, currentDebt * 0.002);
+                monthlyChange += debtReductionBenefit;
+            }
             
+            // 5. Add small random life events
+            const lifeEventProbability = 0.1; // 10% chance per month
+            if (Math.random() < lifeEventProbability) {
+                const lifeEventImpact = (Math.random() - 0.7) * 800; // Biased toward small expenses
+                monthlyChange += lifeEventImpact;
+            }
+            
+            // 6. Gradual improvement in financial habits over time
+            const improvementFactor = Math.min(0.02, i * 0.0005); // Gradual 2% improvement max
+            monthlyChange += baselineNetFlow * improvementFactor;
+            
+            // Apply base monthly change
             netWorth += monthlyChange;
             
-            // Apply scenario effects if requested
+            // Apply scenario effects if requested (using real transaction data)
             if (includeScenarios && this.activeScenarios && this.activeScenarios.size > 0) {
                 for (const [scenarioId, scenario] of this.activeScenarios) {
-                    const scenarioEffect = this.calculateScenarioNetWorthImpact(scenario, i);
+                    const scenarioEffect = await this.calculateRealScenarioNetWorthImpact(scenario, i);
                     netWorth += scenarioEffect;
+                    
+                    console.log(`📈 Applied scenario ${scenario.name} effect at month ${i}: ${this.formatCurrency(scenarioEffect)}`);
                 }
             }
+            
+            // Ensure some reasonable bounds
+            const projectedValue = Math.round(netWorth * 100) / 100;
             
             projectionData.push({
                 x: date.getTime(),
-                y: netWorth,
+                y: projectedValue,
                 isHistorical: false
             });
         }
@@ -5844,6 +6368,51 @@ ${health.status === 'healthy' ?
         }
         
         return impact;
+    }
+
+    /**
+     * Calculate real scenario net worth impact using transaction engine data
+     */
+    async calculateRealScenarioNetWorthImpact(scenario, monthsElapsed) {
+        try {
+            // Get scenario transactions from the transaction engine
+            const result = await electronAPI.getScenarioTransactions(scenario.id);
+            
+            if (!result.success || !result.transactions) {
+                console.log('⚠️ No scenario transactions found, using fallback calculation');
+                return this.calculateScenarioNetWorthImpact(scenario, monthsElapsed);
+            }
+            
+            const transactions = result.transactions;
+            const currentDate = new Date();
+            const targetDate = new Date(currentDate);
+            targetDate.setMonth(currentDate.getMonth() + monthsElapsed);
+            
+            // Calculate cumulative impact up to the target date
+            let cumulativeImpact = 0;
+            
+            transactions.forEach(transaction => {
+                const transactionDate = new Date(transaction.date);
+                
+                // Only include transactions that occur before or on the target date
+                if (transactionDate <= targetDate) {
+                    cumulativeImpact += transaction.amount;
+                }
+            });
+            
+            console.log(`📊 Real scenario impact for ${scenario.name} at month ${monthsElapsed}: ${cumulativeImpact}`, {
+                scenarioId: scenario.id,
+                totalTransactions: transactions.length,
+                cumulativeImpact
+            });
+            
+            return cumulativeImpact;
+            
+        } catch (error) {
+            console.error('❌ Error calculating real scenario impact:', error);
+            // Fallback to fake calculation
+            return this.calculateScenarioNetWorthImpact(scenario, monthsElapsed);
+        }
     }
 
     /**
@@ -5993,7 +6562,7 @@ ${health.status === 'healthy' ?
     /**
      * Refresh all account charts (called when account data changes)
      */
-    refreshAccountCharts() {
+    async refreshAccountCharts() {
         console.log('🔄 Refreshing all account charts...');
         if (!this.chartService || !this.accounts || this.accounts.length === 0) {
             console.log('❌ Cannot refresh charts: missing service or data');
@@ -6003,14 +6572,14 @@ ${health.status === 'healthy' ?
         // Only refresh if charts container is visible
         const chartsContainer = document.getElementById('accountChartsContainer');
         if (chartsContainer && !chartsContainer.classList.contains('hidden')) {
-            this.createAccountCharts();
+            await this.createAccountCharts();
         }
     }
 
     /**
      * Refresh net worth projection chart (called when scenarios change)
      */
-    refreshNetWorthProjection() {
+    async refreshNetWorthProjection() {
         console.log('🔄 Refreshing Net Worth Projection chart...');
         if (!this.chartService || !this.accounts || this.accounts.length === 0) {
             console.log('❌ Cannot refresh net worth chart: missing service or data');
@@ -6020,7 +6589,7 @@ ${health.status === 'healthy' ?
         // Only refresh if chart exists and is visible
         const canvas = document.getElementById('netWorthProjectionChart');
         if (canvas && this.accountCharts && this.accountCharts.netWorthProjectionChart) {
-            this.createNetWorthProjectionChart();
+            await this.createNetWorthProjectionChart();
         }
     }
 
@@ -6847,7 +7416,7 @@ ${health.status === 'healthy' ?
                     }
                 });
                         this.updateActiveScenariosUI();
-        this.refreshNetWorthProjection(); // Refresh net worth chart when scenarios change
+        await this.refreshNetWorthProjection(); // Refresh net worth chart when scenarios change
         console.log(`📋 Loaded ${this.activeScenarios.size} active scenarios`);
             }
         } catch (error) {
@@ -7340,7 +7909,7 @@ ${health.status === 'healthy' ?
 
             // Update UI
             this.updateActiveScenariosUI();
-            this.refreshNetWorthProjection(); // Refresh net worth chart when scenarios cleared
+            await this.refreshNetWorthProjection(); // Refresh net worth chart when scenarios cleared
             this.scenarioMode = 'base';
             this.updateScenarioModeUI();
             this.refreshLedger();

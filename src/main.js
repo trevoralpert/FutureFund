@@ -14,7 +14,11 @@ const { AccountDAO } = require('./database/account-dao');
 const { UserProfileDAO } = require('./database/user-profile-dao');
 const { MigrationManager } = require('./database/migration-v2');
 
+// Scenario Transaction Engine
+const ScenarioTransactionEngine = require('./workflows/scenario-transaction-engine');
+
 let mainWindow;
+let transactionEngine;
 
 function createWindow() {
   // Create the browser window
@@ -84,6 +88,15 @@ app.whenReady().then(async () => {
       console.error('❌ Database initialization failed:', error);
       // Continue with app startup even if database fails
     }
+  }
+  
+  // Initialize scenario transaction engine
+  try {
+    console.log('🔧 Initializing Scenario Transaction Engine...');
+    transactionEngine = new ScenarioTransactionEngine();
+    console.log('✅ Scenario Transaction Engine initialized');
+  } catch (error) {
+    console.error('❌ Scenario Transaction Engine initialization failed:', error);
   }
   
   // Environment-specific optimizations
@@ -692,6 +705,115 @@ ipcMain.handle('validate-scenario-parameters', async (event, type, parameters) =
     return { success: true, validation };
   } catch (error) {
     console.error('Error validating scenario parameters:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Scenario Transaction Engine handlers
+ipcMain.handle('generate-scenario-transactions', async (event, scenario) => {
+  try {
+    console.log('🔄 Generating transactions for scenario:', scenario.name);
+    
+    if (!transactionEngine) {
+      return { success: false, error: 'Transaction engine not initialized' };
+    }
+    
+    const result = transactionEngine.generateTransactionsForScenario(scenario);
+    return result;
+  } catch (error) {
+    console.error('Error generating scenario transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-scenario-transactions', async (event, scenarioId) => {
+  try {
+    if (!transactionEngine) {
+      return { success: false, error: 'Transaction engine not initialized' };
+    }
+    
+    const transactions = transactionEngine.getTransactionsForScenario(scenarioId);
+    const impact = transactionEngine.getImpactForScenario(scenarioId);
+    
+    return { 
+      success: true, 
+      transactions, 
+      impact,
+      totalTransactions: transactions.length 
+    };
+  } catch (error) {
+    console.error('Error getting scenario transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-all-scenario-transactions', async (event, scenarioIds) => {
+  try {
+    if (!transactionEngine) {
+      return { success: false, error: 'Transaction engine not initialized' };
+    }
+    
+    const transactions = transactionEngine.getTransactionsForScenarios(scenarioIds);
+    const summary = transactionEngine.getSummaryStats();
+    
+    return { 
+      success: true, 
+      transactions, 
+      summary
+    };
+  } catch (error) {
+    console.error('Error getting all scenario transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('calculate-scenario-impact', async (event, scenario) => {
+  try {
+    if (!transactionEngine) {
+      return { success: false, error: 'Transaction engine not initialized' };
+    }
+    
+    // Generate transactions first if they don't exist
+    const existingTransactions = transactionEngine.getTransactionsForScenario(scenario.id);
+    if (existingTransactions.length === 0) {
+      const generationResult = transactionEngine.generateTransactionsForScenario(scenario);
+      if (!generationResult.success) {
+        return generationResult;
+      }
+    }
+    
+    const impact = transactionEngine.getImpactForScenario(scenario.id);
+    return { success: true, impact };
+  } catch (error) {
+    console.error('Error calculating scenario impact:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('clear-scenario-transactions', async (event, scenarioId) => {
+  try {
+    if (!transactionEngine) {
+      return { success: false, error: 'Transaction engine not initialized' };
+    }
+    
+    transactionEngine.clearTransactionsForScenario(scenarioId);
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing scenario transactions:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('clear-all-scenario-transactions', async () => {
+  try {
+    if (!transactionEngine) {
+      return { success: false, error: 'Transaction engine not initialized' };
+    }
+    
+    transactionEngine.clearAllTransactions();
+    return { success: true };
+  } catch (error) {
+    console.error('Error clearing all scenario transactions:', error);
     return { success: false, error: error.message };
   }
 });

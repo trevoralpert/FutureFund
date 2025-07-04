@@ -30,6 +30,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getScenarioTemplates: () => ipcRenderer.invoke('get-scenario-templates'),
   validateScenarioParameters: (type, parameters) => ipcRenderer.invoke('validate-scenario-parameters', type, parameters),
   
+  // Scenario transaction engine
+  generateScenarioTransactions: (scenario) => ipcRenderer.invoke('generate-scenario-transactions', scenario),
+  getScenarioTransactions: (scenarioId) => ipcRenderer.invoke('get-scenario-transactions', scenarioId),
+  getAllScenarioTransactions: (scenarioIds) => ipcRenderer.invoke('get-all-scenario-transactions', scenarioIds),
+  calculateScenarioImpact: (scenario) => ipcRenderer.invoke('calculate-scenario-impact', scenario),
+  clearScenarioTransactions: (scenarioId) => ipcRenderer.invoke('clear-scenario-transactions', scenarioId),
+  clearAllScenarioTransactions: () => ipcRenderer.invoke('clear-all-scenario-transactions'),
+  
   // AI/LangGraph operations
   runForecast: (params) => ipcRenderer.invoke('run-forecast', params),
   askChatbot: (question, context) => ipcRenderer.invoke('ask-chatbot', question, context),
