@@ -57,6 +57,11 @@ class ScenarioTransactionEngine {
                 name: 'Expense Change',
                 transactionTypes: ['recurring_expense'],
                 requiredParams: ['monthlyAmount', 'startDate', 'category']
+            },
+            asset_sale: {
+                name: 'Asset Sale',
+                transactionTypes: ['one_time_income'],
+                requiredParams: ['salePrice', 'saleDate']
             }
         };
     }
@@ -228,7 +233,8 @@ class ScenarioTransactionEngine {
             'Debt Payoff': 'debt_payoff',
             'Investment Strategy': 'investment_strategy',
             'Emergency Fund': 'emergency_fund',
-            'Expense Change': 'expense_change'
+            'Expense Change': 'expense_change',
+            'Asset Sale': 'asset_sale'
         };
         
         // Return mapped value if exists, otherwise convert spaces to underscores and lowercase
@@ -240,16 +246,29 @@ class ScenarioTransactionEngine {
      */
     generateTransactionsByType(scenario) {
         const normalizedType = this.normalizeScenarioType(scenario.type);
-        const methodName = `generate${normalizedType.split('_').map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)).join('')}Transactions`;
         
-        console.log(`🔍 Generating transactions for type: "${scenario.type}" -> "${normalizedType}" -> method: "${methodName}"`);
-        
-        if (typeof this[methodName] === 'function') {
-            return this[methodName](scenario);
-        } else {
-            console.warn(`⚠️ No transaction generator for scenario type: ${scenario.type} (normalized: ${normalizedType})`);
-            return this.generateGenericTransactions(scenario);
+        switch (normalizedType) {
+            case 'job_change':
+                return this.generateJobChangeTransactions(scenario);
+            case 'salary_increase':
+                return this.generateSalaryIncreaseTransactions(scenario);
+            case 'home_buying':
+                return this.generateHomeBuyingTransactions(scenario);
+            case 'major_purchase':
+                return this.generateMajorPurchaseTransactions(scenario);
+            case 'asset_sale':
+                return this.generateAssetSaleTransactions(scenario);
+            case 'investment_strategy':
+                return this.generateInvestmentStrategyTransactions(scenario);
+            case 'debt_payoff':
+                return this.generateDebtPayoffTransactions(scenario);
+            case 'emergency_fund':
+                return this.generateEmergencyFundTransactions(scenario);
+            case 'expense_change':
+                return this.generateExpenseChangeTransactions(scenario);
+            default:
+                console.warn(`⚠️ No specific transaction generator for type "${normalizedType}". Using generic generator.`);
+                return this.generateGenericTransactions(scenario);
         }
     }
 
@@ -727,6 +746,28 @@ class ScenarioTransactionEngine {
             }));
             
             currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+
+        return transactions;
+    }
+
+    /**
+     * Generate transactions for an asset sale
+     */
+    generateAssetSaleTransactions(scenario) {
+        const { salePrice, saleDate } = scenario.parameters;
+        const transactions = [];
+
+        if (salePrice && saleDate) {
+            transactions.push(this.createTransaction({
+                scenarioId: scenario.id,
+                date: saleDate,
+                description: `Sale of asset: ${scenario.name}`,
+                category: 'One-time Income',
+                amount: parseFloat(salePrice),
+                type: 'Income',
+                tags: ['asset-sale']
+            }));
         }
 
         return transactions;

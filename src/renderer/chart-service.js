@@ -461,6 +461,9 @@ class ChartService {
     
     // Data preparation methods
     prepareBalanceData(financialData, options = {}) {
+        // New: optional baselineData overlay for scenario comparison
+        const { baselineData = null, scenarioLabel = 'Scenario Projection' } = options;
+
         // Sort data by date
         const sortedData = financialData
             .filter(d => d.balance !== undefined)
@@ -476,10 +479,7 @@ class ChartService {
         if (actualData.length > 0) {
             datasets.push({
                 label: 'Actual Balance',
-                data: actualData.map(d => ({
-                    x: d.date,
-                    y: d.balance
-                })),
+                data: actualData.map(d => ({ x: d.date, y: d.balance })),
                 borderColor: this.defaultColors.primary,
                 backgroundColor: this.defaultColors.primary + '20',
                 fill: false,
@@ -487,23 +487,40 @@ class ChartService {
             });
         }
         
-        // Projected balance line
+        // Baseline projected line (if overlaying scenario)
+        if (baselineData) {
+            const baselineProjected = baselineData
+                .filter(d => d.isProjected)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (baselineProjected.length > 0) {
+                datasets.push({
+                    label: 'Baseline Projection',
+                    data: baselineProjected.map(d => ({ x: d.date, y: d.balance })),
+                    borderColor: this.defaultColors.info, // blue dashed
+                    backgroundColor: this.defaultColors.info + '20',
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointBackgroundColor: this.defaultColors.info
+                });
+            }
+        }
+        
+        // Projected balance line (current dataset – could be scenario projection)
         if (projectedData.length > 0) {
             datasets.push({
-                label: 'Projected Balance',
-                data: projectedData.map(d => ({
-                    x: d.date,
-                    y: d.balance
-                })),
-                borderColor: this.defaultColors.info,
-                backgroundColor: this.defaultColors.info + '20',
-                borderDash: [5, 5],
+                label: baselineData ? scenarioLabel : 'Projected Balance',
+                data: projectedData.map(d => ({ x: d.date, y: d.balance })),
+                borderColor: baselineData ? this.defaultColors.warning : this.defaultColors.info,
+                backgroundColor: (baselineData ? this.defaultColors.warning : this.defaultColors.info) + '20',
+                borderDash: baselineData ? [2, 2] : [5, 5],
                 fill: false,
-                pointBackgroundColor: this.defaultColors.info
+                pointBackgroundColor: baselineData ? this.defaultColors.warning : this.defaultColors.info
             });
         }
         
-        return { datasets };
+        return {
+            datasets
+        };
     }
     
     prepareCategoryData(financialData, options = {}) {

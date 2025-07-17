@@ -2174,58 +2174,126 @@ class FutureFundApp {
     getScenarioTemplates() {
         return [
             {
-                id: 'sell_car_for_debt',
-                icon: '🚗💰',
-                name: 'Sell Car for Debt Payoff',
-                description: 'Should Sampuel sell his $12,000 car to pay down credit card debt?'
+                id: 'sell-asset',
+                name: 'Sell an Asset',
+                description: 'Model the financial impact of selling an asset like a car, stocks, or property.',
+                icon: '💰',
+                type: 'asset_sale',
+                parameters: [
+                    { id: 'salePrice', name: 'Sale Price', type: 'currency', required: true, description: 'The total amount you will receive from the sale.' },
+                    { id: 'saleDate', name: 'Sale Date', type: 'date', required: true, description: 'The date you expect to receive the funds.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If selling this asset allows you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the sale proceeds.' }
+                ],
+                category: 'income'
             },
             {
-                id: 'job_change',
-                icon: '🤖💼',
-                name: 'AI Engineering Career Move',
-                description: 'Model the career change to $200k AI job in Austin'
+                id: 'major-purchase',
+                name: 'Major Purchase',
+                description: 'Model the financial impact of a major purchase like a car or home.',
+                icon: '🛒',
+                type: 'major_purchase',
+                parameters: [
+                    { id: 'totalCost', name: 'Total Cost', type: 'currency', required: true, description: 'The total cost of the purchase.' },
+                    { id: 'purchaseDate', name: 'Purchase Date', type: 'date', required: true, description: 'The date of the purchase.' },
+                    { id: 'downPayment', name: 'Down Payment', type: 'currency', required: true, description: 'The initial payment for the purchase.' },
+                    { id: 'monthlyPayment', name: 'Monthly Payment', type: 'currency', required: true, description: 'The monthly payment for the purchase.' },
+                    { id: 'loanTerm', name: 'Loan Term', type: 'number', required: true, description: 'The length of the loan in months.' },
+                    { id: 'interestRate', name: 'Interest Rate', type: 'percentage', required: true, description: 'The annual interest rate of the loan.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If this purchase allows you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the purchase.' }
+                ],
+                category: 'expense'
             },
             {
-                id: 'aggressive_debt_payoff',
-                icon: '💳⚡',
-                name: 'Aggressive Debt Elimination',
-                description: 'Pay down $20,361 in credit card debt faster'
+                id: 'job-change',
+                name: 'Job Change',
+                description: 'Model the financial impact of a career change or new job.',
+                icon: '💼',
+                type: 'job_change',
+                parameters: [
+                    { id: 'newSalary', name: 'New Salary', type: 'currency', required: true, description: 'The annual salary of the new job.' },
+                    { id: 'startDate', name: 'Start Date', type: 'date', required: true, description: 'The start date of the new job.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If the new job allows you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the new income.' }
+                ],
+                category: 'income'
             },
             {
-                id: 'emergency_vs_debt',
-                icon: '🚨💰',
-                name: 'Emergency Fund vs Debt Payoff',
-                description: 'Should Sampuel build emergency fund or pay off debt first?'
-            },
-            {
-                id: 'la_vs_austin_costs',
-                icon: '🏙️🤠',
-                name: 'LA vs Austin Cost Analysis',
-                description: 'Compare living costs between Los Angeles and Austin'
-            },
-            {
-                id: 'temp_income_gap',
-                icon: '⏰💸',
-                name: 'Career Transition Income Gap',
-                description: 'Manage finances during the job transition period'
-            },
-            {
-                id: 'debt_consolidation',
+                id: 'debt-consolidation',
+                name: 'Debt Consolidation',
+                description: 'Model the financial impact of consolidating multiple debts into a single loan.',
                 icon: '💳🔄',
-                name: 'Credit Card Consolidation',
-                description: 'Consolidate 4 credit cards into one lower-rate loan'
+                type: 'debt_consolidation',
+                parameters: [
+                    { id: 'totalDebt', name: 'Total Debt', type: 'currency', required: true, description: 'The total amount of debt to be consolidated.' },
+                    { id: 'consolidationDate', name: 'Consolidation Date', type: 'date', required: true, description: 'The date of the debt consolidation.' },
+                    { id: 'loanTerm', name: 'Loan Term', type: 'number', required: true, description: 'The length of the consolidation loan in months.' },
+                    { id: 'interestRate', name: 'Interest Rate', type: 'percentage', required: true, description: 'The annual interest rate of the consolidation loan.' },
+                    { id: 'monthlyPayment', name: 'Monthly Payment', type: 'currency', required: true, description: 'The monthly payment for the consolidation loan.' }
+                ],
+                category: 'expense'
             },
             {
-                id: 'side_hustle_income',
+                id: 'side-hustle',
+                name: 'Side Hustle',
+                description: 'Model the financial impact of starting a side hustle or additional income source.',
                 icon: '💼💪',
-                name: 'Side Hustle Income Boost',
-                description: 'Add freelance income to improve financial situation'
+                type: 'side_hustle',
+                parameters: [
+                    { id: 'monthlyIncome', name: 'Monthly Income', type: 'currency', required: true, description: 'The monthly income from the side hustle.' },
+                    { id: 'startDate', name: 'Start Date', type: 'date', required: true, description: 'The start date of the side hustle.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If the side hustle allows you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the additional income.' }
+                ],
+                category: 'income'
             },
             {
-                id: 'home_buying',
+                id: 'home-buying',
+                name: 'Home Buying',
+                description: 'Model the financial impact of buying a new home.',
                 icon: '🏠💰',
-                name: 'Smart Home Buying Analysis',
-                description: 'AI-powered home purchase planning with dynamic questions'
+                type: 'home_buying',
+                parameters: [
+                    { id: 'purchasePrice', name: 'Purchase Price', type: 'currency', required: true, description: 'The total purchase price of the home.' },
+                    { id: 'purchaseDate', name: 'Purchase Date', type: 'date', required: true, description: 'The date of the home purchase.' },
+                    { id: 'downPayment', name: 'Down Payment', type: 'currency', required: true, description: 'The initial payment for the home purchase.' },
+                    { id: 'mortgageTerm', name: 'Mortgage Term', type: 'number', required: true, description: 'The length of the mortgage in years.' },
+                    { id: 'interestRate', name: 'Interest Rate', type: 'percentage', required: true, description: 'The annual interest rate of the mortgage.' },
+                    { id: 'monthlyPayment', name: 'Monthly Payment', type: 'currency', required: true, description: 'The monthly payment for the mortgage.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If the home purchase allows you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the home purchase.' }
+                ],
+                category: 'expense'
+            },
+            {
+                id: 'retirement-planning',
+                name: 'Retirement Planning',
+                description: 'Model the financial impact of starting or increasing retirement contributions.',
+                icon: '🏠💰',
+                type: 'retirement_planning',
+                parameters: [
+                    { id: 'contributionType', name: 'Contribution Type', type: 'select', required: true, options: ['401k', 'IRA', 'Roth IRA'], description: 'The type of retirement account.' },
+                    { id: 'monthlyContribution', name: 'Monthly Contribution', type: 'currency', required: true, description: 'The monthly contribution amount.' },
+                    { id: 'startDate', name: 'Start Date', type: 'date', required: true, description: 'The start date of the retirement contributions.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If the retirement contributions allow you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the retirement contributions.' }
+                ],
+                category: 'expense'
+            },
+            {
+                id: 'emergency-fund',
+                name: 'Emergency Fund',
+                description: 'Model the financial impact of building or increasing an emergency fund.',
+                icon: '🚨💰',
+                type: 'emergency_fund',
+                parameters: [
+                    { id: 'monthlyContribution', name: 'Monthly Contribution', type: 'currency', required: true, description: 'The monthly contribution amount.' },
+                    { id: 'startDate', name: 'Start Date', type: 'date', required: true, description: 'The start date of the emergency fund contributions.' },
+                    { id: 'relatedDebtPayoff', name: 'Pay Off Related Debt?', type: 'boolean', defaultValue: false, description: 'If the emergency fund contributions allow you to pay off an associated loan.' },
+                    { id: 'debtAccountId', name: 'Debt Account', type: 'select', required: false, condition: 'relatedDebtPayoff', options: [], description: 'The loan account to pay off with the emergency fund contributions.' }
+                ],
+                category: 'expense'
             }
         ];
     }
